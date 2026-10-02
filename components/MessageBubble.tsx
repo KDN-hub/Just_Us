@@ -1,4 +1,4 @@
-import { Check, CheckCheck } from "lucide-react";
+import { Check, CheckCheck, Clock } from "lucide-react";
 
 interface MessageBubbleProps {
   content: string;
@@ -6,6 +6,7 @@ interface MessageBubbleProps {
   timestamp: string; // ISO string
   /** Only passed for own messages — drives the tick indicator. */
   status?: "sent" | "delivered" | "read";
+  queued?: boolean;
 }
 
 function formatTime(iso: string): string {
@@ -20,41 +21,44 @@ export default function MessageBubble({
   isMine,
   timestamp,
   status,
+  queued = false,
 }: MessageBubbleProps) {
   return (
     <div className={`flex flex-col ${isMine ? "items-end" : "items-start"}`}>
       <div
-        className={`max-w-[73%] px-3 py-2 text-xs leading-[1.45] text-[var(--cream)] ${
+        className={`max-w-[78%] px-4 py-2.5 text-[15px] leading-[1.5] text-[var(--cream)] ${
           isMine
-            ? "rounded-[12px_12px_3px_12px] bg-[var(--wine)]"
-            : "rounded-[12px_12px_12px_3px] bg-[var(--card)]"
+            ? "rounded-[16px_16px_4px_16px] bg-[var(--wine)]"
+            : "rounded-[16px_16px_16px_4px] bg-[var(--card)]"
         }`}
       >
         {content}
       </div>
 
       {/* Timestamp + status tick row */}
-      <div className={`mt-0.5 flex items-center gap-[3px] ${isMine ? "flex-row-reverse" : ""}`}>
-        <span className="text-[9px] text-[var(--muted)]">{formatTime(timestamp)}</span>
+      <div className={`mt-1 flex items-center gap-[4px] ${isMine ? "flex-row-reverse" : ""}`}>
+        <span className="text-[11px] text-[var(--muted)]">{formatTime(timestamp)}</span>
 
         {/* Tick indicator — only for own messages */}
         {isMine && status && (
           <>
-            {status === "read" ? (
+            {queued ? (
+              <Clock className="h-[13px] w-[13px] text-[var(--muted)]" strokeWidth={2} aria-label="Queued" />
+            ) : status === "read" ? (
               <CheckCheck
-                className="h-[10px] w-[10px] text-[#7A2C3B]"
+                className="h-[13px] w-[13px] text-[#7A2C3B]"
                 strokeWidth={2.5}
                 aria-label="Read"
               />
             ) : status === "delivered" ? (
               <CheckCheck
-                className="h-[10px] w-[10px] text-[var(--muted)]"
+                className="h-[13px] w-[13px] text-[var(--muted)]"
                 strokeWidth={2.5}
                 aria-label="Delivered"
               />
             ) : (
               <Check
-                className="h-[10px] w-[10px] text-[var(--muted)]"
+                className="h-[13px] w-[13px] text-[var(--muted)]"
                 strokeWidth={2.5}
                 aria-label="Sent"
               />

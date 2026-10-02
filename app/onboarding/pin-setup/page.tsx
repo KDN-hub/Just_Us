@@ -2,11 +2,13 @@
 
 import { useState, useCallback, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { Fingerprint } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import PinPad from "@/components/PinPad";
 import { CONVERSATION_ID, loadProfile, markSetupComplete, setLocalPin, setUnlocked } from "@/lib/auth";
+import { isBiometricsSupported, registerBiometrics } from "@/lib/biometrics";
 
-type Mode = "set" | "confirm";
+type Mode = "set" | "confirm" | "biometric";
 
 /**
  * Sets this device's PIN lock. The PIN is hashed and kept ONLY on this device —
@@ -35,6 +37,27 @@ export default function PinSetup() {
 
   const initial = userName[0]?.toUpperCase() ?? "?";
 
+  const proceedNext = useCallback(async () => {
+    const { data: conv } = await supabase
+      .from("conversation")
+      .select("together_since")
+      .eq("id", CONVERSATION_ID)
+      .maybeSingle();
+
+    if (conv?.together_since) {
+      markSetupComplete();
+      router.replace("/chat");
+    } else {
+      router.replace("/onboarding/together-since");
+    }
+  }, [router]);
+
+  const handleEnableBiometric = useCallback(async () => {
+    setSaving(true);
+    await registerBiometrics(userName);
+    await proceedNext();
+  }, [userName, proceedNext]);
+
   const handleComplete = useCallback(
     async (pin: string) => {
       if (mode === "set") {
@@ -61,21 +84,16 @@ export default function PinSetup() {
       await setLocalPin(pin);
       setUnlocked(); // they just proved who they are by signing in and choosing a PIN
 
-      // "Together since" is set once, by whichever of you onboards first
-      const { data: conv } = await supabase
-        .from("conversation")
-        .select("together_since")
-        .eq("id", CONVERSATION_ID)
-        .maybeSingle();
-
-      if (conv?.together_since) {
-        markSetupComplete();
-        router.replace("/chat");
-      } else {
-        router.replace("/onboarding/together-since");
+      const supported = await isBiometricsSupported();
+      if (supported) {
+        setSaving(false);
+        setMode("biometric");
+        return;
       }
+
+      await proceedNext();
     },
-    [mode, firstPin, router],
+    [mode, firstPin, proceedNext],
   );
 
   if (!ready) return null;
@@ -104,20 +122,54 @@ export default function PinSetup() {
           {initial}
         </div>
 
-        {/* PinPad handles label + dots + keypad */}
-        <PinPad
-          key={mode}
-          onComplete={handleComplete}
-          error={error}
-          label={mode === "set" ? "Set a 4-digit PIN" : "Confirm your PIN"}
-        />
+        {mode === "biometric" ? (
+          <div className="flex w-full flex-col items-center gap-4 py-3 text-center">
+            <div className="flex h-16 w-16 items-center justify-center rounded-full border border-[#C9A66B]/30 bg-[#C9A66B]/10">
+              <Fingerprint className="h-8 w-8 text-[#C9A66B]" strokeWidth={1.75} />
+            </div>
+            <div>
+              <h2 className="text-[17px] font-medium text-[#F5F0E8]">Enable Fast Unlock?</h2>
+              <p className="mt-1 max-w-[270px] text-[13px] leading-relaxed text-[#8A8177]">
+                Use Face ID or fingerprint to unlock Just Us instantly without typing your PIN every time.
+              </p>
+            </div>
+            <div className="mt-2 flex w-full flex-col gap-2.5">
+              <button
+                type="button"
+                onClick={handleEnableBiometric}
+                disabled={saving}
+                className="w-full rounded-[14px] bg-[#7A2C3B] py-3.5 text-[14px] font-medium text-[#F5F0E8] transition-opacity active:opacity-80 disabled:opacity-50"
+              >
+                {saving ? "Setting up..." : "Enable Face ID / Fingerprint"}
+              </button>
+              <button
+                type="button"
+                onClick={proceedNext}
+                disabled={saving}
+                className="w-full py-2.5 text-[13px] text-[#8A8177] transition-colors active:text-[#F5F0E8]"
+              >
+                Skip for now
+              </button>
+            </div>
+          </div>
+        ) : (
+          <>
+            {/* PinPad handles label + dots + keypad */}
+            <PinPad
+              key={mode}
+              onComplete={handleComplete}
+              error={error}
+              label={mode === "set" ? "Set a 4-digit PIN" : "Confirm your PIN"}
+            />
 
-        {errorMsg && (
-          <p className="text-[12px] text-red-400">{errorMsg}</p>
-        )}
+            {errorMsg && (
+              <p className="text-[12px] text-red-400">{errorMsg}</p>
+            )}
 
-        {saving && (
-          <p className="text-[12px] text-[#8A8177]">Saving your PIN…</p>
+            {saving && (
+              <p className="text-[12px] text-[#8A8177]">Saving your PIN…</p>
+            )}
+          </>
         )}
       </div>
     </main>

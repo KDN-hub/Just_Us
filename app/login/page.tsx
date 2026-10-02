@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import PinPad from "@/components/PinPad";
@@ -13,6 +13,11 @@ import {
   signOutAndWipe,
   verifyLocalPin,
 } from "@/lib/auth";
+import {
+  authenticateBiometrics,
+  isBiometricsEnabled,
+  isBiometricsSupported,
+} from "@/lib/biometrics";
 
 export default function Login() {
   const router = useRouter();
@@ -22,6 +27,8 @@ export default function Login() {
   const [ready, setReady] = useState(false);
   const [userName, setUserName] = useState("?");
   const [avatarColor, setAvatarColor] = useState("#7A2C3B");
+  const [bioAvailable, setBioAvailable] = useState(false);
+  const autoPromptedRef = useRef(false);
 
   // ── Guard: needs a real session; a device without a PIN must set one first ──
   useEffect(() => {
@@ -67,6 +74,45 @@ export default function Login() {
     [router],
   );
 
+  // ── Biometrics check & fast-path prompt ──────────────────────────────────
+  useEffect(() => {
+    if (!ready) return;
+    if (!isBiometricsEnabled()) return;
+
+    let active = true;
+    isBiometricsSupported().then((supported) => {
+      if (active && supported) {
+        setBioAvailable(true);
+      }
+    });
+
+    return () => {
+      active = false;
+    };
+  }, [ready]);
+
+  const handleBiometrics = useCallback(async () => {
+    const result = await authenticateBiometrics();
+    if (result.ok) {
+      setUnlocked();
+      router.replace("/chat");
+      return;
+    }
+    if (result.error && !result.cancelled) {
+      setErrorMsg(result.error);
+      setTimeout(() => setErrorMsg(""), 2000);
+    }
+  }, [router]);
+
+  useEffect(() => {
+    if (!bioAvailable || autoPromptedRef.current) return;
+    autoPromptedRef.current = true;
+    const timer = setTimeout(() => {
+      handleBiometrics();
+    }, 250);
+    return () => clearTimeout(timer);
+  }, [bioAvailable, handleBiometrics]);
+
   // ── PIN verification (local only) ─────────────────────────────────────────
   const handlePinComplete = useCallback(
     async (pin: string) => {
@@ -102,26 +148,26 @@ export default function Login() {
       }}
     >
       {/* Top — together counter */}
-      <div className="flex flex-1 flex-col items-center justify-center gap-1.5 px-4">
-        <p className="text-[10px] font-medium uppercase tracking-[0.08em] text-[#C9A66B]">
+      <div className="flex flex-1 flex-col items-center justify-center gap-2 px-4">
+        <p className="text-[12px] font-medium uppercase tracking-[0.08em] text-[#C9A66B]">
           Together for
         </p>
         <p
-          className="text-[32px] font-normal leading-none text-[#F5F0E8]"
+          className="text-[42px] font-normal leading-none text-[#F5F0E8]"
           style={{ fontFamily: "var(--font-fraunces), serif" }}
         >
           {dayCount !== null ? `Day ${dayCount}` : "—"}{" "}
-          <span aria-hidden className="text-[28px]">
+          <span aria-hidden className="text-[36px]">
             🤍
           </span>
         </p>
       </div>
 
       {/* Bottom sheet */}
-      <div className="relative z-10 flex flex-col items-center gap-4 rounded-t-[22px] bg-[#26221E] px-4 pb-8 pt-5">
+      <div className="relative z-10 flex flex-col items-center gap-5 rounded-t-[22px] bg-[#26221E] px-4 pb-10 pt-6">
         {/* Avatar */}
         <div
-          className="flex h-[42px] w-[42px] items-center justify-center rounded-full text-[15px] font-semibold text-[#F5F0E8]"
+          className="flex h-[52px] w-[52px] items-center justify-center rounded-full text-[18px] font-semibold text-[#F5F0E8]"
           style={{ backgroundColor: avatarColor }}
         >
           {initial}
@@ -131,16 +177,18 @@ export default function Login() {
           onComplete={handlePinComplete}
           error={pinError}
           label="Enter PIN"
+          showBiometric={bioAvailable}
+          onBiometric={handleBiometrics}
         />
 
         {errorMsg && (
-          <p className="text-[12px] text-red-400">{errorMsg}</p>
+          <p className="text-[14px] text-red-400">{errorMsg}</p>
         )}
 
         <button
           type="button"
           onClick={() => failSignOut("Sign in again to set a new PIN.")}
-          className="text-[12px] text-[#8A8177] underline-offset-2 active:underline"
+          className="text-[14px] text-[#8A8177] underline-offset-2 active:underline"
         >
           Forgot PIN?
         </button>

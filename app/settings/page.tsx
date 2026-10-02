@@ -1,10 +1,16 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, KeyRound, LogOut } from "lucide-react";
+import { ArrowLeft, KeyRound, LogOut, Fingerprint } from "lucide-react";
 import PinPad from "@/components/PinPad";
 import { setLocalPin, signOutAndWipe, verifyLocalPin, setSignInNotice } from "@/lib/auth";
+import {
+  isBiometricsSupported,
+  isBiometricsEnabled,
+  registerBiometrics,
+  disableBiometrics,
+} from "@/lib/biometrics";
 
 type Step = "menu" | "old" | "new" | "confirm";
 
@@ -21,6 +27,44 @@ export default function Settings() {
   const [error, setError] = useState(false);
   const [message, setMessage] = useState("");
   const [done, setDone] = useState(false);
+  const [bioSupported, setBioSupported] = useState(false);
+  const [bioEnabled, setBioEnabled] = useState(false);
+  const [bioLoading, setBioLoading] = useState(false);
+  const [bioMsg, setBioMsg] = useState("");
+
+  useEffect(() => {
+    isBiometricsSupported().then((supported) => {
+      setBioSupported(supported);
+      if (supported) {
+        setBioEnabled(isBiometricsEnabled());
+      }
+    });
+  }, []);
+
+  const handleToggleBiometrics = async () => {
+    if (bioLoading) return;
+    if (bioEnabled) {
+      disableBiometrics();
+      setBioEnabled(false);
+      setBioMsg("Biometrics disabled.");
+      setTimeout(() => setBioMsg(""), 2000);
+      return;
+    }
+
+    setBioLoading(true);
+    const userName = (typeof window !== "undefined" ? localStorage.getItem("user_name") : null) ?? "User";
+    const res = await registerBiometrics(userName);
+    setBioLoading(false);
+
+    if (res.ok) {
+      setBioEnabled(true);
+      setBioMsg("Face ID / Fingerprint enabled!");
+      setTimeout(() => setBioMsg(""), 2500);
+    } else if (res.error) {
+      setBioMsg(res.error);
+      setTimeout(() => setBioMsg(""), 3000);
+    }
+  };
 
   const flashError = (msg: string, then?: () => void) => {
     setError(true);
@@ -98,6 +142,48 @@ export default function Settings() {
               <p className="text-[11px] text-[var(--muted)]">The 4-digit code that unlocks Just Us on this device</p>
             </div>
           </button>
+
+          {bioSupported && (
+            <button
+              onClick={handleToggleBiometrics}
+              disabled={bioLoading}
+              className="flex items-center justify-between rounded-[12px] border border-[var(--border)] bg-[var(--card)] px-4 py-3.5 text-left transition-opacity active:opacity-80"
+            >
+              <div className="flex items-center gap-3">
+                <Fingerprint
+                  className={`h-4 w-4 ${bioEnabled ? "text-[var(--gold)]" : "text-[var(--muted)]"}`}
+                  strokeWidth={2}
+                />
+                <div>
+                  <p className="text-[13px] text-[var(--cream)]">Face ID / Fingerprint</p>
+                  <p className="text-[11px] text-[var(--muted)]">
+                    {bioLoading
+                      ? "Verifying biometric..."
+                      : bioEnabled
+                      ? "Fast biometric unlock enabled"
+                      : "Tap to enable biometric unlock"}
+                  </p>
+                </div>
+              </div>
+              <div
+                className={`relative h-6 w-11 rounded-full transition-colors ${
+                  bioEnabled ? "bg-[var(--gold)]" : "bg-[#3A342E]"
+                }`}
+              >
+                <span
+                  className={`absolute top-0.5 h-5 w-5 rounded-full bg-white transition-all ${
+                    bioEnabled ? "left-[22px]" : "left-0.5"
+                  }`}
+                />
+              </div>
+            </button>
+          )}
+
+          {bioMsg && (
+            <p className="rounded-[10px] bg-white/5 px-3 py-2 text-[12px] text-[var(--cream)]">
+              {bioMsg}
+            </p>
+          )}
 
           <button
             onClick={handleSignOut}

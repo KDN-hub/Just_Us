@@ -123,6 +123,7 @@ export async function signOutAndWipe(): Promise<void> {
   await supabase.auth.signOut({ scope: "local" });
   [
     PIN_HASH_KEY, PIN_FAILS_KEY,
+    "biometric_enabled", "biometric_credential_id",
     "user_id", "user_name", "avatar_color", "setup_complete",
     "partner_id", "partner_name", "partner_color",
   ].forEach((k) => localStorage.removeItem(k));

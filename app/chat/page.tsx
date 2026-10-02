@@ -23,6 +23,8 @@ interface Message {
   created_at: string;
   /** Optimistic message not yet confirmed by the server (its created_at is a local placeholder). */
   pending?: boolean;
+  /** Message composed while offline — will be sent when connection restores. */
+  queued?: boolean;
 }
 
 interface CallLogEntry {
@@ -58,6 +60,25 @@ interface IncomingCall {
 
 const CONVERSATION_ID = "c0000000-0000-0000-0000-000000000003";
 const SIGNAL_CHANNEL  = `call-signal-${CONVERSATION_ID}`;
+
+const MSG_CACHE_KEY = `msg_cache_${CONVERSATION_ID}`;
+const MSG_CACHE_LIMIT = 100;
+
+function loadMsgCache(): Message[] {
+  try {
+    const raw = typeof window !== 'undefined' ? localStorage.getItem(MSG_CACHE_KEY) : null;
+    return raw ? (JSON.parse(raw) as Message[]) : [];
+  } catch { return []; }
+}
+
+function saveMsgCache(msgs: Message[]): void {
+  try {
+    const toSave = msgs.filter(m => !m.pending && !m.queued).slice(-MSG_CACHE_LIMIT);
+    localStorage.setItem(MSG_CACHE_KEY, JSON.stringify(toSave));
+  } catch {}
+}
+
+
 
 const STATUS_RANK: Record<MessageStatus, number> = { sent: 0, delivered: 1, read: 2 };
 
@@ -98,6 +119,9 @@ export default function Chat() {
   const inputRef  = useRef<HTMLInputElement>(null);
   const signalChRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
   const prevCountRef = useRef(0);
+  // Tracks whether we've ever had a successful realtime connection —
+  // prevents "Reconnecting…" from flashing on the very first page load.
+  const hasConnectedRef = useRef(false);
 
   // ── Identity ─────────────────────────────────────────────────────────────
   const [myId] = useState<string>(
@@ -105,13 +129,35 @@ export default function Chat() {
   );
 
   // ── Data state ────────────────────────────────────────────────────────────
-  const [partner,      setPartner]      = useState<UserRow | null>(null);
+  // Pre-seed partner from localStorage so the header renders instantly on mount
+  // (no blank-screen flash). The network fetch in bootstrap() will overwrite
+  // this with fresh data as soon as it resolves.
+  const [partner, setPartner] = useState<UserRow | null>(() => {
+    if (typeof window === "undefined") return null;
+    const id    = localStorage.getItem("partner_id");
+    const name  = localStorage.getItem("partner_name");
+    const color = localStorage.getItem("partner_color");
+    if (!id || !name) return null;
+    return {
+      id,
+      name,
+      nickname: name,
+      avatar_color: color,
+      is_online: false,
+      last_seen: null,
+    };
+  });
 
-  const [messages,     setMessages]     = useState<Message[]>([]);
+  const [messages, setMessages] = useState<Message[]>(
+    () => typeof window !== 'undefined' ? loadMsgCache() : []
+  );
   const [callLog,      setCallLog]      = useState<CallLogEntry[]>([]);
   const [draft,        setDraft]        = useState("");
   const [incomingCall, setIncomingCall] = useState<IncomingCall | null>(null);
   const [reconnecting, setReconnecting] = useState(false);
+  const [isOnline, setIsOnline] = useState<boolean>(
+    () => typeof window !== 'undefined' ? navigator.onLine : true
+  );
   // Drives the live "Last seen X minutes ago" label (local clock tick only — no network)
   const [now,          setNow]          = useState<number>(() => Date.now());
 
@@ -126,6 +172,20 @@ export default function Chat() {
     const id = setInterval(() => setNow(Date.now()), 60_000);
     return () => clearInterval(id);
   }, []);
+
+  // ── Online / offline detection ────────────────────────────────────────────
+  useEffect(() => {
+    const goOnline = () => setIsOnline(true);
+    const goOffline = () => setIsOnline(false);
+    window.addEventListener('online', goOnline);
+    window.addEventListener('offline', goOffline);
+    return () => {
+      window.removeEventListener('online', goOnline);
+      window.removeEventListener('offline', goOffline);
+    };
+  }, []);
+
+
 
   // ── My own presence ───────────────────────────────────────────────────────
   useEffect(() => {
@@ -240,7 +300,9 @@ export default function Chat() {
             const existing = byId.get(m.id);
             byId.set(m.id, existing ? { ...m, status: higherStatus(existing.status, m.status) } : m);
           }
-          return Array.from(byId.values());
+          const next = Array.from(byId.values());
+          saveMsgCache(next);
+          return next;
         });
       }
 
@@ -271,16 +333,19 @@ export default function Chat() {
     };
 
     async function bootstrap() {
-      // Only the partner id is needed before subscribing (for the users filter).
-      const { data: conv } = await supabase
-        .from("conversation")
-        .select("user_a_id, user_b_id")
-        .eq("id", CONVERSATION_ID)
-        .single();
+      // Use cached partner_id to avoid a blocking network round-trip on every mount.
+      // Falls back to a DB lookup only if the cache is missing (first-ever load).
+      partnerId = localStorage.getItem("partner_id");
 
-      if (cancelled || !conv) return;
-
-      partnerId = conv.user_a_id === myId ? conv.user_b_id : conv.user_a_id;
+      if (!partnerId) {
+        const { data: conv } = await supabase
+          .from("conversation")
+          .select("user_a_id, user_b_id")
+          .eq("id", CONVERSATION_ID)
+          .single();
+        if (cancelled || !conv) return;
+        partnerId = conv.user_a_id === myId ? conv.user_b_id : conv.user_a_id;
+      }
 
 
       channel = supabase
@@ -375,17 +440,18 @@ export default function Chat() {
         .subscribe((status, err) => {
           if (cancelled) return;
           if (status === "SUBSCRIBED") {
+            hasConnectedRef.current = true;
             setReconnecting(false);
             resync();
           } else if (status === "CHANNEL_ERROR") {
             console.error("[chat] Realtime CHANNEL_ERROR — will retry automatically.", err ?? "");
-            setReconnecting(true);
+            if (hasConnectedRef.current) setReconnecting(true);
           } else if (status === "TIMED_OUT") {
             console.warn("[chat] Realtime subscription timed out — will retry automatically.");
-            setReconnecting(true);
+            if (hasConnectedRef.current) setReconnecting(true);
           } else if (status === "CLOSED") {
             console.warn("[chat] Realtime channel closed.");
-            setReconnecting(true);
+            if (hasConnectedRef.current) setReconnecting(true);
           }
         });
     }
@@ -439,50 +505,82 @@ export default function Chat() {
     prevCountRef.current = count;
   }, [messages.length, callLog.length]);
 
+  // ── Drain offline queue when connection restores ───────────────────────────
+  useEffect(() => {
+    if (!isOnline) return;
+    setMessages((prev) => {
+      const queued = prev.filter((m) => m.queued && m.sender_id === myId);
+      if (queued.length === 0) return prev;
+      // Fire-and-forget: send each queued message
+      queued.forEach(async (msg) => {
+        const { error } = await supabase
+          .from('messages')
+          .insert({
+            id: msg.id,
+            conversation_id: CONVERSATION_ID,
+            sender_id: myId,
+            type: 'text',
+            content: msg.content,
+            status: 'sent',
+          })
+          .select('id')
+          .single();
+        if (!error) {
+          setMessages((p) => p.map((m) => m.id === msg.id ? { ...m, queued: false, pending: true } : m));
+        }
+      });
+      return prev;
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOnline, myId]);
+
+
+
   // ── Send message (optimistic UI) ──────────────────────────────────────────
   const handleSend = useCallback(async () => {
     const text = draft.trim();
     if (!text) return;
 
-    setDraft("");
+    setDraft('');
 
     const tempId = generateUUID();
+    const offline = !navigator.onLine;
 
-    // The local timestamp is only a placeholder. Device clocks differ, so ordering must
-    // come from the database's now(); `pending` keeps this message last until it arrives.
     setMessages((prev) => [
       ...prev,
       {
         id: tempId,
         sender_id: myId,
         content: text,
-        type: "text",
-        status: "sent",
+        type: 'text',
+        status: 'sent',
         created_at: new Date().toISOString(),
         pending: true,
+        queued: offline,
       },
     ]);
     inputRef.current?.focus();
 
-    // Same id as the optimistic row, so the realtime INSERT echo is de-duplicated.
-    // created_at is deliberately NOT sent: the column default (now()) stamps it server-side.
+    // If offline, the drain effect will send it when connection restores
+    if (offline) return;
+
     const { data, error } = await supabase
-      .from("messages")
+      .from('messages')
       .insert({
         id: tempId,
         conversation_id: CONVERSATION_ID,
         sender_id: myId,
-        type: "text",
+        type: 'text',
         content: text,
-        status: "sent",
+        status: 'sent',
       })
-      .select("created_at")
+      .select('created_at')
       .single();
 
     if (error) {
-      console.error("[chat] send failed:", error.message);
-      setMessages((prev) => prev.filter((m) => m.id !== tempId));
-      setDraft((d) => d || text);
+      console.error('[chat] send failed:', error.message);
+      // Keep message in chat as queued rather than losing it
+      setMessages((prev) => prev.map((m) => m.id === tempId ? { ...m, queued: true } : m));
     } else if (data) {
       setMessages((prev) =>
         prev.map((m) => (m.id === tempId ? { ...m, created_at: data.created_at, pending: false } : m)),
@@ -530,13 +628,13 @@ export default function Chat() {
       {/* ── Incoming call overlay ───────────────────────────────────────── */}
       {incomingCall && (
         <div className="absolute inset-x-0 top-0 z-50 mx-auto max-w-md">
-          <div className="m-3 flex items-center gap-3 rounded-[16px] bg-[var(--card)] px-4 py-4 shadow-xl ring-1 ring-white/10">
-            <Avatar initial={partnerInitial} color={partnerColor} size={42} />
+          <div className="m-3 flex items-center gap-3.5 rounded-[16px] bg-[var(--card)] px-4 py-4 shadow-xl ring-1 ring-white/10">
+            <Avatar initial={partnerInitial} color={partnerColor} size={46} />
             <div className="flex-1">
-              <p className="text-[13px] font-medium text-[var(--cream)]">
+              <p className="text-[15px] font-semibold text-[var(--cream)]">
                 {partnerDisplay}
               </p>
-              <p className="text-[11px] text-[var(--muted)]">
+              <p className="text-[13px] text-[var(--muted)]">
                 Incoming {incomingCall.callType} call…
               </p>
             </div>
@@ -544,45 +642,57 @@ export default function Chat() {
             <button
               onClick={handleDeclineCall}
               aria-label="Decline"
-              className="flex h-10 w-10 items-center justify-center rounded-full bg-red-700/80 text-white"
+              className="flex h-11 w-11 items-center justify-center rounded-full bg-red-700/80 text-white"
             >
-              <PhoneOff className="h-4 w-4" strokeWidth={2} />
+              <PhoneOff className="h-5 w-5" strokeWidth={2} />
             </button>
             {/* Accept */}
             <button
               onClick={handleAcceptCall}
               aria-label="Accept"
-              className="flex h-10 w-10 items-center justify-center rounded-full bg-[#4C7A5B] text-white"
+              className="flex h-11 w-11 items-center justify-center rounded-full bg-[#4C7A5B] text-white"
             >
-              <PhoneIncoming className="h-4 w-4" strokeWidth={2} />
+              <PhoneIncoming className="h-5 w-5" strokeWidth={2} />
             </button>
           </div>
         </div>
       )}
 
-      {/* ── Header ─────────────────────────────────────────────────────── */}
-      <header className="shrink-0 flex items-center gap-[9px] border-b border-[var(--border)] bg-[var(--surface)] px-3.5 py-3">
+      {/* ── Offline banner (WhatsApp-style) ───────────────────────────── */}
+      {!isOnline && (
+        <div className="flex shrink-0 items-center justify-center gap-2 bg-[#5C4A10] px-4 py-2">
+          <span className="h-2 w-2 animate-pulse rounded-full bg-[#F5C842]" />
+          <span className="text-[13px] font-medium text-[#F5C842]">Waiting for network…</span>
+        </div>
+      )}
 
-        <Avatar initial={partnerInitial} color={partnerColor} size={34} />
+      {/* ── Header ─────────────────────────────────────────────────────── */}
+      <header className="shrink-0 flex items-center gap-3 border-b border-[var(--border)] bg-[var(--surface)] px-4 py-3.5">
+
+        <Avatar initial={partnerInitial} color={partnerColor} size={42} />
 
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-1.5">
-            <span className="text-[13px] font-medium text-[var(--cream)]">
+            <span className="text-[16px] font-semibold text-[var(--cream)]">
               {partnerDisplay}
             </span>
           </div>
-          <div className="mt-0.5 flex items-center gap-1">
-            {reconnecting ? (
-              <span className="text-[10px] italic text-[var(--muted)]" role="status">
-                Reconnecting...
+          <div className="mt-0.5 flex items-center gap-1.5">
+            {!isOnline ? (
+              <span className="text-[12px] italic text-[#F5C842]" role="status">
+                No network
+              </span>
+            ) : reconnecting ? (
+              <span className="text-[12px] italic text-[var(--muted)]" role="status">
+                Connecting…
               </span>
             ) : partner?.is_online ? (
               <>
-                <span className="h-1.5 w-1.5 rounded-full bg-[#4C7A5B]" />
-                <span className="text-[10px] text-[#4C7A5B]">Online</span>
+                <span className="h-2 w-2 rounded-full bg-[#4C7A5B]" />
+                <span className="text-[12px] text-[#4C7A5B]">Online</span>
               </>
             ) : (
-              <span className="text-[10px] text-[var(--muted)]">
+              <span className="text-[12px] text-[var(--muted)]">
                 {formatLastSeen(partner?.last_seen ?? null, now)}
               </span>
             )}
@@ -592,30 +702,30 @@ export default function Chat() {
         <Link
           href="/settings"
           aria-label="Settings"
-          className="flex h-[30px] w-[30px] items-center justify-center rounded-full text-[var(--muted)]"
+          className="flex h-9 w-9 items-center justify-center rounded-full text-[var(--muted)]"
         >
-          <Settings className="h-[14px] w-[14px]" strokeWidth={2} />
+          <Settings className="h-[18px] w-[18px]" strokeWidth={2} />
         </Link>
         <Link
           href="/call?type=voice"
           aria-label="Voice call"
-          className="flex h-[30px] w-[30px] items-center justify-center rounded-full border border-[var(--border)] bg-[var(--surface)] text-[var(--muted)]"
+          className="flex h-9 w-9 items-center justify-center rounded-full border border-[var(--border)] bg-[var(--surface)] text-[var(--muted)]"
         >
-          <Phone className="h-[13px] w-[13px]" strokeWidth={2} />
+          <Phone className="h-[17px] w-[17px]" strokeWidth={2} />
         </Link>
         <Link
           href="/call?type=video"
           aria-label="Video call"
-          className="flex h-[30px] w-[30px] items-center justify-center rounded-full border border-[var(--border)] bg-[var(--surface)] text-[var(--muted)]"
+          className="flex h-9 w-9 items-center justify-center rounded-full border border-[var(--border)] bg-[var(--surface)] text-[var(--muted)]"
         >
-          <Video className="h-3.5 w-3.5" strokeWidth={2} />
+          <Video className="h-[17px] w-[17px]" strokeWidth={2} />
         </Link>
       </header>
 
       {/* ── Timeline (messages + call log) ──────────────────────────────── */}
-      <div className="flex flex-1 min-h-0 flex-col gap-[9px] overflow-y-auto px-3 py-3.5">
+      <div className="flex flex-1 min-h-0 flex-col gap-3 overflow-y-auto px-4 py-4">
         {timeline.length === 0 && (
-          <p className="mx-auto mt-10 text-[12px] text-[var(--muted)]">Say something 💬</p>
+          <p className="mx-auto mt-10 text-[14px] text-[var(--muted)]">Say something 💬</p>
         )}
 
         {timeline.map((item) =>
@@ -626,6 +736,7 @@ export default function Chat() {
               isMine={item.data.sender_id === myId}
               timestamp={item.data.created_at}
               status={item.data.sender_id === myId ? item.data.status : undefined}
+              queued={item.data.queued}
             />
           ) : (
             <CallBubble
@@ -643,7 +754,7 @@ export default function Chat() {
       </div>
 
       {/* ── Input bar ───────────────────────────────────────────────────── */}
-      <div className="shrink-0 flex items-center gap-[7px] border-t border-[var(--border)] bg-[var(--surface)] px-[11px] py-[9px]">
+      <div className="shrink-0 flex items-center gap-2.5 border-t border-[var(--border)] bg-[var(--surface)] px-3.5 py-3">
         <input
           ref={inputRef}
           type="text"
@@ -652,16 +763,16 @@ export default function Chat() {
           onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && handleSend()}
           placeholder="Message…"
           autoComplete="off"
-          className="flex-1 rounded-[20px] border border-[var(--border)] bg-[var(--card)] px-3 py-2 text-xs text-[var(--cream)] outline-none placeholder:text-[var(--muted)] focus:border-[var(--wine)]"
+          className="flex-1 rounded-[22px] border border-[var(--border)] bg-[var(--card)] px-4 py-2.5 text-[15px] text-[var(--cream)] outline-none placeholder:text-[var(--muted)] focus:border-[var(--wine)]"
         />
         <button
           type="button"
           onClick={handleSend}
           disabled={!draft.trim()}
           aria-label="Send"
-          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[var(--wine)] text-[var(--cream)] transition-opacity disabled:opacity-40"
+          className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-[var(--cream)] transition-all disabled:opacity-40 ${!isOnline ? 'bg-[var(--muted)]' : 'bg-[var(--wine)]'}`}
         >
-          <Send className="h-[13px] w-[13px]" strokeWidth={2} />
+          <Send className="h-[17px] w-[17px]" strokeWidth={2} />
         </button>
       </div>
     </main>
