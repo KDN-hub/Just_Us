@@ -10,7 +10,7 @@ interface MessageBubbleProps {
 
 function formatTime(iso: string): string {
   return new Date(iso).toLocaleTimeString([], {
-    hour: "2-digit",
+    hour: "numeric",
     minute: "2-digit",
   });
 }

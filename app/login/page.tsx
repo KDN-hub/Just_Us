@@ -130,7 +130,7 @@ export default function Login() {
         <PinPad
           onComplete={handlePinComplete}
           error={pinError}
-          label="Enter your PIN"
+          label="Enter PIN"
         />
 
         {errorMsg && (

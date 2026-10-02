@@ -90,7 +90,7 @@ export default function PinSetup() {
       {/* Top — step indicator */}
       <div className="flex flex-1 items-center justify-center">
         <p className="text-[10px] font-medium uppercase tracking-[0.08em] text-[#C9A66B]">
-          Step 2 of 3
+          Onboarding
         </p>
       </div>
 
@@ -109,7 +109,7 @@ export default function PinSetup() {
           key={mode}
           onComplete={handleComplete}
           error={error}
-          label={mode === "set" ? "Set a 4-digit PIN for this device" : "Confirm your PIN"}
+          label={mode === "set" ? "Set a 4-digit PIN" : "Confirm your PIN"}
         />
 
         {errorMsg && (

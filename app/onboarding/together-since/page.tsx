@@ -54,7 +54,7 @@ export default function TogetherSince() {
       {/* Top — step indicator */}
       <div className="flex flex-1 items-center justify-center">
         <p className="text-[10px] font-medium uppercase tracking-[0.08em] text-[#C9A66B]">
-          Step 3 of 3
+          Onboarding
         </p>
       </div>
 

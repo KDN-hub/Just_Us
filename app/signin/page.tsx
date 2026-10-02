@@ -62,7 +62,7 @@ export default function SignIn() {
     // New sign-in = new local PIN for this device
     clearLocalPin();
     lockApp();
-    router.replace("/onboarding/pin-setup");
+    router.replace("/onboarding/profile");
   }
 
   if (checking) return null;
@@ -74,7 +74,7 @@ export default function SignIn() {
     >
       <div className="flex flex-1 flex-col items-center justify-center gap-1.5 px-6 text-center">
         <p className="text-[10px] font-medium uppercase tracking-[0.08em] text-[#C9A66B]">
-          Step 1 of 3
+          Onboarding
         </p>
         <p
           className="text-[26px] leading-tight text-[#F5F0E8]"

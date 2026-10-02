@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Phone, Video, Send, ArrowLeft, PhoneIncoming, PhoneOff, Settings } from "lucide-react";
+import { Phone, Video, Send, PhoneIncoming, PhoneOff, Settings } from "lucide-react";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase";
 import Avatar from "@/components/Avatar";
@@ -106,7 +106,7 @@ export default function Chat() {
 
   // ── Data state ────────────────────────────────────────────────────────────
   const [partner,      setPartner]      = useState<UserRow | null>(null);
-  const [dayCount,     setDayCount]     = useState<number | null>(null);
+
   const [messages,     setMessages]     = useState<Message[]>([]);
   const [callLog,      setCallLog]      = useState<CallLogEntry[]>([]);
   const [draft,        setDraft]        = useState("");
@@ -274,7 +274,7 @@ export default function Chat() {
       // Only the partner id is needed before subscribing (for the users filter).
       const { data: conv } = await supabase
         .from("conversation")
-        .select("user_a_id, user_b_id, together_since")
+        .select("user_a_id, user_b_id")
         .eq("id", CONVERSATION_ID)
         .single();
 
@@ -282,11 +282,6 @@ export default function Chat() {
 
       partnerId = conv.user_a_id === myId ? conv.user_b_id : conv.user_a_id;
 
-      if (conv.together_since) {
-        setDayCount(
-          Math.floor((Date.now() - new Date(conv.together_since).getTime()) / 86_400_000),
-        );
-      }
 
       channel = supabase
         .channel(`db-sync-${CONVERSATION_ID}`)
@@ -567,13 +562,6 @@ export default function Chat() {
 
       {/* ── Header ─────────────────────────────────────────────────────── */}
       <header className="shrink-0 flex items-center gap-[9px] border-b border-[var(--border)] bg-[var(--surface)] px-3.5 py-3">
-        <button
-          onClick={() => router.back()}
-          aria-label="Back"
-          className="mr-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[var(--muted)]"
-        >
-          <ArrowLeft className="h-4 w-4" strokeWidth={2} />
-        </button>
 
         <Avatar initial={partnerInitial} color={partnerColor} size={34} />
 
@@ -582,9 +570,6 @@ export default function Chat() {
             <span className="text-[13px] font-medium text-[var(--cream)]">
               {partnerDisplay}
             </span>
-            {dayCount !== null && (
-              <span className="text-[10px] text-[var(--gold)]">· Day {dayCount}</span>
-            )}
           </div>
           <div className="mt-0.5 flex items-center gap-1">
             {reconnecting ? (

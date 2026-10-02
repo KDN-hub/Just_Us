@@ -29,6 +29,8 @@ export const metadata: Metadata = {
     statusBarStyle: "black-translucent",
     title: "Just Us",
   },
+  // Chrome deprecated apple-mobile-web-app-capable alone; it wants the standard tag too
+  other: { "mobile-web-app-capable": "yes" },
 };
 
 export const viewport: Viewport = {
