@@ -26,43 +26,29 @@ const RECONNECT_RETRY_MS   = 5_000;  // ICE-restart attempts while the link is d
 const RECONNECT_GRACE_MS   = 20_000; // give up and end the call after this long
 
 /**
- * TODO(security): the TURN password is a NEXT_PUBLIC_ var, so it ships to every browser,
- * and the current one was pasted into a chat. Rotate it in coturn + .env.local and
- * consider short-lived credentials from a server endpoint.
- *
- * STUN is free/public. TURN is required for calls to connect across strict NATs
- * and mobile carriers — set these env vars once the coturn server is running:
- *   NEXT_PUBLIC_TURN_URL        e.g. "turn:1.2.3.4:3478" (comma-separate to add turns:/tcp variants)
- *   NEXT_PUBLIC_TURN_USERNAME
- *   NEXT_PUBLIC_TURN_CREDENTIAL
+ * Securely fetch TURN credentials from the server API.
+ * Falls back to public STUN servers if the request fails.
  */
-function buildIceServers(): RTCIceServer[] {
-  const servers: RTCIceServer[] = [
+async function getIceServers(): Promise<RTCIceServer[]> {
+  const defaultServers: RTCIceServer[] = [
     { urls: "stun:stun.l.google.com:19302" },
     { urls: "stun:stun1.l.google.com:19302" },
   ];
-  const turnUrl      = process.env.NEXT_PUBLIC_TURN_URL?.trim();
-  const turnUsername = process.env.NEXT_PUBLIC_TURN_USERNAME?.trim();
-  // Accept either name for the secret (NEXT_PUBLIC_ vars must be referenced literally to be inlined)
-  const turnPassword =
-    (process.env.NEXT_PUBLIC_TURN_CREDENTIAL ?? process.env.NEXT_PUBLIC_TURN_PASSWORD)?.trim();
-
-  // Browsers throw InvalidAccessError (and the call crashes) if a turn:/turns: URL
-  // is given without BOTH username and credential, so only add it when complete.
-  if (turnUrl && turnUsername && turnPassword) {
-    servers.push({
-      urls: turnUrl.split(",").map((u) => u.trim()),
-      username: turnUsername,
-      credential: turnPassword,
-    });
-  } else if (turnUrl) {
-    console.warn(
-      "[call] NEXT_PUBLIC_TURN_URL is set but NEXT_PUBLIC_TURN_USERNAME / NEXT_PUBLIC_TURN_CREDENTIAL (or _PASSWORD) are missing — TURN disabled.",
-    );
-  } else {
-    console.warn("[call] No TURN server configured. Calls may fail across strict NATs / mobile data.");
+  try {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session) {
+      const res = await fetch("/api/turn", {
+        headers: { Authorization: `Bearer ${session.access_token}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.iceServers) return data.iceServers;
+      }
+    }
+  } catch (e) {
+    console.warn("[call] Failed to fetch secure TURN servers, falling back to STUN only", e);
   }
-  return servers;
+  return defaultServers;
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -235,7 +221,7 @@ function CallScreen() {
       setStatus(isCallee ? "receiving" : "calling");
 
       // 2. Create peer connection
-      const pc = new RTCPeerConnection({ iceServers: buildIceServers() });
+      const pc = new RTCPeerConnection({ iceServers: await getIceServers() });
       pcRef.current = pc;
 
       // Attach local tracks
