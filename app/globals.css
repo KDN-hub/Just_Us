@@ -1,0 +1,28 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --bg: #141210;
+  --surface: #1e1b18;
+  --card: #26221e;
+  --wine: #7a2c3b;
+  --wine-l: #9b3a4c;
+  --gold: #c9a66b;
+  --gold-l: #e0bf8a;
+  --cream: #f5f0e8;
+  --cream-2: #ede5d4;
+  --muted: #8a8177;
+  --border: #3a342e;
+  --ink: #1a1614;
+}
+
+html,
+body {
+  min-height: 100dvh;
+  background-color: var(--bg);
+  color: var(--cream);
+  -webkit-font-smoothing: antialiased;
+  /* Avoid dark fringe artifacts against rounded screen edges */
+  isolation: isolate;
+}
