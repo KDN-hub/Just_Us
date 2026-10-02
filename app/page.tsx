@@ -2,21 +2,24 @@
 
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { supabase } from "@/lib/supabase";
+import { hasLocalPin } from "@/lib/auth";
 
 export default function Root() {
   const router = useRouter();
 
   useEffect(() => {
-    const userId = localStorage.getItem("user_id");
-    const setupComplete = localStorage.getItem("setup_complete");
-
-    if (!userId || !setupComplete) {
-      router.replace("/onboarding/welcome");
-    } else {
-      router.replace("/login");
-    }
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (!session) {
+        // Never signed in on this device
+        router.replace(localStorage.getItem("user_id") ? "/signin" : "/onboarding/welcome");
+      } else if (!hasLocalPin()) {
+        router.replace("/onboarding/pin-setup");
+      } else {
+        router.replace("/login");
+      }
+    });
   }, [router]);
 
-  // Blank screen while redirecting
   return null;
 }

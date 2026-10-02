@@ -45,7 +45,7 @@ export default function Welcome() {
 
         {/* CTA */}
         <Link
-          href="/onboarding/profile"
+          href="/signin"
           className="mt-4 block w-full rounded-[20px] bg-[#7A2C3B] py-4 text-center text-[15px] font-medium text-[#F5F0E8] transition-opacity active:opacity-80"
         >
           Get started

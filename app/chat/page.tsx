@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Phone, Video, Send, ArrowLeft, PhoneIncoming, PhoneOff } from "lucide-react";
+import { Phone, Video, Send, ArrowLeft, PhoneIncoming, PhoneOff, Settings } from "lucide-react";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase";
 import Avatar from "@/components/Avatar";
@@ -141,16 +141,27 @@ export default function Chat() {
         });
     };
 
+    // The keepalive request below runs during page teardown, where an async
+    // getSession() can't be awaited — so keep the user's access token in a variable.
+    const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+    let accessToken = anonKey;
+    supabase.auth.getSession().then(({ data }) => {
+      if (data.session) accessToken = data.session.access_token;
+    });
+    const { data: authSub } = supabase.auth.onAuthStateChange((_event, session) => {
+      accessToken = session?.access_token ?? anonKey;
+    });
+
     // On tab close / navigation the page may die before a normal request
     // completes; a keepalive request is allowed to outlive the page.
     const setOfflineOnExit = () => {
-      const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+      const key = anonKey;
       fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/users?id=eq.${myId}`, {
         method: "PATCH",
         keepalive: true,
         headers: {
           apikey: key,
-          Authorization: `Bearer ${key}`,
+          Authorization: `Bearer ${accessToken}`,
           "Content-Type": "application/json",
           Prefer: "return=minimal",
         },
@@ -165,6 +176,7 @@ export default function Chat() {
     window.addEventListener("pagehide", setOfflineOnExit);
 
     return () => {
+      authSub.subscription.unsubscribe();
       document.removeEventListener("visibilitychange", handleVisibility);
       window.removeEventListener("pagehide", setOfflineOnExit);
       setPresence(false);
@@ -398,7 +410,8 @@ export default function Chat() {
     if (!myId) return;
 
     const ch = supabase
-      .channel(SIGNAL_CHANNEL, { config: { broadcast: { self: false } } })
+      // private: only signed-in members can join (enforced by RLS on realtime.messages)
+      .channel(SIGNAL_CHANNEL, { config: { broadcast: { self: false }, private: true } })
       .on("broadcast", { event: "offer" }, ({ payload }) => {
         if (payload.callerId && payload.callerId !== myId) {
           setIncomingCall({
@@ -591,6 +604,13 @@ export default function Chat() {
           </div>
         </div>
 
+        <Link
+          href="/settings"
+          aria-label="Settings"
+          className="flex h-[30px] w-[30px] items-center justify-center rounded-full text-[var(--muted)]"
+        >
+          <Settings className="h-[14px] w-[14px]" strokeWidth={2} />
+        </Link>
         <Link
           href="/call?type=voice"
           aria-label="Voice call"

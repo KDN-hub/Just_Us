@@ -2,9 +2,17 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import bcrypt from "bcryptjs";
 import { supabase } from "@/lib/supabase";
 import PinPad from "@/components/PinPad";
+import {
+  CONVERSATION_ID,
+  hasLocalPin,
+  loadProfile,
+  setSignInNotice,
+  setUnlocked,
+  signOutAndWipe,
+  verifyLocalPin,
+} from "@/lib/auth";
 
 export default function Login() {
   const router = useRouter();
@@ -12,27 +20,23 @@ export default function Login() {
   const [pinError, setPinError] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
   const [ready, setReady] = useState(false);
-
-  // Read localStorage only on the client
-  const [userId, setUserId] = useState("");
   const [userName, setUserName] = useState("?");
   const [avatarColor, setAvatarColor] = useState("#7A2C3B");
 
-  // ── Guard: must have completed onboarding ──────────────────────────────────
+  // ── Guard: needs a real session; a device without a PIN must set one first ──
   useEffect(() => {
-    const storedId = localStorage.getItem("user_id");
-    const setupDone = localStorage.getItem("setup_complete");
+    let cancelled = false;
+    (async () => {
+      const profile = await loadProfile({ useCache: true });
+      if (cancelled) return;
+      if (!profile) { router.replace("/signin"); return; }
+      if (!hasLocalPin()) { router.replace("/onboarding/pin-setup"); return; }
 
-    if (!storedId || !setupDone) {
-      // Not set up yet — send them to the start
-      router.replace("/onboarding/welcome");
-      return;
-    }
-
-    setUserId(storedId);
-    setUserName(localStorage.getItem("user_name") ?? "?");
-    setAvatarColor(localStorage.getItem("avatar_color") ?? "#7A2C3B");
-    setReady(true);
+      setUserName(profile.nickname ?? profile.name);
+      setAvatarColor(profile.avatar_color ?? "#7A2C3B");
+      setReady(true);
+    })();
+    return () => { cancelled = true; };
   }, [router]);
 
   const initial = userName[0]?.toUpperCase() ?? "?";
@@ -40,68 +44,54 @@ export default function Login() {
   // ── Fetch together_since → day count ──────────────────────────────────────
   useEffect(() => {
     if (!ready) return;
-    async function fetchDays() {
-      const { data } = await supabase
-        .from("conversation")
-        .select("together_since")
-        .single();
-
-      if (data?.together_since) {
-        const diff = Math.floor(
-          (Date.now() - new Date(data.together_since).getTime()) /
-            (1000 * 60 * 60 * 24),
-        );
-        setDayCount(diff);
-      }
-    }
-    fetchDays();
+    supabase
+      .from("conversation")
+      .select("together_since")
+      .eq("id", CONVERSATION_ID)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (data?.together_since) {
+          setDayCount(
+            Math.floor((Date.now() - new Date(data.together_since).getTime()) / 86_400_000),
+          );
+        }
+      });
   }, [ready]);
 
-  // ── PIN verification ──────────────────────────────────────────────────────
-  const handlePinComplete = useCallback(
-    async (pin: string) => {
-      const { data, error: dbErr } = await supabase
-        .from("users")
-        .select("pin_hash")
-        .eq("id", userId)
-        .single();
-
-      // DB error (network issue etc.)
-      if (dbErr) {
-        setPinError(true);
-        setErrorMsg("Connection error — check your internet and try again.");
-        setTimeout(() => { setPinError(false); setErrorMsg(""); }, 1200);
-        return;
-      }
-
-      // pin_hash is null means this user never finished PIN setup
-      if (!data?.pin_hash) {
-        // Clear stale localStorage and send them back to finish onboarding
-        localStorage.removeItem("setup_complete");
-        router.replace("/onboarding/pin-setup");
-        return;
-      }
-
-      const match = await bcrypt.compare(pin, data.pin_hash);
-      if (!match) {
-        setPinError(true);
-        setErrorMsg("Wrong PIN — try again.");
-        setTimeout(() => { setPinError(false); setErrorMsg(""); }, 700);
-        return;
-      }
-
-      // ✅ Correct PIN — mark online and enter the app
-      await supabase
-        .from("users")
-        .update({ is_online: true, last_seen: new Date().toISOString() })
-        .eq("id", userId);
-
-      router.push("/chat");
+  const failSignOut = useCallback(
+    async (notice: string) => {
+      await signOutAndWipe();
+      setSignInNotice(notice);
+      router.replace("/signin");
     },
-    [userId, router],
+    [router],
   );
 
-  // Don't render the PIN pad until we've checked localStorage
+  // ── PIN verification (local only) ─────────────────────────────────────────
+  const handlePinComplete = useCallback(
+    async (pin: string) => {
+      const { ok, attemptsLeft } = await verifyLocalPin(pin);
+
+      if (ok) {
+        setUnlocked();
+        router.replace("/chat");
+        return;
+      }
+
+      if (attemptsLeft === 0) {
+        await failSignOut("Too many wrong PINs — please sign in again.");
+        return;
+      }
+
+      setPinError(true);
+      setErrorMsg(
+        `Wrong PIN — ${attemptsLeft} ${attemptsLeft === 1 ? "try" : "tries"} left.`,
+      );
+      setTimeout(() => { setPinError(false); setErrorMsg(""); }, 900);
+    },
+    [router, failSignOut],
+  );
+
   if (!ready) return null;
 
   return (
@@ -146,6 +136,14 @@ export default function Login() {
         {errorMsg && (
           <p className="text-[12px] text-red-400">{errorMsg}</p>
         )}
+
+        <button
+          type="button"
+          onClick={() => failSignOut("Sign in again to set a new PIN.")}
+          className="text-[12px] text-[#8A8177] underline-offset-2 active:underline"
+        >
+          Forgot PIN?
+        </button>
       </div>
     </main>
   );

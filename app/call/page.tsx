@@ -262,8 +262,9 @@ function CallScreen() {
       };
 
       // 3. Signaling channel
+      // private: only signed-in members can join (enforced by RLS on realtime.messages)
       const ch = supabase.channel(SIGNAL_CHANNEL, {
-        config: { broadcast: { self: false } },
+        config: { broadcast: { self: false }, private: true },
       });
       channelRef.current = ch;
 

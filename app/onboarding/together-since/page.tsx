@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Calendar } from "lucide-react";
 import { supabase } from "@/lib/supabase";
+import { CONVERSATION_ID, loadProfile, markSetupComplete } from "@/lib/auth";
 
 export default function TogetherSince() {
   const router = useRouter();
@@ -11,11 +12,12 @@ export default function TogetherSince() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
-  // If setup is already complete (second person to onboard), skip this step
+  // Must be signed in; if setup is already complete, skip this step
   useEffect(() => {
-    if (localStorage.getItem("setup_complete") === "true") {
-      router.replace("/chat");
-    }
+    loadProfile({ useCache: true }).then((profile) => {
+      if (!profile) { router.replace("/signin"); return; }
+      if (localStorage.getItem("setup_complete") === "true") router.replace("/chat");
+    });
   }, [router]);
 
   async function handleFinish() {
@@ -30,7 +32,7 @@ export default function TogetherSince() {
     const { error: dbErr } = await supabase
       .from("conversation")
       .update({ together_since: date })
-      .eq("id", "c0000000-0000-0000-0000-000000000003");
+      .eq("id", CONVERSATION_ID);
 
     if (dbErr) {
       setError("Couldn't save the date. Please try again.");
@@ -38,8 +40,8 @@ export default function TogetherSince() {
       return;
     }
 
-    localStorage.setItem("setup_complete", "true");
-    router.push("/chat");
+    markSetupComplete();
+    router.replace("/chat");
   }
 
   return (
@@ -52,7 +54,7 @@ export default function TogetherSince() {
       {/* Top — step indicator */}
       <div className="flex flex-1 items-center justify-center">
         <p className="text-[10px] font-medium uppercase tracking-[0.08em] text-[#C9A66B]">
-          Step 3 of 4
+          Step 3 of 3
         </p>
       </div>
 

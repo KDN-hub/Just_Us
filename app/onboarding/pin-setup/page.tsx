@@ -1,13 +1,17 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import bcrypt from "bcryptjs";
 import { supabase } from "@/lib/supabase";
 import PinPad from "@/components/PinPad";
+import { CONVERSATION_ID, loadProfile, markSetupComplete, setLocalPin, setUnlocked } from "@/lib/auth";
 
 type Mode = "set" | "confirm";
 
+/**
+ * Sets this device's PIN lock. The PIN is hashed and kept ONLY on this device —
+ * it is never sent to the server (the server trusts the Supabase session instead).
+ */
 export default function PinSetup() {
   const router = useRouter();
   const [mode, setMode] = useState<Mode>("set");
@@ -15,15 +19,21 @@ export default function PinSetup() {
   const [error, setError] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
   const [saving, setSaving] = useState(false);
+  const [ready, setReady] = useState(false);
+  const [userName, setUserName] = useState("You");
+  const [avatarColor, setAvatarColor] = useState("#7A2C3B");
 
-  const userName = typeof window !== "undefined"
-    ? localStorage.getItem("user_name") ?? "You"
-    : "You";
+  // Must be signed in to get here
+  useEffect(() => {
+    loadProfile({ useCache: true }).then((profile) => {
+      if (!profile) { router.replace("/signin"); return; }
+      setUserName(profile.nickname ?? profile.name);
+      setAvatarColor(profile.avatar_color ?? "#7A2C3B");
+      setReady(true);
+    });
+  }, [router]);
+
   const initial = userName[0]?.toUpperCase() ?? "?";
-  const avatarColor =
-    typeof window !== "undefined"
-      ? (localStorage.getItem("avatar_color") ?? "#7A2C3B")
-      : "#7A2C3B";
 
   const handleComplete = useCallback(
     async (pin: string) => {
@@ -47,26 +57,28 @@ export default function PinSetup() {
         return;
       }
 
-      // PINs match — hash and save
       setSaving(true);
-      const hash = await bcrypt.hash(pin, 10);
-      const userId = localStorage.getItem("user_id");
+      await setLocalPin(pin);
+      setUnlocked(); // they just proved who they are by signing in and choosing a PIN
 
-      const { error: dbErr } = await supabase
-        .from("users")
-        .update({ pin_hash: hash })
-        .eq("id", userId);
+      // "Together since" is set once, by whichever of you onboards first
+      const { data: conv } = await supabase
+        .from("conversation")
+        .select("together_since")
+        .eq("id", CONVERSATION_ID)
+        .maybeSingle();
 
-      if (dbErr) {
-        setErrorMsg("Couldn't save your PIN. Please try again.");
-        setSaving(false);
-        return;
+      if (conv?.together_since) {
+        markSetupComplete();
+        router.replace("/chat");
+      } else {
+        router.replace("/onboarding/together-since");
       }
-
-      router.push("/onboarding/together-since");
     },
     [mode, firstPin, router],
   );
+
+  if (!ready) return null;
 
   return (
     <main
@@ -78,7 +90,7 @@ export default function PinSetup() {
       {/* Top — step indicator */}
       <div className="flex flex-1 items-center justify-center">
         <p className="text-[10px] font-medium uppercase tracking-[0.08em] text-[#C9A66B]">
-          Step 2 of 4
+          Step 2 of 3
         </p>
       </div>
 
@@ -97,7 +109,7 @@ export default function PinSetup() {
           key={mode}
           onComplete={handleComplete}
           error={error}
-          label={mode === "set" ? "Set a 4-digit PIN" : "Confirm your PIN"}
+          label={mode === "set" ? "Set a 4-digit PIN for this device" : "Confirm your PIN"}
         />
 
         {errorMsg && (
