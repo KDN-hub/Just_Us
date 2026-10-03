@@ -31,6 +31,12 @@ export default function MessageBubble({
         <div className="py-1 text-[64px] leading-none animate-in zoom-in-50 duration-500 drop-shadow-xl" style={{ filter: 'drop-shadow(0 10px 15px rgba(255,50,100,0.4))' }}>
            💖
         </div>
+      ) : type === "image" ? (
+        <img src={content} alt="Image message" className="max-w-[240px] max-h-[300px] rounded-md object-cover" />
+      ) : type === "video" ? (
+        <video src={content} controls className="max-w-[240px] max-h-[300px] rounded-md" />
+      ) : type === "audio" ? (
+        <audio src={content} controls className="max-w-[240px]" />
       ) : (
         <div
           className={`max-w-[78%] px-4 py-2.5 text-[15px] leading-[1.5] text-[var(--cream)] ${

@@ -1,0 +1,17 @@
+const { createClient } = require('@supabase/supabase-js');
+const fs = require('fs');
+
+const envLocal = fs.readFileSync('.env.local', 'utf8');
+const envVars = {};
+envLocal.split('\n').forEach(line => {
+  const [key, ...rest] = line.split('=');
+  if (key && rest.length > 0) envVars[key.trim()] = rest.join('=').trim().replace(/^"|"$/g, '');
+});
+
+const supabase = createClient(envVars['NEXT_PUBLIC_SUPABASE_URL'], envVars['NEXT_PUBLIC_SUPABASE_ANON_KEY']);
+
+async function run() {
+  const { data: buckets } = await supabase.storage.listBuckets();
+  console.log('Buckets:', buckets?.map(b => b.name));
+}
+run();

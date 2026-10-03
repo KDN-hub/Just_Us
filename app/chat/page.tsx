@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Phone, Video, Send, PhoneIncoming, PhoneOff, Settings, Heart } from "lucide-react";
+import { Phone, Video, Send, PhoneIncoming, PhoneOff, Settings, Heart, Paperclip, Mic, Square } from "lucide-react";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase";
 import Avatar from "@/components/Avatar";
@@ -164,6 +164,113 @@ export default function Chat() {
 
   const [partnerTyping, setPartnerTyping] = useState(false);
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<BlobPart[]>([]);
+
+  const [isRecording, setIsRecording] = useState(false);
+
+  const uploadMedia = async (file: File | Blob, type: string) => {
+    try {
+      const ext = (file as File).name ? (file as File).name.split('.').pop() : 'webm';
+      const fileName = `${generateUUID()}.${ext}`;
+      
+      const { data, error } = await supabase.storage.from('chat_media').upload(fileName, file);
+      if (error) {
+        if (error.message.includes('Bucket not found') || error.message.includes('The resource was not found')) {
+          alert('Storage bucket "chat_media" not found. Please create it in Supabase.');
+        } else {
+          console.error('[chat] Upload error:', error);
+          alert('Failed to upload media.');
+        }
+        return;
+      }
+      
+      const { data: publicData } = supabase.storage.from('chat_media').getPublicUrl(fileName);
+      const url = publicData.publicUrl;
+      
+      const tempId = generateUUID();
+      const offline = !navigator.onLine;
+
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: tempId,
+          sender_id: myId,
+          content: url,
+          type,
+          status: 'sent',
+          created_at: new Date().toISOString(),
+          pending: true,
+          queued: offline,
+        },
+      ]);
+      
+      if (offline) return;
+      
+      const { data: insertData, error: insertError } = await supabase
+        .from('messages')
+        .insert({
+          id: tempId,
+          conversation_id: CONVERSATION_ID,
+          sender_id: myId,
+          type,
+          content: url,
+          status: 'sent',
+        })
+        .select('created_at')
+        .single();
+        
+      if (insertError) {
+        setMessages((prev) => prev.map((m) => m.id === tempId ? { ...m, queued: true } : m));
+      } else if (insertData) {
+        setMessages((prev) =>
+          prev.map((m) => (m.id === tempId ? { ...m, created_at: insertData.created_at, pending: false } : m)),
+        );
+      }
+    } catch (err) {
+      console.error(err);
+      alert('An error occurred during upload.');
+    }
+  };
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const type = file.type.startsWith('image/') ? 'image' : file.type.startsWith('video/') ? 'video' : 'audio';
+    uploadMedia(file, type);
+    e.target.value = ''; // Reset
+  };
+
+  const startRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mediaRecorder = new MediaRecorder(stream);
+      mediaRecorderRef.current = mediaRecorder;
+      audioChunksRef.current = [];
+      
+      mediaRecorder.ondataavailable = (e) => {
+        if (e.data.size > 0) audioChunksRef.current.push(e.data);
+      };
+      
+      mediaRecorder.onstop = () => {
+        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+        uploadMedia(audioBlob, 'audio');
+        stream.getTracks().forEach(track => track.stop());
+      };
+      
+      mediaRecorder.start();
+      setIsRecording(true);
+    } catch (err) {
+      console.error('Error accessing microphone', err);
+      alert('Could not access microphone.');
+    }
+  };
+
+  const stopRecording = () => {
+    mediaRecorderRef.current?.stop();
+    setIsRecording(false);
+  };
 
   // ── Redirect if not set up / not logged in ────────────────────────────────
   useEffect(() => {
@@ -842,6 +949,15 @@ export default function Chat() {
 
       {/* ── Input bar ───────────────────────────────────────────────────── */}
       <div className="shrink-0 flex items-center gap-2.5 border-t border-[var(--border)] bg-[var(--surface)] px-3.5 py-3">
+        <input type="file" ref={fileInputRef} accept="image/*,video/*,audio/*" className="hidden" onChange={handleFileUpload} />
+        <button
+          type="button"
+          onClick={() => fileInputRef.current?.click()}
+          aria-label="Attach file"
+          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-[var(--muted)] transition-all hover:text-[var(--cream)] hover:bg-[var(--card)]"
+        >
+          <Paperclip className="h-[20px] w-[20px]" strokeWidth={2} />
+        </button>
         <input
           ref={inputRef}
           type="text"
@@ -875,15 +991,26 @@ export default function Chat() {
             <Send className="h-[17px] w-[17px]" strokeWidth={2} />
           </button>
         ) : (
-          <button
-            type="button"
-            onClick={handleNudge}
-            disabled={!isOnline}
-            aria-label="Nudge"
-            className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-[#7A2C3B] bg-[#7A2C3B]/15 transition-all active:scale-95 disabled:opacity-40`}
-          >
-            <Heart className="h-[20px] w-[20px] fill-current" />
-          </button>
+          <>
+            <button
+              type="button"
+              onClick={handleNudge}
+              disabled={!isOnline}
+              aria-label="Nudge"
+              className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-[#7A2C3B] bg-[#7A2C3B]/15 transition-all active:scale-95 disabled:opacity-40`}
+            >
+              <Heart className="h-[20px] w-[20px] fill-current" />
+            </button>
+            <button
+              type="button"
+              onClick={isRecording ? stopRecording : startRecording}
+              disabled={!isOnline}
+              aria-label={isRecording ? "Stop recording" : "Record voice note"}
+              className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-[var(--cream)] transition-all disabled:opacity-40 ${isRecording ? 'bg-red-500 animate-pulse' : 'bg-[var(--card)] hover:bg-[var(--muted)]'}`}
+            >
+              {isRecording ? <Square className="h-[17px] w-[17px]" strokeWidth={2} /> : <Mic className="h-[17px] w-[17px]" strokeWidth={2} />}
+            </button>
+          </>
         )}
       </div>
     </main>
