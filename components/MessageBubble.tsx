@@ -137,9 +137,9 @@ export default function MessageBubble({
           
           <div className="flex-1 flex items-center justify-center min-h-0 bg-black relative">
             {actualType === "image" ? (
-              <TransformWrapper initialScale={1} minScale={1} maxScale={5} centerZoomedOut={true}>
-                <TransformComponent wrapperClass="!w-full !h-full flex items-center justify-center" contentClass="max-h-full max-w-full">
-                  <img src={actualContent} className="max-h-full max-w-full object-contain" />
+              <TransformWrapper initialScale={1} minScale={1} maxScale={5}>
+                <TransformComponent wrapperStyle={{ width: "100%", height: "100%" }} contentStyle={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  <img src={actualContent} style={{ maxWidth: "100%", maxHeight: "100%", objectFit: "contain" }} />
                 </TransformComponent>
               </TransformWrapper>
             ) : (
