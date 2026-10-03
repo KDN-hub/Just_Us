@@ -1,4 +1,4 @@
-import { Check, CheckCheck, Clock, Heart, Play, Pause, X, Download, Mic, User } from "lucide-react";
+import { Check, CheckCheck, Clock, Heart, Play, Pause, X, Download, Mic, User, SmilePlus } from "lucide-react";
 import { TransformWrapper, TransformComponent } from "react-zoom-pan-pinch";
 import { useState, useRef } from "react";
 
@@ -10,6 +10,8 @@ interface MessageBubbleProps {
   status?: "sent" | "delivered" | "read";
   queued?: boolean;
   type?: string;
+  onReact?: (emoji: string) => void;
+  reactions?: Record<string, string>;
 }
 
 const AudioPlayer = ({ url, isMine, timestamp, status, queued }: { url: string, isMine: boolean, timestamp: string, status?: string, queued?: boolean }) => {
@@ -150,8 +152,11 @@ export default function MessageBubble({
   status,
   queued = false,
   type = "text",
+  onReact,
+  reactions,
 }: MessageBubbleProps) {
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [showReactionMenu, setShowReactionMenu] = useState(false);
   let actualType = type;
   let actualContent = content;
   if (type === "text" && content.startsWith("AUDIO_URL:")) {
@@ -222,6 +227,7 @@ export default function MessageBubble({
         </div>
       )}
       <div className={`flex flex-col ${isMine ? "items-end" : "items-start"}`}>
+        <div className="group relative">
         {actualContent === "NUDGE_PING_💖" ? (
           <div className="py-1 text-[64px] leading-none animate-in zoom-in-50 duration-500 drop-shadow-xl" style={{ filter: 'drop-shadow(0 10px 15px rgba(255,50,100,0.4))' }}>
              💖
@@ -278,6 +284,32 @@ export default function MessageBubble({
           {actualContent}
         </div>
       )}
+
+        <div className={`absolute top-1/2 -translate-y-1/2 ${isMine ? '-left-10' : '-right-10'} opacity-0 group-hover:opacity-100 transition-opacity`}>
+          <button onClick={() => setShowReactionMenu(!showReactionMenu)} className="p-1.5 rounded-full bg-[var(--surface)] text-[var(--muted)] hover:text-[var(--cream)] border border-[var(--border)] shadow-sm">
+            <SmilePlus className="h-4 w-4" />
+          </button>
+        </div>
+
+        {showReactionMenu && (
+          <div className={`absolute -top-12 ${isMine ? 'right-0' : 'left-0'} z-50 flex gap-1 bg-[var(--card)] p-1.5 rounded-full shadow-lg border border-[var(--border)]`}>
+            {['❤️', '😂', '😮', '😢', '👍'].map(emoji => (
+              <button key={emoji} onClick={() => { onReact?.(emoji); setShowReactionMenu(false); }} className="text-xl hover:scale-125 transition-transform px-1">{emoji}</button>
+            ))}
+          </div>
+        )}
+
+        {reactions && Object.keys(reactions).length > 0 && (
+          <div className={`absolute -bottom-3 ${isMine ? 'right-4' : 'left-4'} flex items-center bg-[var(--surface)] border border-[var(--border)] rounded-full px-1.5 py-0.5 shadow-sm z-20`}>
+            {Array.from(new Set(Object.values(reactions))).map((emoji, idx) => (
+              <span key={idx} className="text-[12px]">{emoji}</span>
+            ))}
+            {Object.keys(reactions).length > 1 && (
+              <span className="text-[10px] text-[var(--muted)] ml-1 font-medium">{Object.keys(reactions).length}</span>
+            )}
+          </div>
+        )}
+        </div>
 
       {/* Timestamp + status tick row (only show outside for text/nudge) */}
       {actualType !== "image" && actualType !== "video" && actualType !== "audio" && (

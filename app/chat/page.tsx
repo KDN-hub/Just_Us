@@ -27,6 +27,7 @@ interface Message {
   pending?: boolean;
   /** Message composed while offline — will be sent when connection restores. */
   queued?: boolean;
+  reactions?: Record<string, string>; // sender_id -> emoji
 }
 
 interface CallLogEntry {
@@ -875,9 +876,66 @@ export default function Chat() {
     setIncomingCall(null);
   }, []);
 
+  const handleReaction = async (messageId: string, emoji: string) => {
+    const tempId = generateUUID();
+    const dbContent = `REACTION:${messageId}:${emoji}`;
+    const offline = !navigator.onLine;
+
+    setMessages((prev) => [
+      ...prev,
+      {
+        id: tempId,
+        sender_id: myId,
+        content: dbContent,
+        type: 'text',
+        status: 'sent',
+        created_at: new Date().toISOString(),
+        pending: true,
+        queued: offline,
+      },
+    ]);
+
+    if (offline) return;
+
+    await supabase.from('messages').insert({
+      id: tempId,
+      conversation_id: CONVERSATION_ID,
+      sender_id: myId,
+      type: 'text',
+      content: dbContent,
+      status: 'sent',
+    });
+  };
+
+  // Pre-process messages to extract and apply reactions
+  const realMessages: Message[] = [];
+  const reactionsMap: Record<string, Record<string, string>> = {};
+
+  for (const m of messages) {
+    if (m.type === 'text' && m.content.startsWith('REACTION:')) {
+      const parts = m.content.split(':');
+      if (parts.length >= 3) {
+        const targetId = parts[1];
+        const emoji = parts.slice(2).join(':'); // In case emoji contains colons
+        if (!reactionsMap[targetId]) reactionsMap[targetId] = {};
+        if (emoji === 'NONE') {
+          delete reactionsMap[targetId][m.sender_id];
+        } else {
+          reactionsMap[targetId][m.sender_id] = emoji;
+        }
+      }
+    } else {
+      realMessages.push(m);
+    }
+  }
+
+  for (const m of realMessages) {
+    m.reactions = reactionsMap[m.id] || {};
+  }
+
   // ── Merged timeline: messages + completed call log entries ────────────────
   const timeline: TimelineItem[] = [
-    ...messages.map((m) => ({ kind: "message" as const, data: m, time: m.created_at })),
+    ...realMessages.map((m) => ({ kind: "message" as const, data: m, time: m.created_at })),
     // Only show calls that have a final status (exclude in-progress)
     ...callLog
       .filter((c) => c.status !== null)
@@ -1012,6 +1070,8 @@ export default function Chat() {
               status={item.data.sender_id === myId ? item.data.status : undefined}
               queued={item.data.queued}
               type={item.data.type}
+              reactions={item.data.reactions}
+              onReact={(emoji) => handleReaction(item.data.id, emoji)}
             />
           ) : (
             <CallBubble
