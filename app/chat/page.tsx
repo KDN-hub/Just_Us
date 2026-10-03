@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Phone, Video, Send, PhoneIncoming, PhoneOff, Settings, Heart, Paperclip, Mic, Square, X, Smile } from "lucide-react";
+import { Phone, Video, Send, PhoneIncoming, PhoneOff, Settings, Heart, Paperclip, Mic, Square, X, Smile, Star } from "lucide-react";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase";
 import Avatar from "@/components/Avatar";
@@ -176,6 +176,69 @@ export default function Chat() {
   const [pendingMedia, setPendingMedia] = useState<{file: File | Blob, type: string, url: string} | null>(null);
   const [mediaCaption, setMediaCaption] = useState("");
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [pickerTab, setPickerTab] = useState<'emoji' | 'sticker' | 'gif' | 'favorites'>('emoji');
+  const [favorites, setFavorites] = useState<string[]>(() => {
+    if (typeof window !== 'undefined') {
+      return JSON.parse(localStorage.getItem('fav_media') || '[]');
+    }
+    return [];
+  });
+
+  const toggleFavorite = (url: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setFavorites((prev: string[]) => {
+      const next = prev.includes(url) ? prev.filter((u: string) => u !== url) : [...prev, url];
+      localStorage.setItem('fav_media', JSON.stringify(next));
+      return next;
+    });
+  };
+
+  const handleSendDirectURL = async (url: string, type: string) => {
+    try {
+      const tempId = generateUUID();
+      const offline = !navigator.onLine;
+
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: tempId,
+          sender_id: myId,
+          content: url,
+          type: type,
+          status: 'sent',
+          created_at: new Date().toISOString(),
+          pending: true,
+          queued: offline,
+        },
+      ]);
+      setShowEmojiPicker(false);
+      
+      if (!offline) {
+        const { data: insertData, error: insertError } = await supabase
+          .from('messages')
+          .insert({
+            id: tempId,
+            conversation_id: CONVERSATION_ID,
+            sender_id: myId,
+            type: type,
+            content: url,
+            status: 'sent',
+          })
+          .select('created_at')
+          .single();
+          
+        if (insertError) {
+          setMessages((prev) => prev.map((m) => m.id === tempId ? { ...m, queued: true } : m));
+        } else if (insertData) {
+          setMessages((prev) =>
+            prev.map((m) => (m.id === tempId ? { ...m, created_at: insertData.created_at, pending: false } : m)),
+          );
+        }
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
 
   const uploadMedia = async (file: File | Blob, type: string, caption?: string) => {
     try {
@@ -971,8 +1034,55 @@ export default function Chat() {
       <div className="shrink-0 flex items-end gap-2 border-t border-[var(--border)] bg-[var(--surface)] px-2 py-2 relative">
         
         {showEmojiPicker && (
-          <div className="absolute bottom-[100%] left-2 mb-2 z-50">
-            <EmojiPicker theme={"dark" as any} onEmojiClick={(e) => setDraft(prev => prev + e.emoji)} />
+          <div className="absolute bottom-[100%] left-2 mb-2 z-50 flex flex-col bg-[var(--card)] rounded-lg overflow-hidden border border-[var(--border)] shadow-xl w-[320px]">
+            <div className="flex border-b border-[var(--border)] bg-black/20">
+              <button onClick={() => setPickerTab('emoji')} className={`flex-1 py-2 text-[13px] font-medium transition-colors ${pickerTab === 'emoji' ? 'text-[var(--cream)] border-b-2 border-[var(--wine)]' : 'text-[var(--muted)]'}`}>Emojis</button>
+              <button onClick={() => setPickerTab('sticker')} className={`flex-1 py-2 text-[13px] font-medium transition-colors ${pickerTab === 'sticker' ? 'text-[var(--cream)] border-b-2 border-[var(--wine)]' : 'text-[var(--muted)]'}`}>Stickers</button>
+              <button onClick={() => setPickerTab('gif')} className={`flex-1 py-2 text-[13px] font-medium transition-colors ${pickerTab === 'gif' ? 'text-[var(--cream)] border-b-2 border-[var(--wine)]' : 'text-[var(--muted)]'}`}>GIFs</button>
+              <button onClick={() => setPickerTab('favorites')} className={`flex-1 py-2 text-[13px] font-medium transition-colors ${pickerTab === 'favorites' ? 'text-[var(--cream)] border-b-2 border-[var(--wine)]' : 'text-[var(--muted)]'}`}>Favs</button>
+            </div>
+            <div className="h-[350px] overflow-y-auto relative bg-[var(--surface)]">
+              {pickerTab === 'emoji' && (
+                <EmojiPicker theme={"dark" as any} width="100%" height={350} onEmojiClick={(e) => setDraft(prev => prev + e.emoji)} />
+              )}
+              {pickerTab === 'favorites' && (
+                <div className="grid grid-cols-3 gap-2 p-3">
+                  {favorites.length === 0 && <p className="col-span-3 text-center text-[var(--muted)] text-[13px] mt-10">No favorites yet</p>}
+                  {favorites.map((url, i) => (
+                    <div key={i} className="relative group aspect-square">
+                      <img src={url} alt="Favorite" className="w-full h-full object-contain cursor-pointer hover:bg-white/10 rounded-lg p-1" onClick={() => handleSendDirectURL(url, 'image')} />
+                      <button onClick={(e) => toggleFavorite(url, e)} className="absolute top-1 right-1 p-1 bg-black/50 rounded-full opacity-0 group-hover:opacity-100 transition-opacity">
+                        <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {pickerTab === 'sticker' && (
+                <div className="grid grid-cols-3 gap-2 p-3">
+                  {["https://media.tenor.com/E_2t3a9fNrwAAAAi/peach-cat.gif", "https://media.tenor.com/T0b-Oa0u7sYAAAAi/tkthao219-bubududu.gif", "https://media.tenor.com/Jd0n2J1e3hMAAAAi/mocha-bear.gif", "https://media.tenor.com/xIID7d983VMAAAAi/milk-and-mocha-bear.gif", "https://media.tenor.com/YwN9qRkQ7f0AAAAi/mochi-peach.gif", "https://media.tenor.com/B942y020TTEAAAAi/dudu-bubu.gif"].map((url, i) => (
+                    <div key={i} className="relative group aspect-square">
+                      <img src={url} alt="Sticker" className="w-full h-full object-contain cursor-pointer hover:bg-white/10 rounded-lg p-1" onClick={() => handleSendDirectURL(url, 'image')} />
+                      <button onClick={(e) => toggleFavorite(url, e)} className="absolute top-1 right-1 p-1 bg-black/50 rounded-full opacity-0 group-hover:opacity-100 transition-opacity">
+                        <Star className={`h-3 w-3 ${favorites.includes(url) ? 'fill-yellow-400 text-yellow-400' : 'text-white'}`} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {pickerTab === 'gif' && (
+                <div className="grid grid-cols-2 gap-2 p-3">
+                  {["https://media.tenor.com/N2sS-WtyHhgAAAAM/cat-meme.gif", "https://media.tenor.com/Z4XW47B_3b4AAAAM/hugging.gif", "https://media.tenor.com/n14aQZ2E86QAAAAM/love-cute.gif", "https://media.tenor.com/w1j0bM6sSCAAAAAM/sad-puss-in-boots.gif"].map((url, i) => (
+                    <div key={i} className="relative group aspect-square">
+                      <img src={url} alt="GIF" className="w-full h-full object-cover cursor-pointer hover:bg-white/10 rounded-lg" onClick={() => handleSendDirectURL(url, 'image')} />
+                      <button onClick={(e) => toggleFavorite(url, e)} className="absolute top-1 right-1 p-1 bg-black/50 rounded-full opacity-0 group-hover:opacity-100 transition-opacity">
+                        <Star className={`h-3 w-3 ${favorites.includes(url) ? 'fill-yellow-400 text-yellow-400' : 'text-white'}`} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         )}
 

@@ -1,4 +1,4 @@
-import { Check, CheckCheck, Clock, Heart, Play, Pause, X, Download } from "lucide-react";
+import { Check, CheckCheck, Clock, Heart, Play, Pause, X, Download, Mic, User } from "lucide-react";
 import { TransformWrapper, TransformComponent } from "react-zoom-pan-pinch";
 import { useState, useRef } from "react";
 
@@ -12,41 +12,113 @@ interface MessageBubbleProps {
   type?: string;
 }
 
-const AudioPlayer = ({ url, isMine }: { url: string, isMine: boolean }) => {
+const AudioPlayer = ({ url, isMine, timestamp, status, queued }: { url: string, isMine: boolean, timestamp: string, status?: string, queued?: boolean }) => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [progress, setProgress] = useState(0);
   const [duration, setDuration] = useState(0);
   const audioRef = useRef<HTMLAudioElement>(null);
+  
   const toggle = () => {
     if (isPlaying) audioRef.current?.pause();
     else audioRef.current?.play();
     setIsPlaying(!isPlaying);
   };
+
+  const progressPercent = duration ? (progress / duration) * 100 : 0;
+  
+  // Fake waveform pattern (35 bars)
+  const heights = [4, 6, 8, 5, 4, 7, 10, 14, 12, 10, 18, 20, 24, 20, 16, 12, 14, 18, 22, 24, 22, 18, 14, 10, 8, 6, 5, 7, 6, 4, 3, 4, 4, 3, 3];
+
+  function formatTimeLocal(iso: string): string {
+    return new Date(iso).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+  }
+
+  const displayTime = isPlaying || progress > 0 ? progress : duration;
+
   return (
-    <div className="flex items-center gap-3 py-1">
+    <div className={`relative w-[280px] p-2 flex items-center gap-3 ${isMine ? "rounded-[16px_16px_4px_16px] bg-[var(--wine)]" : "rounded-[16px_16px_16px_4px] bg-[var(--card)]"}`}>
       <audio 
         ref={audioRef} 
         src={url} 
+        preload="metadata"
         onEnded={() => { setIsPlaying(false); setProgress(0); }} 
         onTimeUpdate={() => setProgress(audioRef.current?.currentTime || 0)} 
         onLoadedMetadata={() => setDuration(audioRef.current?.duration || 0)} 
       />
-      <button onClick={toggle} className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${isMine ? 'bg-[#F2EFEA] text-[#7A2C3B]' : 'bg-[#7A2C3B] text-[#F2EFEA]'} shadow-sm`}>
-        {isPlaying ? <Pause className="h-5 w-5 fill-current" /> : <Play className="h-5 w-5 fill-current ml-1" />}
-      </button>
-      <div className="flex flex-col gap-1 w-36">
-        <div className="h-1.5 w-full rounded-full bg-black/20 overflow-hidden relative">
-          <div className={`absolute top-0 left-0 h-full ${isMine ? 'bg-[#F2EFEA]' : 'bg-[#7A2C3B]'}`} style={{ width: `${duration ? (progress / duration) * 100 : 0}%` }} />
+
+      {/* Avatar with Mic overlay */}
+      <div className="relative shrink-0">
+         <div className="h-12 w-12 rounded-full bg-white/20 flex items-center justify-center overflow-hidden">
+            <User className="h-8 w-8 text-white/50 mt-3" strokeWidth={1.5} />
+         </div>
+         {/* Little green mic overlay */}
+         <div className="absolute -bottom-1 -right-1 h-5 w-5 bg-[#4C7A5B] rounded-full flex items-center justify-center border-2 border-white/10">
+            <Mic className="h-3 w-3 text-[var(--cream)]" strokeWidth={2.5} /> 
+         </div>
+      </div>
+
+      <div className="flex flex-col flex-1 min-w-0">
+        <div className="flex items-center gap-2">
+          {/* Play/Pause Button */}
+          <button onClick={toggle} className="shrink-0 text-[var(--cream)]">
+            {isPlaying ? <Pause className="h-7 w-7 fill-current" /> : <Play className="h-7 w-7 fill-current" />}
+          </button>
+
+          {/* Waveform track */}
+          <div className="relative flex-1 h-8 flex items-center group cursor-pointer" onClick={(e) => {
+             const rect = e.currentTarget.getBoundingClientRect();
+             const pct = (e.clientX - rect.left) / rect.width;
+             if (audioRef.current && duration) {
+               audioRef.current.currentTime = pct * duration;
+               setProgress(pct * duration);
+             }
+          }}>
+            {/* Unplayed */}
+            <div className="absolute inset-0 flex items-center gap-[2px]">
+              {heights.map((h, i) => (
+                <div key={i} className={`w-[3px] rounded-full ${isMine ? 'bg-white/30' : 'bg-black/20'}`} style={{ height: `${h}px` }} />
+              ))}
+            </div>
+            {/* Played */}
+            <div className="absolute left-0 top-0 bottom-0 flex items-center gap-[2px] overflow-hidden" style={{ width: `${progressPercent}%` }}>
+              {heights.map((h, i) => (
+                <div key={i} className={`w-[3px] rounded-full shrink-0 ${isMine ? 'bg-white/80' : 'bg-[#34B7F1]'}`} style={{ height: `${h}px` }} />
+              ))}
+            </div>
+            {/* Knob thumb */}
+            <div className="absolute top-1/2 -translate-y-1/2 w-[10px] h-[10px] rounded-full bg-[#34B7F1] shadow pointer-events-none" style={{ left: `calc(${progressPercent}% - 5px)` }} />
+          </div>
         </div>
-        <div className={`text-[10px] ${isMine ? 'text-[#F2EFEA]/70' : 'text-[#7A2C3B]/70'} font-medium tracking-wide`}>
-          {Math.floor(progress / 60)}:{(Math.floor(progress % 60)).toString().padStart(2, '0')} / {Math.floor(duration / 60)}:{(Math.floor(duration % 60)).toString().padStart(2, '0')}
+
+        {/* Bottom row: Duration/Time & timestamp+ticks */}
+        <div className="flex items-center justify-between mt-1">
+          <span className="text-[11px] text-[var(--cream)]/70 font-medium">
+             {Math.floor(displayTime / 60)}:{(Math.floor(displayTime % 60)).toString().padStart(2, '0')}
+          </span>
+          
+          <div className="flex items-center gap-[4px]">
+            <span className="text-[10px] text-[var(--cream)]/70">{formatTimeLocal(timestamp)}</span>
+            {isMine && status && (
+              <>
+                {queued ? (
+                  <Clock className="h-[11px] w-[11px] text-white/80" strokeWidth={2} />
+                ) : status === "read" ? (
+                  <CheckCheck className="h-[12px] w-[12px] text-white" strokeWidth={2.5} />
+                ) : status === "delivered" ? (
+                  <CheckCheck className="h-[12px] w-[12px] text-white/80" strokeWidth={2.5} />
+                ) : (
+                  <Check className="h-[12px] w-[12px] text-white/80" strokeWidth={2.5} />
+                )}
+              </>
+            )}
+          </div>
         </div>
       </div>
     </div>
   );
 }
 
-const VideoPlayer = ({ url, onClick }: { url: string; onClick: () => void }) => {
+const VideoPlayer = ({ url, onClick, children }: { url: string; onClick: () => void; children?: React.ReactNode }) => {
   return (
     <div className="relative overflow-hidden rounded-[12px] shadow-sm border border-black/10 bg-black cursor-pointer group" onClick={onClick}>
       <video 
@@ -59,6 +131,7 @@ const VideoPlayer = ({ url, onClick }: { url: string; onClick: () => void }) => 
           <Play className="h-6 w-6 fill-current ml-1" />
         </div>
       </div>
+      {children}
     </div>
   );
 };
@@ -154,11 +227,46 @@ export default function MessageBubble({
              💖
           </div>
         ) : actualType === "image" ? (
-          <img src={actualContent} alt="Image message" onClick={() => setIsFullscreen(true)} className="max-w-[240px] max-h-[300px] rounded-md object-cover cursor-pointer" />
+          <div className="relative inline-block group">
+            <img src={actualContent} alt="Image message" onClick={() => setIsFullscreen(true)} className="max-w-[240px] max-h-[300px] rounded-md object-cover cursor-pointer" />
+            <div className="bg-black/50 text-white px-1.5 py-0.5 rounded-full text-[10px] absolute bottom-2 right-2 flex items-center gap-1 z-10 pointer-events-none">
+              <span>{formatTime(timestamp)}</span>
+              {isMine && status && (
+                <>
+                  {queued ? (
+                    <Clock className="h-[10px] w-[10px] text-white/80" strokeWidth={2} />
+                  ) : status === "read" ? (
+                    <CheckCheck className="h-[11px] w-[11px] text-white" strokeWidth={2.5} />
+                  ) : status === "delivered" ? (
+                    <CheckCheck className="h-[11px] w-[11px] text-white/80" strokeWidth={2.5} />
+                  ) : (
+                    <Check className="h-[11px] w-[11px] text-white/80" strokeWidth={2.5} />
+                  )}
+                </>
+              )}
+            </div>
+          </div>
         ) : actualType === "video" ? (
-          <VideoPlayer url={actualContent} onClick={() => setIsFullscreen(true)} />
+          <VideoPlayer url={actualContent} onClick={() => setIsFullscreen(true)}>
+            <div className="bg-black/50 text-white px-1.5 py-0.5 rounded-full text-[10px] absolute bottom-2 right-2 flex items-center gap-1 z-10 pointer-events-none">
+              <span>{formatTime(timestamp)}</span>
+              {isMine && status && (
+                <>
+                  {queued ? (
+                    <Clock className="h-[10px] w-[10px] text-white/80" strokeWidth={2} />
+                  ) : status === "read" ? (
+                    <CheckCheck className="h-[11px] w-[11px] text-white" strokeWidth={2.5} />
+                  ) : status === "delivered" ? (
+                    <CheckCheck className="h-[11px] w-[11px] text-white/80" strokeWidth={2.5} />
+                  ) : (
+                    <Check className="h-[11px] w-[11px] text-white/80" strokeWidth={2.5} />
+                  )}
+                </>
+              )}
+            </div>
+          </VideoPlayer>
       ) : actualType === "audio" ? (
-        <AudioPlayer url={actualContent} isMine={isMine} />
+        <AudioPlayer url={actualContent} isMine={isMine} timestamp={timestamp} status={status} queued={queued} />
       ) : (
         <div
           className={`max-w-[78%] px-4 py-2.5 text-[15px] leading-[1.5] text-[var(--cream)] ${
@@ -171,37 +279,39 @@ export default function MessageBubble({
         </div>
       )}
 
-      {/* Timestamp + status tick row */}
-      <div className={`mt-1 flex items-center gap-[4px] ${isMine ? "flex-row-reverse" : ""}`}>
-        <span className="text-[11px] text-[var(--muted)]">{formatTime(timestamp)}</span>
+      {/* Timestamp + status tick row (only show outside for text/nudge) */}
+      {actualType !== "image" && actualType !== "video" && actualType !== "audio" && (
+        <div className={`mt-1 flex items-center gap-[4px] ${isMine ? "flex-row-reverse" : ""}`}>
+          <span className="text-[11px] text-[var(--muted)]">{formatTime(timestamp)}</span>
 
-        {/* Tick indicator — only for own messages */}
-        {isMine && status && (
-          <>
-            {queued ? (
-              <Clock className="h-[13px] w-[13px] text-[var(--muted)]" strokeWidth={2} aria-label="Queued" />
-            ) : status === "read" ? (
-              <CheckCheck
-                className="h-[13px] w-[13px] text-[#7A2C3B]"
-                strokeWidth={2.5}
-                aria-label="Read"
-              />
-            ) : status === "delivered" ? (
-              <CheckCheck
-                className="h-[13px] w-[13px] text-[var(--muted)]"
-                strokeWidth={2.5}
-                aria-label="Delivered"
-              />
-            ) : (
-              <Check
-                className="h-[13px] w-[13px] text-[var(--muted)]"
-                strokeWidth={2.5}
-                aria-label="Sent"
-              />
-            )}
-          </>
-        )}
-      </div>
+          {/* Tick indicator — only for own messages */}
+          {isMine && status && (
+            <>
+              {queued ? (
+                <Clock className="h-[13px] w-[13px] text-[var(--muted)]" strokeWidth={2} aria-label="Queued" />
+              ) : status === "read" ? (
+                <CheckCheck
+                  className="h-[13px] w-[13px] text-white"
+                  strokeWidth={2.5}
+                  aria-label="Read"
+                />
+              ) : status === "delivered" ? (
+                <CheckCheck
+                  className="h-[13px] w-[13px] text-[var(--muted)]"
+                  strokeWidth={2.5}
+                  aria-label="Delivered"
+                />
+              ) : (
+                <Check
+                  className="h-[13px] w-[13px] text-[var(--muted)]"
+                  strokeWidth={2.5}
+                  aria-label="Sent"
+                />
+              )}
+            </>
+          )}
+        </div>
+      )}
       </div>
     </>
   );
