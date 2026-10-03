@@ -27,8 +27,8 @@ export default function MessageBubble({
 }: MessageBubbleProps) {
   return (
     <div className={`flex flex-col ${isMine ? "items-end" : "items-start"}`}>
-      {type === "nudge" ? (
-        <div className="py-1 text-[48px] leading-none animate-in zoom-in-50 duration-500">
+      {content === "NUDGE_PING_💖" ? (
+        <div className="py-1 text-[64px] leading-none animate-in zoom-in-50 duration-500 drop-shadow-xl" style={{ filter: 'drop-shadow(0 10px 15px rgba(255,50,100,0.4))' }}>
            💖
         </div>
       ) : (

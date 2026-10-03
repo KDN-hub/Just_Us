@@ -9,6 +9,7 @@ import { supabase } from "@/lib/supabase";
 import Avatar from "@/components/Avatar";
 import MessageBubble from "@/components/MessageBubble";
 import CallBubble from "@/components/CallBubble";
+import TypingBubble from "@/components/TypingBubble";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -242,7 +243,6 @@ export default function Chat() {
       authSub.subscription.unsubscribe();
       document.removeEventListener("visibilitychange", handleVisibility);
       window.removeEventListener("pagehide", setOfflineOnExit);
-      setPresence(false);
     };
   }, [myId]);
 
@@ -330,6 +330,12 @@ export default function Chat() {
       // Opening / refocusing the chat = reading everything the partner sent
       if (!document.hidden) markPartnerMessagesRead();
     };
+
+    if (typeof window !== "undefined" && "Notification" in window) {
+      if (Notification.permission === "default") {
+        Notification.requestPermission();
+      }
+    }
 
     const handleVisibility = () => {
       if (!document.hidden) resync();
@@ -496,6 +502,19 @@ export default function Chat() {
       .on("broadcast", { event: "nudge" }, ({ payload }) => {
         if (payload.userId !== myId) {
           if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
+          
+          if ('speechSynthesis' in window) {
+            const utterance = new SpeechSynthesisUtterance(`${payload.userName || 'Your partner'} is thinking of you!`);
+            utterance.rate = 1.05;
+            utterance.pitch = 1.1;
+            window.speechSynthesis.speak(utterance);
+          }
+          
+          if (document.hidden && 'Notification' in window && Notification.permission === 'granted') {
+             new Notification("💖 Thinking of you!", {
+                body: `${payload.userName || 'Your partner'} just sent you a nudge.`,
+             });
+          }
         }
       })
       .subscribe();
@@ -505,18 +524,16 @@ export default function Chat() {
     return () => { supabase.removeChannel(ch); };
   }, [myId]);
 
-  // ── Auto-scroll when an item is appended (sent or received) ───────────────
-  // Keyed on counts, not array identity, so tick/status updates don't yank the
-  // user to the bottom while they are reading history.
+  // ── Auto-scroll when an item is appended (sent or received) or partner starts typing ───────────────
   useEffect(() => {
     const count = messages.length + callLog.length;
-    if (count === 0) return;
+    if (count === 0 && !partnerTyping) return;
     bottomRef.current?.scrollIntoView({
       behavior: prevCountRef.current === 0 ? "auto" : "smooth",
       block: "end",
     });
     prevCountRef.current = count;
-  }, [messages.length, callLog.length]);
+  }, [messages.length, callLog.length, partnerTyping]);
 
   // ── Drain offline queue when connection restores ───────────────────────────
   useEffect(() => {
@@ -608,7 +625,10 @@ export default function Chat() {
     signalChRef.current?.send({
       type: "broadcast",
       event: "nudge",
-      payload: { userId: myId },
+      payload: { 
+        userId: myId, 
+        userName: typeof window !== 'undefined' ? localStorage.getItem('user_name') || 'Your partner' : 'Your partner' 
+      },
     });
 
     const tempId = generateUUID();
@@ -619,8 +639,8 @@ export default function Chat() {
       {
         id: tempId,
         sender_id: myId,
-        content: "💖", // Heart emoji
-        type: 'nudge',
+        content: "NUDGE_PING_💖",
+        type: 'text',
         status: 'sent',
         created_at: new Date().toISOString(),
         pending: true,
@@ -637,8 +657,8 @@ export default function Chat() {
         id: tempId,
         conversation_id: CONVERSATION_ID,
         sender_id: myId,
-        type: 'nudge',
-        content: "💖",
+        type: 'text',
+        content: "NUDGE_PING_💖",
         status: 'sent',
       })
       .select('created_at')
@@ -750,8 +770,6 @@ export default function Chat() {
               <span className="text-[12px] italic text-[var(--muted)]" role="status">
                 Connecting…
               </span>
-            ) : partnerTyping ? (
-              <span className="text-[12px] italic text-[#4C7A5B]">typing...</span>
             ) : partner?.is_online ? (
               <>
                 <span className="h-2 w-2 rounded-full bg-[#4C7A5B]" />
@@ -816,6 +834,8 @@ export default function Chat() {
             />
           ),
         )}
+        
+        {partnerTyping && <TypingBubble />}
 
         <div ref={bottomRef} />
       </div>
