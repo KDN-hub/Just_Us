@@ -247,8 +247,11 @@ export default function MessageBubble({
           </div>
         </div>
       )}
+      {showReactionMenu && !showFullPicker && (
+        <div className="fixed inset-0 z-[100] bg-black/50 transition-opacity" onClick={() => setShowReactionMenu(false)} onContextMenu={(e) => { e.preventDefault(); setShowReactionMenu(false); }} />
+      )}
       <div 
-        className={`group relative flex flex-col ${isMine ? "items-end" : "items-start"}`}
+        className={`group relative flex flex-col ${isMine ? "items-end" : "items-start"} ${showReactionMenu ? "z-[110] scale-[1.02] transition-transform shadow-2xl" : "z-0 transition-transform"}`}
         onTouchStart={startPress}
         onTouchEnd={cancelPress}
         onTouchMove={cancelPress}
@@ -319,9 +322,7 @@ export default function MessageBubble({
         </div>
       )}
 
-        {showReactionMenu && !showFullPicker && (
-          <div className="fixed inset-0 z-40" onClick={() => setShowReactionMenu(false)} onContextMenu={(e) => { e.preventDefault(); setShowReactionMenu(false); }} />
-        )}
+
         {showReactionMenu && !showFullPicker && (
           <div className={`absolute -top-12 ${isMine ? 'right-0' : 'left-0'} z-50 flex gap-1 bg-[var(--card)] p-1.5 rounded-full shadow-lg border border-[var(--border)]`}>
             {['❤️', '😂', '😮', '😢', '👍'].map(emoji => (
