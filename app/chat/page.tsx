@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Phone, Video, Send, PhoneIncoming, PhoneOff, Settings } from "lucide-react";
+import { Phone, Video, Send, PhoneIncoming, PhoneOff, Settings, Heart } from "lucide-react";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase";
 import Avatar from "@/components/Avatar";
@@ -160,6 +160,9 @@ export default function Chat() {
   );
   // Drives the live "Last seen X minutes ago" label (local clock tick only — no network)
   const [now,          setNow]          = useState<number>(() => Date.now());
+
+  const [partnerTyping, setPartnerTyping] = useState(false);
+  const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // ── Redirect if not set up / not logged in ────────────────────────────────
   useEffect(() => {
@@ -485,6 +488,16 @@ export default function Chat() {
       .on("broadcast", { event: "hangup" }, () => {
         setIncomingCall(null);
       })
+      .on("broadcast", { event: "typing" }, ({ payload }) => {
+        if (payload.userId !== myId) {
+          setPartnerTyping(payload.isTyping);
+        }
+      })
+      .on("broadcast", { event: "nudge" }, ({ payload }) => {
+        if (payload.userId !== myId) {
+          if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
+        }
+      })
       .subscribe();
 
     signalChRef.current = ch;
@@ -588,6 +601,57 @@ export default function Chat() {
     }
   }, [draft, myId]);
 
+  const handleNudge = async () => {
+    if (!isOnline) return;
+
+    // Send broadcast for immediate vibration if partner is online
+    signalChRef.current?.send({
+      type: "broadcast",
+      event: "nudge",
+      payload: { userId: myId },
+    });
+
+    const tempId = generateUUID();
+    const offline = !navigator.onLine;
+
+    setMessages((prev) => [
+      ...prev,
+      {
+        id: tempId,
+        sender_id: myId,
+        content: "💖", // Heart emoji
+        type: 'nudge',
+        status: 'sent',
+        created_at: new Date().toISOString(),
+        pending: true,
+        queued: offline,
+      },
+    ]);
+    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+
+    if (offline) return;
+
+    const { data, error } = await supabase
+      .from('messages')
+      .insert({
+        id: tempId,
+        conversation_id: CONVERSATION_ID,
+        sender_id: myId,
+        type: 'nudge',
+        content: "💖",
+        status: 'sent',
+      })
+      .select('created_at')
+      .single();
+
+    if (error) {
+      setMessages((prev) => prev.map((m) => m.id === tempId ? { ...m, queued: true } : m));
+    } else if (data) {
+      setMessages((prev) =>
+        prev.map((m) => (m.id === tempId ? { ...m, created_at: data.created_at, pending: false } : m)),
+      );
+    }
+  };
   // ── Accept / Decline incoming call ────────────────────────────────────────
   const handleAcceptCall = useCallback(() => {
     if (!incomingCall) return;
@@ -623,7 +687,7 @@ export default function Chat() {
 
   // ─── Render ──────────────────────────────────────────────────────────────
   return (
-    <main className="mx-auto flex h-dvh w-full max-w-md flex-col bg-[var(--bg)] font-sans">
+    <main className="mx-auto flex h-dvh w-full max-w-md flex-col font-sans" style={{ background: "var(--gradient)" }}>
 
       {/* ── Incoming call overlay ───────────────────────────────────────── */}
       {incomingCall && (
@@ -686,6 +750,8 @@ export default function Chat() {
               <span className="text-[12px] italic text-[var(--muted)]" role="status">
                 Connecting…
               </span>
+            ) : partnerTyping ? (
+              <span className="text-[12px] italic text-[#4C7A5B]">typing...</span>
             ) : partner?.is_online ? (
               <>
                 <span className="h-2 w-2 rounded-full bg-[#4C7A5B]" />
@@ -737,6 +803,7 @@ export default function Chat() {
               timestamp={item.data.created_at}
               status={item.data.sender_id === myId ? item.data.status : undefined}
               queued={item.data.queued}
+              type={item.data.type}
             />
           ) : (
             <CallBubble
@@ -759,21 +826,45 @@ export default function Chat() {
           ref={inputRef}
           type="text"
           value={draft}
-          onChange={(e) => setDraft(e.target.value)}
+          onChange={(e) => {
+            setDraft(e.target.value);
+            if (!signalChRef.current || !isOnline) return;
+            if (!typingTimeoutRef.current) {
+              signalChRef.current.send({ type: "broadcast", event: "typing", payload: { userId: myId, isTyping: true } });
+            } else {
+              clearTimeout(typingTimeoutRef.current);
+            }
+            typingTimeoutRef.current = setTimeout(() => {
+              signalChRef.current?.send({ type: "broadcast", event: "typing", payload: { userId: myId, isTyping: false } });
+              typingTimeoutRef.current = null;
+            }, 2000);
+          }}
           onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && handleSend()}
           placeholder="Message…"
           autoComplete="off"
           className="flex-1 rounded-[22px] border border-[var(--border)] bg-[var(--card)] px-4 py-2.5 text-[15px] text-[var(--cream)] outline-none placeholder:text-[var(--muted)] focus:border-[var(--wine)]"
         />
-        <button
-          type="button"
-          onClick={handleSend}
-          disabled={!draft.trim()}
-          aria-label="Send"
-          className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-[var(--cream)] transition-all disabled:opacity-40 ${!isOnline ? 'bg-[var(--muted)]' : 'bg-[var(--wine)]'}`}
-        >
-          <Send className="h-[17px] w-[17px]" strokeWidth={2} />
-        </button>
+        {draft.trim() ? (
+          <button
+            type="button"
+            onClick={handleSend}
+            disabled={!isOnline}
+            aria-label="Send"
+            className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-[var(--cream)] transition-all disabled:opacity-40 ${!isOnline ? 'bg-[var(--muted)]' : 'bg-[var(--wine)]'}`}
+          >
+            <Send className="h-[17px] w-[17px]" strokeWidth={2} />
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={handleNudge}
+            disabled={!isOnline}
+            aria-label="Nudge"
+            className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-[#7A2C3B] bg-[#7A2C3B]/15 transition-all active:scale-95 disabled:opacity-40`}
+          >
+            <Heart className="h-[20px] w-[20px] fill-current" />
+          </button>
+        )}
       </div>
     </main>
   );

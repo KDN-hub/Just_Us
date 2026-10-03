@@ -70,7 +70,7 @@ export default function SignIn() {
   return (
     <main
       className="mx-auto flex h-dvh w-full max-w-md flex-col font-sans"
-      style={{ background: "linear-gradient(160deg, #1A1210 0%, #3B1520 100%)" }}
+      style={{ background: "var(--gradient)" }}
     >
       <div className="flex flex-1 flex-col items-center justify-center gap-1.5 px-6 text-center">
         <p className="text-[10px] font-medium uppercase tracking-[0.08em] text-[#C9A66B]">

@@ -6,7 +6,7 @@ export default function Welcome() {
     <main
       className="mx-auto flex h-dvh w-full max-w-md flex-col items-center justify-center gap-5 px-8 text-center font-sans"
       style={{
-        background: "linear-gradient(160deg, #1A1210 0%, #3B1520 55%, #5C1E2D 100%)",
+        background: "var(--gradient)",
       }}
     >
       {/* Circular couple photo */}

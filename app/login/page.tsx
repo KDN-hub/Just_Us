@@ -155,7 +155,7 @@ export default function Login() {
     <main
       className="mx-auto flex h-dvh w-full max-w-md flex-col font-sans"
       style={{
-        background: "linear-gradient(160deg, #1A1210 0%, #3B1520 100%)",
+        background: "var(--gradient)",
       }}
     >
       {/* Top — together counter */}
@@ -177,17 +177,17 @@ export default function Login() {
       {!showPinPad ? (
         <div className="flex flex-1 flex-col items-center justify-center pb-24 px-6 animate-in fade-in zoom-in-95 duration-300">
           <div className="flex h-[72px] w-[72px] items-center justify-center rounded-2xl">
-            <Lock className="h-14 w-14 text-[#4C7A5B]" strokeWidth={2.5} />
+            <Lock className="h-14 w-14 text-[#C9A66B]" strokeWidth={2.5} />
           </div>
 
           <p className="mt-6 text-[22px] font-medium text-[#F5F0E8] text-center">
-            {userName !== "?" ? `${userName} is backkk !` : "Missed you so much!"}
+            Missed you so muchh!!
           </p>
 
           <button
             type="button"
             onClick={handleUnlockClick}
-            className="mt-12 w-[240px] rounded-full border border-[#4C7A5B]/80 py-3.5 text-[16px] font-medium text-[#4C7A5B] transition-colors active:bg-[#4C7A5B]/10"
+            className="mt-12 w-[260px] rounded-full bg-[#7A2C3B] py-3.5 text-[16px] font-medium text-[#F5F0E8] shadow-lg shadow-[#7A2C3B]/30 transition-all active:scale-[0.97] active:bg-[#9B3A4C]"
           >
             Unlock
           </button>

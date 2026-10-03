@@ -1,4 +1,4 @@
-import { Check, CheckCheck, Clock } from "lucide-react";
+import { Check, CheckCheck, Clock, Heart } from "lucide-react";
 
 interface MessageBubbleProps {
   content: string;
@@ -7,6 +7,7 @@ interface MessageBubbleProps {
   /** Only passed for own messages — drives the tick indicator. */
   status?: "sent" | "delivered" | "read";
   queued?: boolean;
+  type?: string;
 }
 
 function formatTime(iso: string): string {
@@ -22,18 +23,25 @@ export default function MessageBubble({
   timestamp,
   status,
   queued = false,
+  type = "text",
 }: MessageBubbleProps) {
   return (
     <div className={`flex flex-col ${isMine ? "items-end" : "items-start"}`}>
-      <div
-        className={`max-w-[78%] px-4 py-2.5 text-[15px] leading-[1.5] text-[var(--cream)] ${
-          isMine
-            ? "rounded-[16px_16px_4px_16px] bg-[var(--wine)]"
-            : "rounded-[16px_16px_16px_4px] bg-[var(--card)]"
-        }`}
-      >
-        {content}
-      </div>
+      {type === "nudge" ? (
+        <div className="py-1 text-[48px] leading-none animate-in zoom-in-50 duration-500">
+           💖
+        </div>
+      ) : (
+        <div
+          className={`max-w-[78%] px-4 py-2.5 text-[15px] leading-[1.5] text-[var(--cream)] ${
+            isMine
+              ? "rounded-[16px_16px_4px_16px] bg-[var(--wine)]"
+              : "rounded-[16px_16px_16px_4px] bg-[var(--card)]"
+          }`}
+        >
+          {content}
+        </div>
+      )}
 
       {/* Timestamp + status tick row */}
       <div className={`mt-1 flex items-center gap-[4px] ${isMine ? "flex-row-reverse" : ""}`}>

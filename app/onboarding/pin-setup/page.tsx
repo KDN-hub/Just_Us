@@ -102,7 +102,7 @@ export default function PinSetup() {
     <main
       className="mx-auto flex h-dvh w-full max-w-md flex-col font-sans"
       style={{
-        background: "linear-gradient(160deg, #1A1210 0%, #3B1520 100%)",
+        background: "var(--gradient)",
       }}
     >
       {/* Top — step indicator */}

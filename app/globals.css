@@ -4,6 +4,7 @@
 
 :root {
   --bg: #141210;
+  --gradient: linear-gradient(160deg, #0F0D0B 0%, #1A1210 20%, #3B1520 50%, #5A1D2E 75%, #2A1018 100%);
   --surface: #1e1b18;
   --card: #26221e;
   --wine: #7a2c3b;

@@ -44,6 +44,6 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
     };
   }, [router]);
 
-  if (!ready) return <div className="h-dvh bg-[var(--bg)]" />;
+  if (!ready) return <div className="h-dvh" style={{ background: "var(--gradient)" }} />;
   return <>{children}</>;
 }

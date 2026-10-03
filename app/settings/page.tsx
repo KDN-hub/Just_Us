@@ -112,7 +112,7 @@ export default function Settings() {
   }
 
   return (
-    <main className="mx-auto flex h-dvh w-full max-w-md flex-col bg-[var(--bg)] font-sans">
+    <main className="mx-auto flex h-dvh w-full max-w-md flex-col font-sans" style={{ background: "var(--gradient)" }}>
       <header className="flex shrink-0 items-center gap-2 border-b border-[var(--border)] bg-[var(--surface)] px-3.5 py-3">
         <button
           onClick={() => (step === "menu" ? router.back() : (setStep("menu"), setNewPin("")))}
