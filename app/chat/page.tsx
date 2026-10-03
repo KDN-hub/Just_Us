@@ -164,6 +164,11 @@ export default function Chat() {
   // Drives the live "Last seen X minutes ago" label (local clock tick only — no network)
   const [now,          setNow]          = useState<number>(() => Date.now());
 
+  const [wallpaper, setWallpaper] = useState<string>("default");
+  useEffect(() => {
+    setWallpaper(localStorage.getItem('chat_wallpaper') || 'default');
+  }, []);
+
   const [partnerTyping, setPartnerTyping] = useState(false);
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -955,7 +960,15 @@ export default function Chat() {
 
   // ─── Render ──────────────────────────────────────────────────────────────
   return (
-    <main className="mx-auto flex h-dvh w-full max-w-md flex-col font-sans" style={{ background: "var(--gradient)" }}>
+    <main 
+      className="mx-auto flex h-dvh w-full max-w-md flex-col font-sans relative" 
+      style={{ 
+        background: wallpaper === 'default' ? "var(--gradient)" : (wallpaper.startsWith('http') ? '#000' : wallpaper)
+      }}
+    >
+      {wallpaper.startsWith('http') && (
+        <div className="absolute inset-0 z-0 opacity-20 pointer-events-none bg-cover bg-center" style={{ backgroundImage: `url('${wallpaper}')` }} />
+      )}
 
       {/* ── Incoming call overlay ───────────────────────────────────────── */}
       {incomingCall && (
@@ -999,7 +1012,7 @@ export default function Chat() {
       )}
 
       {/* ── Header ─────────────────────────────────────────────────────── */}
-      <header className="shrink-0 flex items-center gap-3 border-b border-[var(--border)] bg-[var(--surface)] px-4 py-3.5">
+      <header className="relative z-10 shrink-0 flex items-center gap-3 border-b border-[var(--border)] bg-[var(--surface)] px-4 py-3.5">
 
         <Avatar initial={partnerInitial} color={partnerColor} size={42} />
 
@@ -1055,7 +1068,7 @@ export default function Chat() {
       </header>
 
       {/* ── Timeline (messages + call log) ──────────────────────────────── */}
-      <div className="flex flex-1 min-h-0 flex-col gap-3 overflow-y-auto px-4 py-4">
+      <div className="relative z-10 flex flex-1 min-h-0 flex-col gap-3 overflow-y-auto px-4 py-4">
         {timeline.length === 0 && (
           <p className="mx-auto mt-10 text-[14px] text-[var(--muted)]">Say something 💬</p>
         )}
@@ -1091,7 +1104,7 @@ export default function Chat() {
       </div>
 
       {/* ── Input bar ───────────────────────────────────────────────────── */}
-      <div className="shrink-0 flex items-end gap-2 border-t border-[var(--border)] bg-[var(--surface)] px-2 py-2 relative">
+      <div className="relative z-10 shrink-0 flex items-end gap-2 border-t border-[var(--border)] bg-[var(--surface)] px-2 py-2">
         
         {showEmojiPicker && (
           <div className="absolute bottom-[100%] left-2 mb-2 z-50 flex flex-col bg-[var(--card)] rounded-lg overflow-hidden border border-[var(--border)] shadow-xl w-[320px]">

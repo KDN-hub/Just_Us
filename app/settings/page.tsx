@@ -2,7 +2,7 @@
 
 import { useCallback, useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, KeyRound, LogOut, Fingerprint } from "lucide-react";
+import { ArrowLeft, KeyRound, LogOut, Fingerprint, Image } from "lucide-react";
 import PinPad from "@/components/PinPad";
 import { setLocalPin, signOutAndWipe, verifyLocalPin, setSignInNotice } from "@/lib/auth";
 import {
@@ -12,9 +12,9 @@ import {
   disableBiometrics,
 } from "@/lib/biometrics";
 
-type Step = "menu" | "old" | "new" | "confirm";
+type Step = "menu" | "old" | "new" | "confirm" | "wallpaper";
 
-const LABELS: Record<Exclude<Step, "menu">, string> = {
+const LABELS: Record<Exclude<Step, "menu" | "wallpaper">, string> = {
   old:     "Enter your current PIN",
   new:     "Choose a new PIN",
   confirm: "Confirm your new PIN",
@@ -23,6 +23,12 @@ const LABELS: Record<Exclude<Step, "menu">, string> = {
 export default function Settings() {
   const router = useRouter();
   const [step, setStep] = useState<Step>("menu");
+  const [wallpaper, setWallpaper] = useState<string>(() => typeof window !== 'undefined' ? localStorage.getItem('chat_wallpaper') || 'default' : 'default');
+
+  const handleSetWallpaper = (val: string) => {
+    setWallpaper(val);
+    localStorage.setItem('chat_wallpaper', val);
+  };
   const [newPin, setNewPin] = useState("");
   const [error, setError] = useState(false);
   const [message, setMessage] = useState("");
@@ -143,6 +149,14 @@ export default function Settings() {
             </div>
           </button>
 
+          <button onClick={() => setStep("wallpaper")} className="flex items-center gap-3 rounded-[12px] border border-[var(--border)] bg-[var(--card)] px-4 py-3.5 text-left mt-3">
+            <Image className="h-4 w-4 text-[#34B7F1]" strokeWidth={2} />
+            <div>
+              <p className="text-[13px] text-[var(--cream)]">Chat Wallpaper</p>
+              <p className="text-[11px] text-[var(--muted)]">Change the background of your chat</p>
+            </div>
+          </button>
+
           {bioSupported && (
             <button
               onClick={handleToggleBiometrics}
@@ -196,9 +210,27 @@ export default function Settings() {
             </div>
           </button>
         </div>
+      ) : step === "wallpaper" ? (
+        <div className="flex flex-col gap-4 p-4">
+          <h2 className="text-[15px] font-medium text-[var(--cream)] mb-2">Choose Wallpaper</h2>
+          <div className="grid grid-cols-2 gap-3">
+            <button onClick={() => handleSetWallpaper('default')} className={`h-32 rounded-xl border-2 ${wallpaper === 'default' ? 'border-[var(--gold)]' : 'border-transparent'} relative overflow-hidden`} style={{ background: 'var(--gradient)' }}>
+              <span className="absolute bottom-2 left-2 text-[12px] text-white/80 bg-black/40 px-2 rounded-full">Default</span>
+            </button>
+            <button onClick={() => handleSetWallpaper('black')} className={`h-32 rounded-xl border-2 ${wallpaper === 'black' ? 'border-[var(--gold)]' : 'border-transparent'} relative overflow-hidden bg-black`}>
+              <span className="absolute bottom-2 left-2 text-[12px] text-white/80 bg-white/20 px-2 rounded-full">Pure Black</span>
+            </button>
+            <button onClick={() => handleSetWallpaper('https://images.unsplash.com/photo-1557682250-33bd709cbe85')} className={`h-32 rounded-xl border-2 ${wallpaper === 'https://images.unsplash.com/photo-1557682250-33bd709cbe85' ? 'border-[var(--gold)]' : 'border-transparent'} relative overflow-hidden bg-cover bg-center`} style={{ backgroundImage: "url('https://images.unsplash.com/photo-1557682250-33bd709cbe85')" }}>
+              <span className="absolute bottom-2 left-2 text-[12px] text-white/80 bg-black/40 px-2 rounded-full">Purple Dream</span>
+            </button>
+            <button onClick={() => handleSetWallpaper('https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe')} className={`h-32 rounded-xl border-2 ${wallpaper === 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe' ? 'border-[var(--gold)]' : 'border-transparent'} relative overflow-hidden bg-cover bg-center`} style={{ backgroundImage: "url('https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe')" }}>
+              <span className="absolute bottom-2 left-2 text-[12px] text-white/80 bg-black/40 px-2 rounded-full">Abstract</span>
+            </button>
+          </div>
+        </div>
       ) : (
         <div className="flex flex-1 flex-col items-center justify-center gap-4 pb-10">
-          <PinPad key={step} onComplete={handlePin} error={error} label={LABELS[step]} />
+          <PinPad key={step} onComplete={handlePin} error={error} label={LABELS[step as Exclude<Step, "menu" | "wallpaper">]} />
           {message && <p className="text-[12px] text-red-400">{message}</p>}
         </div>
       )}
