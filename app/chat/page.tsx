@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Phone, Video, Send, PhoneIncoming, PhoneOff, Settings, Heart, Paperclip, Mic, Square } from "lucide-react";
+import { Phone, Video, Send, PhoneIncoming, PhoneOff, Settings, Heart, Paperclip, Mic, Square, X, Smile } from "lucide-react";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase";
 import Avatar from "@/components/Avatar";
@@ -170,7 +170,11 @@ export default function Chat() {
 
   const [isRecording, setIsRecording] = useState(false);
 
-  const uploadMedia = async (file: File | Blob, type: string) => {
+  const [pendingMedia, setPendingMedia] = useState<{file: File | Blob, type: string, url: string} | null>(null);
+  const [mediaCaption, setMediaCaption] = useState("");
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+
+  const uploadMedia = async (file: File | Blob, type: string, caption?: string) => {
     try {
       const ext = (file as File).name ? (file as File).name.split('.').pop() : 'webm';
       const fileName = `${generateUUID()}.${ext}`;
@@ -189,6 +193,11 @@ export default function Chat() {
       const { data: publicData } = supabase.storage.from('chat_media').getPublicUrl(fileName);
       const url = publicData.publicUrl;
       
+      let dbType = type === 'image' ? 'image' : 'text';
+      let dbContent = url;
+      if (type === 'audio') dbContent = `AUDIO_URL:${url}`;
+      if (type === 'video') dbContent = `VIDEO_URL:${url}`;
+      
       const tempId = generateUUID();
       const offline = !navigator.onLine;
 
@@ -197,8 +206,8 @@ export default function Chat() {
         {
           id: tempId,
           sender_id: myId,
-          content: url,
-          type,
+          content: dbContent,
+          type: dbType,
           status: 'sent',
           created_at: new Date().toISOString(),
           pending: true,
@@ -206,27 +215,31 @@ export default function Chat() {
         },
       ]);
       
-      if (offline) return;
-      
-      const { data: insertData, error: insertError } = await supabase
-        .from('messages')
-        .insert({
-          id: tempId,
-          conversation_id: CONVERSATION_ID,
-          sender_id: myId,
-          type,
-          content: url,
-          status: 'sent',
-        })
-        .select('created_at')
-        .single();
-        
-      if (insertError) {
-        setMessages((prev) => prev.map((m) => m.id === tempId ? { ...m, queued: true } : m));
-      } else if (insertData) {
-        setMessages((prev) =>
-          prev.map((m) => (m.id === tempId ? { ...m, created_at: insertData.created_at, pending: false } : m)),
-        );
+      if (!offline) {
+        const { data: insertData, error: insertError } = await supabase
+          .from('messages')
+          .insert({
+            id: tempId,
+            conversation_id: CONVERSATION_ID,
+            sender_id: myId,
+            type: dbType,
+            content: dbContent,
+            status: 'sent',
+          })
+          .select('created_at')
+          .single();
+          
+        if (insertError) {
+          setMessages((prev) => prev.map((m) => m.id === tempId ? { ...m, queued: true } : m));
+        } else if (insertData) {
+          setMessages((prev) =>
+            prev.map((m) => (m.id === tempId ? { ...m, created_at: insertData.created_at, pending: false } : m)),
+          );
+        }
+      }
+
+      if (caption) {
+        handleSend(caption);
       }
     } catch (err) {
       console.error(err);
@@ -237,9 +250,9 @@ export default function Chat() {
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    const type = file.type.startsWith('image/') ? 'image' : file.type.startsWith('video/') ? 'video' : 'audio';
-    uploadMedia(file, type);
-    e.target.value = ''; // Reset
+    const type = file.type.startsWith('video') ? 'video' : 'image';
+    setPendingMedia({ file, type, url: URL.createObjectURL(file) });
+    e.target.value = '';
   };
 
   const startRecording = async () => {
@@ -674,11 +687,12 @@ export default function Chat() {
 
 
   // ── Send message (optimistic UI) ──────────────────────────────────────────
-  const handleSend = useCallback(async () => {
-    const text = draft.trim();
+  const handleSend = useCallback(async (overrideText?: string | React.MouseEvent | React.KeyboardEvent) => {
+    const isEvent = overrideText && typeof overrideText === 'object' && 'nativeEvent' in overrideText;
+    const text = (typeof overrideText === 'string' ? overrideText : draft).trim();
     if (!text) return;
 
-    setDraft('');
+    if (typeof overrideText !== 'string') setDraft('');
 
     const tempId = generateUUID();
     const offline = !navigator.onLine;
@@ -948,8 +962,30 @@ export default function Chat() {
       </div>
 
       {/* ── Input bar ───────────────────────────────────────────────────── */}
-      <div className="shrink-0 flex items-center gap-2.5 border-t border-[var(--border)] bg-[var(--surface)] px-3.5 py-3">
+      <div className="shrink-0 flex items-center gap-2.5 border-t border-[var(--border)] bg-[var(--surface)] px-3.5 py-3 relative">
+        {showEmojiPicker && (
+          <div className="absolute bottom-16 left-4 flex gap-2 p-2 bg-zinc-800 rounded-lg shadow-lg border border-zinc-700">
+            {['❤️','😂','🥺','🔥','👍','✨','😭','👀','🥰','💀'].map(emoji => (
+              <button
+                key={emoji}
+                type="button"
+                className="text-xl hover:scale-110 transition-transform"
+                onClick={() => setDraft(d => d + emoji)}
+              >
+                {emoji}
+              </button>
+            ))}
+          </div>
+        )}
         <input type="file" ref={fileInputRef} accept="image/*,video/*,audio/*" className="hidden" onChange={handleFileUpload} />
+        <button
+          type="button"
+          onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+          aria-label="Emoji"
+          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-[var(--muted)] transition-all hover:text-[var(--cream)] hover:bg-[var(--card)]"
+        >
+          <Smile className="h-[20px] w-[20px]" strokeWidth={2} />
+        </button>
         <button
           type="button"
           onClick={() => fileInputRef.current?.click()}
@@ -983,7 +1019,7 @@ export default function Chat() {
         {draft.trim() ? (
           <button
             type="button"
-            onClick={handleSend}
+            onClick={() => handleSend()}
             disabled={!isOnline}
             aria-label="Send"
             className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-[var(--cream)] transition-all disabled:opacity-40 ${!isOnline ? 'bg-[var(--muted)]' : 'bg-[var(--wine)]'}`}
@@ -1013,6 +1049,27 @@ export default function Chat() {
           </>
         )}
       </div>
+
+      {pendingMedia && (
+        <div className="absolute inset-0 z-50 flex flex-col bg-black">
+          <div className="flex items-center p-4">
+            <button onClick={() => setPendingMedia(null)} className="text-white"><X className="h-6 w-6" /></button>
+          </div>
+          <div className="flex-1 flex items-center justify-center min-h-0">
+            {pendingMedia.type === 'video' ? <video src={pendingMedia.url} controls className="max-h-full max-w-full" /> : <img src={pendingMedia.url} className="max-h-full max-w-full object-contain" />}
+          </div>
+          <div className="p-4 flex gap-2">
+            <input type="text" value={mediaCaption} onChange={e => setMediaCaption(e.target.value)} placeholder="Add a caption..." className="flex-1 rounded-full bg-zinc-800 text-white px-4 py-2 outline-none" />
+            <button onClick={() => {
+               uploadMedia(pendingMedia.file, pendingMedia.type, mediaCaption);
+               setPendingMedia(null);
+               setMediaCaption("");
+            }} className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#4C7A5B] text-white">
+              <Send className="h-[17px] w-[17px]" />
+            </button>
+          </div>
+        </div>
+      )}
     </main>
   );
 }

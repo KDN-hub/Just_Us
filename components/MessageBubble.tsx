@@ -1,4 +1,5 @@
-import { Check, CheckCheck, Clock, Heart } from "lucide-react";
+import { Check, CheckCheck, Clock, Heart, Play, Pause } from "lucide-react";
+import { useState, useRef } from "react";
 
 interface MessageBubbleProps {
   content: string;
@@ -8,6 +9,27 @@ interface MessageBubbleProps {
   status?: "sent" | "delivered" | "read";
   queued?: boolean;
   type?: string;
+}
+
+const AudioPlayer = ({ url, isMine }: { url: string, isMine: boolean }) => {
+  const [isPlaying, setIsPlaying] = useState(false);
+  const audioRef = useRef<HTMLAudioElement>(null);
+  const toggle = () => {
+    if (isPlaying) audioRef.current?.pause();
+    else audioRef.current?.play();
+    setIsPlaying(!isPlaying);
+  };
+  return (
+    <div className="flex items-center gap-3 py-1">
+      <audio ref={audioRef} src={url} onEnded={() => setIsPlaying(false)} />
+      <button onClick={toggle} className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${isMine ? 'bg-[var(--cream)] text-[var(--wine)]' : 'bg-[var(--wine)] text-[var(--cream)]'}`}>
+        {isPlaying ? <Pause className="h-5 w-5 fill-current" /> : <Play className="h-5 w-5 fill-current ml-1" />}
+      </button>
+      <div className="flex-1 h-1.5 w-32 rounded-full bg-black/20 overflow-hidden">
+        <div className={`h-full ${isMine ? 'bg-[var(--cream)]' : 'bg-[var(--wine)]'} w-1/3`} />
+      </div>
+    </div>
+  );
 }
 
 function formatTime(iso: string): string {
@@ -25,18 +47,28 @@ export default function MessageBubble({
   queued = false,
   type = "text",
 }: MessageBubbleProps) {
+  let actualType = type;
+  let actualContent = content;
+  if (type === "text" && content.startsWith("AUDIO_URL:")) {
+    actualType = "audio";
+    actualContent = content.replace("AUDIO_URL:", "");
+  } else if (type === "text" && content.startsWith("VIDEO_URL:")) {
+    actualType = "video";
+    actualContent = content.replace("VIDEO_URL:", "");
+  }
+
   return (
     <div className={`flex flex-col ${isMine ? "items-end" : "items-start"}`}>
-      {content === "NUDGE_PING_💖" ? (
+      {actualContent === "NUDGE_PING_💖" ? (
         <div className="py-1 text-[64px] leading-none animate-in zoom-in-50 duration-500 drop-shadow-xl" style={{ filter: 'drop-shadow(0 10px 15px rgba(255,50,100,0.4))' }}>
            💖
         </div>
-      ) : type === "image" ? (
-        <img src={content} alt="Image message" className="max-w-[240px] max-h-[300px] rounded-md object-cover" />
-      ) : type === "video" ? (
-        <video src={content} controls className="max-w-[240px] max-h-[300px] rounded-md" />
-      ) : type === "audio" ? (
-        <audio src={content} controls className="max-w-[240px]" />
+      ) : actualType === "image" ? (
+        <img src={actualContent} alt="Image message" className="max-w-[240px] max-h-[300px] rounded-md object-cover" />
+      ) : actualType === "video" ? (
+        <video src={actualContent} controls className="max-w-[240px] max-h-[300px] rounded-md" />
+      ) : actualType === "audio" ? (
+        <AudioPlayer url={actualContent} isMine={isMine} />
       ) : (
         <div
           className={`max-w-[78%] px-4 py-2.5 text-[15px] leading-[1.5] text-[var(--cream)] ${
@@ -45,7 +77,7 @@ export default function MessageBubble({
               : "rounded-[16px_16px_16px_4px] bg-[var(--card)]"
           }`}
         >
-          {content}
+          {actualContent}
         </div>
       )}
 
