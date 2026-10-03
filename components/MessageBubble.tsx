@@ -1,6 +1,7 @@
-import { Check, CheckCheck, Clock, Heart, Play, Pause, X, Download, Mic, User, SmilePlus } from "lucide-react";
+import { Check, CheckCheck, Clock, Heart, Play, Pause, X, Download, Mic, User, Plus } from "lucide-react";
 import { TransformWrapper, TransformComponent } from "react-zoom-pan-pinch";
 import { useState, useRef } from "react";
+import EmojiPicker, { Theme } from 'emoji-picker-react';
 
 interface MessageBubbleProps {
   content: string;
@@ -157,6 +158,19 @@ export default function MessageBubble({
 }: MessageBubbleProps) {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showReactionMenu, setShowReactionMenu] = useState(false);
+  const [showFullPicker, setShowFullPicker] = useState(false);
+  const pressTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  const startPress = () => {
+    pressTimerRef.current = setTimeout(() => {
+      setShowReactionMenu(true);
+      if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(50);
+    }, 500);
+  };
+  const cancelPress = () => {
+    if (pressTimerRef.current) clearTimeout(pressTimerRef.current);
+  };
+
   let actualType = type;
   let actualContent = content;
   if (type === "text" && content.startsWith("AUDIO_URL:")) {
@@ -193,6 +207,13 @@ export default function MessageBubble({
 
   return (
     <>
+      {showFullPicker && (
+        <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/60 p-4" onClick={() => { setShowFullPicker(false); setShowReactionMenu(false); }}>
+          <div className="w-full max-w-sm rounded-xl overflow-hidden shadow-2xl" onClick={e => e.stopPropagation()}>
+            <EmojiPicker theme={Theme.DARK} width="100%" height={400} onEmojiClick={(e) => { onReact?.(e.emoji); setShowFullPicker(false); setShowReactionMenu(false); }} />
+          </div>
+        </div>
+      )}
       {isFullscreen && (
         <div className="fixed inset-0 z-[100] bg-black flex flex-col animate-in fade-in duration-200">
           <div className="flex items-center justify-between p-4 bg-gradient-to-b from-black/60 to-transparent absolute top-0 inset-x-0 z-20 pointer-events-none">
@@ -226,7 +247,20 @@ export default function MessageBubble({
           </div>
         </div>
       )}
-      <div className={`flex flex-col ${isMine ? "items-end" : "items-start"}`}>
+      <div 
+        className={`group relative flex flex-col ${isMine ? "items-end" : "items-start"}`}
+        onTouchStart={startPress}
+        onTouchEnd={cancelPress}
+        onTouchMove={cancelPress}
+        onMouseDown={startPress}
+        onMouseUp={cancelPress}
+        onMouseLeave={cancelPress}
+        onContextMenu={(e) => {
+          e.preventDefault();
+          setShowReactionMenu(true);
+          if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(50);
+        }}
+      >
         <div className="group relative">
         {actualContent === "NUDGE_PING_💖" ? (
           <div className="py-1 text-[64px] leading-none animate-in zoom-in-50 duration-500 drop-shadow-xl" style={{ filter: 'drop-shadow(0 10px 15px rgba(255,50,100,0.4))' }}>
@@ -285,17 +319,17 @@ export default function MessageBubble({
         </div>
       )}
 
-        <div className={`absolute top-1/2 -translate-y-1/2 ${isMine ? '-left-10' : '-right-10'} opacity-0 group-hover:opacity-100 transition-opacity`}>
-          <button onClick={() => setShowReactionMenu(!showReactionMenu)} className="p-1.5 rounded-full bg-[var(--surface)] text-[var(--muted)] hover:text-[var(--cream)] border border-[var(--border)] shadow-sm">
-            <SmilePlus className="h-4 w-4" />
-          </button>
-        </div>
-
-        {showReactionMenu && (
+        {showReactionMenu && !showFullPicker && (
+          <div className="fixed inset-0 z-40" onClick={() => setShowReactionMenu(false)} onContextMenu={(e) => { e.preventDefault(); setShowReactionMenu(false); }} />
+        )}
+        {showReactionMenu && !showFullPicker && (
           <div className={`absolute -top-12 ${isMine ? 'right-0' : 'left-0'} z-50 flex gap-1 bg-[var(--card)] p-1.5 rounded-full shadow-lg border border-[var(--border)]`}>
             {['❤️', '😂', '😮', '😢', '👍'].map(emoji => (
               <button key={emoji} onClick={() => { onReact?.(emoji); setShowReactionMenu(false); }} className="text-xl hover:scale-125 transition-transform px-1">{emoji}</button>
             ))}
+            <button onClick={() => setShowFullPicker(true)} className="flex items-center justify-center w-8 h-8 rounded-full bg-[var(--surface)] text-[var(--muted)] hover:text-[var(--cream)] ml-1">
+              <Plus className="h-5 w-5" strokeWidth={2} />
+            </button>
           </div>
         )}
 
