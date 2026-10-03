@@ -13,6 +13,7 @@ interface MessageBubbleProps {
   type?: string;
   onReact?: (emoji: string) => void;
   reactions?: Record<string, string>;
+  myReaction?: string;
 }
 
 const AudioPlayer = ({ url, isMine, timestamp, status, queued }: { url: string, isMine: boolean, timestamp: string, status?: string, queued?: boolean }) => {
@@ -155,6 +156,7 @@ export default function MessageBubble({
   type = "text",
   onReact,
   reactions,
+  myReaction,
 }: MessageBubbleProps) {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showReactionMenu, setShowReactionMenu] = useState(false);
@@ -210,7 +212,7 @@ export default function MessageBubble({
       {showFullPicker && (
         <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/60 p-4" onClick={() => { setShowFullPicker(false); setShowReactionMenu(false); }}>
           <div className="w-full max-w-sm rounded-xl overflow-hidden shadow-2xl" onClick={e => e.stopPropagation()}>
-            <EmojiPicker theme={Theme.DARK} width="100%" height={400} onEmojiClick={(e) => { onReact?.(e.emoji); setShowFullPicker(false); setShowReactionMenu(false); }} />
+            <EmojiPicker theme={Theme.DARK} width="100%" height={400} onEmojiClick={(e) => { onReact?.(e.emoji === myReaction ? 'NONE' : e.emoji); setShowFullPicker(false); setShowReactionMenu(false); }} />
           </div>
         </div>
       )}
@@ -326,7 +328,7 @@ export default function MessageBubble({
         {showReactionMenu && !showFullPicker && (
           <div className={`absolute -top-12 ${isMine ? 'right-0' : 'left-0'} z-50 flex gap-1 bg-[var(--card)] p-1.5 rounded-full shadow-lg border border-[var(--border)]`}>
             {['❤️', '😂', '😮', '😢', '👍'].map(emoji => (
-              <button key={emoji} onClick={() => { onReact?.(emoji); setShowReactionMenu(false); }} className="text-xl hover:scale-125 transition-transform px-1">{emoji}</button>
+              <button key={emoji} onClick={() => { onReact?.(emoji === myReaction ? 'NONE' : emoji); setShowReactionMenu(false); }} className={`text-xl hover:scale-125 transition-transform px-1 ${emoji === myReaction ? 'bg-white/10 rounded-full' : ''}`}>{emoji}</button>
             ))}
             <button onClick={() => setShowFullPicker(true)} className="flex items-center justify-center w-8 h-8 rounded-full bg-[var(--surface)] text-[var(--muted)] hover:text-[var(--cream)] ml-1">
               <Plus className="h-5 w-5" strokeWidth={2} />
@@ -335,7 +337,17 @@ export default function MessageBubble({
         )}
 
         {reactions && Object.keys(reactions).length > 0 && (
-          <div className={`absolute -bottom-3 ${isMine ? 'right-4' : 'left-4'} flex items-center bg-[var(--surface)] border border-[var(--border)] rounded-full px-1.5 py-0.5 shadow-sm z-20`}>
+          <div 
+            onClick={(e) => {
+              e.stopPropagation();
+              if (myReaction) {
+                onReact?.('NONE');
+              } else {
+                setShowReactionMenu(true);
+              }
+            }}
+            className={`absolute -bottom-3 ${isMine ? 'right-4' : 'left-4'} flex items-center bg-[var(--surface)] border ${myReaction ? 'border-[var(--wine)] bg-[var(--wine)]/10' : 'border-[var(--border)]'} rounded-full px-1.5 py-0.5 shadow-sm z-20 cursor-pointer hover:bg-white/5 transition-colors`}
+          >
             {Array.from(new Set(Object.values(reactions))).map((emoji, idx) => (
               <span key={idx} className="text-[12px]">{emoji}</span>
             ))}

@@ -1111,6 +1111,7 @@ export default function Chat() {
               queued={item.data.queued}
               type={item.data.type}
               reactions={item.data.reactions}
+              myReaction={item.data.reactions?.[myId]}
               onReact={(emoji) => handleReaction(item.data.id, emoji)}
             />
           ) : (
