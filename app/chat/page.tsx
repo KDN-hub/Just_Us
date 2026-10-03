@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Phone, Video, Send, PhoneIncoming, PhoneOff, Settings, Heart, Paperclip, Mic, Square, X, Smile, Star } from "lucide-react";
+import { Phone, Video, Send, PhoneIncoming, PhoneOff, Settings, Heart, Paperclip, Mic, Square, X, Smile, Star, Flame } from "lucide-react";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase";
 import Avatar from "@/components/Avatar";
@@ -183,6 +183,7 @@ export default function Chat() {
   const [mediaCaption, setMediaCaption] = useState("");
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [pickerTab, setPickerTab] = useState<'emoji' | 'sticker' | 'gif' | 'favorites'>('emoji');
+  const [daysTogether, setDaysTogether] = useState<number>(0);
   const [favorites, setFavorites] = useState<string[]>(() => {
     if (typeof window !== 'undefined') {
       return JSON.parse(localStorage.getItem('fav_media') || '[]');
@@ -544,11 +545,31 @@ export default function Chat() {
       if (!partnerId) {
         const { data: conv } = await supabase
           .from("conversation")
-          .select("user_a_id, user_b_id")
+          .select("user_a_id, user_b_id, together_since, created_at")
           .eq("id", CONVERSATION_ID)
           .single();
         if (cancelled || !conv) return;
         partnerId = conv.user_a_id === myId ? conv.user_b_id : conv.user_a_id;
+        
+        const startDate = conv.together_since || conv.created_at;
+        if (startDate) {
+           const days = Math.floor((Date.now() - new Date(startDate).getTime()) / (1000 * 60 * 60 * 24));
+           setDaysTogether(Math.max(0, days));
+        }
+      } else {
+        supabase
+          .from("conversation")
+          .select("together_since, created_at")
+          .eq("id", CONVERSATION_ID)
+          .single()
+          .then(({ data: conv }) => {
+            if (cancelled || !conv) return;
+            const startDate = conv.together_since || conv.created_at;
+            if (startDate) {
+               const days = Math.floor((Date.now() - new Date(startDate).getTime()) / (1000 * 60 * 60 * 24));
+               setDaysTogether(Math.max(0, days));
+            }
+          });
       }
 
 
@@ -1017,10 +1038,16 @@ export default function Chat() {
         <Avatar initial={partnerInitial} color={partnerColor} size={42} />
 
         <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-1.5">
-            <span className="text-[16px] font-semibold text-[var(--cream)]">
+          <div className="flex items-center gap-2">
+            <span className="text-[16px] font-semibold text-[var(--cream)] truncate max-w-[120px]">
               {partnerDisplay}
             </span>
+            {daysTogether > 0 && (
+              <div className="flex items-center gap-1 px-2 py-0.5 bg-[var(--wine)]/30 rounded-full border border-[var(--wine)]/50">
+                <Flame className="h-3 w-3 text-[#F5C842]" />
+                <span className="text-[10px] font-bold text-[#F5C842]">{daysTogether}</span>
+              </div>
+            )}
           </div>
           <div className="mt-0.5 flex items-center gap-1.5">
             {!isOnline ? (
