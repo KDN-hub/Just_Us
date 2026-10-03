@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
+import { Lock } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import PinPad from "@/components/PinPad";
 import {
@@ -29,6 +30,8 @@ export default function Login() {
   const [avatarColor, setAvatarColor] = useState("#7A2C3B");
   const [bioAvailable, setBioAvailable] = useState(false);
   const autoPromptedRef = useRef(false);
+
+  const [showPinPad, setShowPinPad] = useState(false);
 
   // ── Guard: needs a real session; a device without a PIN must set one first ──
   useEffect(() => {
@@ -113,6 +116,14 @@ export default function Login() {
     return () => clearTimeout(timer);
   }, [bioAvailable, handleBiometrics]);
 
+  const handleUnlockClick = () => {
+    if (bioAvailable) {
+      handleBiometrics();
+    } else {
+      setShowPinPad(true);
+    }
+  };
+
   // ── PIN verification (local only) ─────────────────────────────────────────
   const handlePinComplete = useCallback(
     async (pin: string) => {
@@ -148,7 +159,7 @@ export default function Login() {
       }}
     >
       {/* Top — together counter */}
-      <div className="flex flex-1 flex-col items-center justify-center gap-2 px-4">
+      <div className="flex shrink-0 flex-col items-center justify-center gap-2 px-4 pt-16 pb-8">
         <p className="text-[12px] font-medium uppercase tracking-[0.08em] text-[#C9A66B]">
           Together for
         </p>
@@ -163,36 +174,76 @@ export default function Login() {
         </p>
       </div>
 
-      {/* Bottom sheet */}
-      <div className="relative z-10 flex flex-col items-center gap-5 rounded-t-[22px] bg-[#26221E] px-4 pb-10 pt-6">
-        {/* Avatar */}
-        <div
-          className="flex h-[52px] w-[52px] items-center justify-center rounded-full text-[18px] font-semibold text-[#F5F0E8]"
-          style={{ backgroundColor: avatarColor }}
-        >
-          {initial}
+      {!showPinPad ? (
+        <div className="flex flex-1 flex-col items-center justify-center pb-24 px-6 animate-in fade-in zoom-in-95 duration-300">
+          <div className="flex h-[72px] w-[72px] items-center justify-center rounded-2xl">
+            <Lock className="h-14 w-14 text-[#4C7A5B]" strokeWidth={2.5} />
+          </div>
+
+          <p className="mt-6 text-[22px] font-medium text-[#F5F0E8] text-center">
+            {userName !== "?" ? `${userName} is backkk !` : "Missed you so much!"}
+          </p>
+
+          <button
+            type="button"
+            onClick={handleUnlockClick}
+            className="mt-12 w-[240px] rounded-full border border-[#4C7A5B]/80 py-3.5 text-[16px] font-medium text-[#4C7A5B] transition-colors active:bg-[#4C7A5B]/10"
+          >
+            Unlock
+          </button>
+
+          {errorMsg && !showPinPad && (
+            <p className="mt-4 text-[14px] text-red-400">{errorMsg}</p>
+          )}
+
+          <button
+            type="button"
+            onClick={() => setShowPinPad(true)}
+            className="mt-8 text-[14px] text-[#8A8177] underline-offset-4 active:underline"
+          >
+            Use PIN instead
+          </button>
         </div>
+      ) : (
+        <div className="relative z-10 mt-auto flex flex-col items-center gap-5 rounded-t-[22px] bg-[#26221E] px-4 pb-10 pt-6 shadow-[0_-10px_40px_rgba(0,0,0,0.5)] animate-in slide-in-from-bottom-12 duration-300">
+          <button
+            type="button"
+            onClick={() => setShowPinPad(false)}
+            className="absolute left-6 top-6 text-[#8A8177] active:text-[#F5F0E8]"
+            aria-label="Cancel"
+          >
+            Cancel
+          </button>
 
-        <PinPad
-          onComplete={handlePinComplete}
-          error={pinError}
-          label="Enter PIN"
-          showBiometric={bioAvailable}
-          onBiometric={handleBiometrics}
-        />
+          {/* Avatar */}
+          <div
+            className="flex h-[52px] w-[52px] items-center justify-center rounded-full text-[18px] font-semibold text-[#F5F0E8]"
+            style={{ backgroundColor: avatarColor }}
+          >
+            {initial}
+          </div>
 
-        {errorMsg && (
-          <p className="text-[14px] text-red-400">{errorMsg}</p>
-        )}
+          <PinPad
+            onComplete={handlePinComplete}
+            error={pinError}
+            label="Enter PIN"
+            showBiometric={bioAvailable}
+            onBiometric={handleBiometrics}
+          />
 
-        <button
-          type="button"
-          onClick={() => failSignOut("Sign in again to set a new PIN.")}
-          className="text-[14px] text-[#8A8177] underline-offset-2 active:underline"
-        >
-          Forgot PIN?
-        </button>
-      </div>
+          {errorMsg && (
+            <p className="text-[14px] text-red-400">{errorMsg}</p>
+          )}
+
+          <button
+            type="button"
+            onClick={() => failSignOut("Sign in again to set a new PIN.")}
+            className="text-[14px] text-[#8A8177] underline-offset-2 active:underline"
+          >
+            Forgot PIN?
+          </button>
+        </div>
+      )}
     </main>
   );
 }
