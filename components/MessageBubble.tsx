@@ -13,6 +13,8 @@ interface MessageBubbleProps {
 
 const AudioPlayer = ({ url, isMine }: { url: string, isMine: boolean }) => {
   const [isPlaying, setIsPlaying] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const [duration, setDuration] = useState(0);
   const audioRef = useRef<HTMLAudioElement>(null);
   const toggle = () => {
     if (isPlaying) audioRef.current?.pause();
@@ -21,16 +23,58 @@ const AudioPlayer = ({ url, isMine }: { url: string, isMine: boolean }) => {
   };
   return (
     <div className="flex items-center gap-3 py-1">
-      <audio ref={audioRef} src={url} onEnded={() => setIsPlaying(false)} />
-      <button onClick={toggle} className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${isMine ? 'bg-[var(--cream)] text-[var(--wine)]' : 'bg-[var(--wine)] text-[var(--cream)]'}`}>
+      <audio 
+        ref={audioRef} 
+        src={url} 
+        onEnded={() => { setIsPlaying(false); setProgress(0); }} 
+        onTimeUpdate={() => setProgress(audioRef.current?.currentTime || 0)} 
+        onLoadedMetadata={() => setDuration(audioRef.current?.duration || 0)} 
+      />
+      <button onClick={toggle} className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${isMine ? 'bg-[#F2EFEA] text-[#7A2C3B]' : 'bg-[#7A2C3B] text-[#F2EFEA]'} shadow-sm`}>
         {isPlaying ? <Pause className="h-5 w-5 fill-current" /> : <Play className="h-5 w-5 fill-current ml-1" />}
       </button>
-      <div className="flex-1 h-1.5 w-32 rounded-full bg-black/20 overflow-hidden">
-        <div className={`h-full ${isMine ? 'bg-[var(--cream)]' : 'bg-[var(--wine)]'} w-1/3`} />
+      <div className="flex flex-col gap-1 w-36">
+        <div className="h-1.5 w-full rounded-full bg-black/20 overflow-hidden relative">
+          <div className={`absolute top-0 left-0 h-full ${isMine ? 'bg-[#F2EFEA]' : 'bg-[#7A2C3B]'}`} style={{ width: `${duration ? (progress / duration) * 100 : 0}%` }} />
+        </div>
+        <div className={`text-[10px] ${isMine ? 'text-[#F2EFEA]/70' : 'text-[#7A2C3B]/70'} font-medium tracking-wide`}>
+          {Math.floor(progress / 60)}:{(Math.floor(progress % 60)).toString().padStart(2, '0')} / {Math.floor(duration / 60)}:{(Math.floor(duration % 60)).toString().padStart(2, '0')}
+        </div>
       </div>
     </div>
   );
 }
+
+const VideoPlayer = ({ url }: { url: string }) => {
+  const [isPlaying, setIsPlaying] = useState(false);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const toggle = () => {
+    if (videoRef.current) {
+      if (isPlaying) videoRef.current.pause();
+      else videoRef.current.play();
+      setIsPlaying(!isPlaying);
+    }
+  };
+  return (
+    <div className="relative overflow-hidden rounded-[12px] shadow-sm border border-black/10 bg-black cursor-pointer group" onClick={toggle}>
+      <video 
+        ref={videoRef} 
+        src={url} 
+        className="max-w-[240px] max-h-[300px] object-cover" 
+        onEnded={() => setIsPlaying(false)} 
+        onPlay={() => setIsPlaying(true)} 
+        onPause={() => setIsPlaying(false)} 
+      />
+      {!isPlaying && (
+        <div className="absolute inset-0 flex items-center justify-center bg-black/20 group-hover:bg-black/30 transition-colors">
+          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-white/20 backdrop-blur-sm text-white">
+            <Play className="h-6 w-6 fill-current ml-1" />
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
 
 function formatTime(iso: string): string {
   return new Date(iso).toLocaleTimeString([], {
@@ -66,7 +110,7 @@ export default function MessageBubble({
       ) : actualType === "image" ? (
         <img src={actualContent} alt="Image message" className="max-w-[240px] max-h-[300px] rounded-md object-cover" />
       ) : actualType === "video" ? (
-        <video src={actualContent} controls className="max-w-[240px] max-h-[300px] rounded-md" />
+        <VideoPlayer url={actualContent} />
       ) : actualType === "audio" ? (
         <AudioPlayer url={actualContent} isMine={isMine} />
       ) : (

@@ -10,6 +10,7 @@ import Avatar from "@/components/Avatar";
 import MessageBubble from "@/components/MessageBubble";
 import CallBubble from "@/components/CallBubble";
 import TypingBubble from "@/components/TypingBubble";
+import EmojiPicker from 'emoji-picker-react';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -169,6 +170,8 @@ export default function Chat() {
   const audioChunksRef = useRef<BlobPart[]>([]);
 
   const [isRecording, setIsRecording] = useState(false);
+  const [recordingTime, setRecordingTime] = useState(0);
+  const recordingIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   const [pendingMedia, setPendingMedia] = useState<{file: File | Blob, type: string, url: string} | null>(null);
   const [mediaCaption, setMediaCaption] = useState("");
@@ -274,6 +277,8 @@ export default function Chat() {
       
       mediaRecorder.start();
       setIsRecording(true);
+      setRecordingTime(0);
+      recordingIntervalRef.current = setInterval(() => setRecordingTime(prev => prev + 1), 1000);
     } catch (err) {
       console.error('Error accessing microphone', err);
       alert('Could not access microphone.');
@@ -283,6 +288,7 @@ export default function Chat() {
   const stopRecording = () => {
     mediaRecorderRef.current?.stop();
     setIsRecording(false);
+    if (recordingIntervalRef.current) clearInterval(recordingIntervalRef.current);
   };
 
   // ── Redirect if not set up / not logged in ────────────────────────────────
@@ -965,10 +971,8 @@ export default function Chat() {
       <div className="shrink-0 flex items-end gap-2 border-t border-[var(--border)] bg-[var(--surface)] px-2 py-2 relative">
         
         {showEmojiPicker && (
-          <div className="absolute bottom-[100%] left-4 mb-2 flex flex-wrap gap-2 rounded-lg bg-[var(--card)] p-2 shadow-lg border border-[var(--border)] max-w-[200px]">
-            {['❤️', '😂', '🥺', '😭', '🔥', '✨', '🥰', '👍'].map(emoji => (
-              <button key={emoji} type="button" onClick={() => setDraft(prev => prev + emoji)} className="text-xl hover:scale-110 transition-transform">{emoji}</button>
-            ))}
+          <div className="absolute bottom-[100%] left-2 mb-2 z-50">
+            <EmojiPicker theme={"dark" as any} onEmojiClick={(e) => setDraft(prev => prev + e.emoji)} />
           </div>
         )}
 
@@ -985,36 +989,47 @@ export default function Chat() {
             <Smile className="h-[22px] w-[22px]" strokeWidth={1.5} />
           </button>
           
-          <input
-            ref={inputRef}
-            type="text"
-            value={draft}
-            onChange={(e) => {
-              setDraft(e.target.value);
-              if (!signalChRef.current || !isOnline) return;
-              if (!typingTimeoutRef.current) {
-                signalChRef.current.send({ type: "broadcast", event: "typing", payload: { userId: myId, isTyping: true } });
-              } else {
-                clearTimeout(typingTimeoutRef.current);
-              }
-              typingTimeoutRef.current = setTimeout(() => {
-                signalChRef.current?.send({ type: "broadcast", event: "typing", payload: { userId: myId, isTyping: false } });
-                typingTimeoutRef.current = null;
-              }, 2000);
-            }}
-            onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && handleSend()}
-            placeholder="Message…"
-            autoComplete="off"
-            className="flex-1 bg-transparent py-2 text-[16px] text-[var(--cream)] outline-none placeholder:text-[var(--muted)] min-w-0"
-          />
+          {isRecording ? (
+            <div className="flex-1 flex items-center justify-center gap-2 py-2 animate-in slide-in-from-right-4 duration-300">
+               <span className="h-3 w-3 rounded-full bg-red-500 animate-pulse" />
+               <span className="text-[15px] font-mono text-[var(--cream)]">
+                 {Math.floor(recordingTime / 60)}:{(recordingTime % 60).toString().padStart(2, '0')}
+               </span>
+            </div>
+          ) : (
+            <>
+              <input
+                ref={inputRef}
+                type="text"
+                value={draft}
+                onChange={(e) => {
+                  setDraft(e.target.value);
+                  if (!signalChRef.current || !isOnline) return;
+                  if (!typingTimeoutRef.current) {
+                    signalChRef.current.send({ type: "broadcast", event: "typing", payload: { userId: myId, isTyping: true } });
+                  } else {
+                    clearTimeout(typingTimeoutRef.current);
+                  }
+                  typingTimeoutRef.current = setTimeout(() => {
+                    signalChRef.current?.send({ type: "broadcast", event: "typing", payload: { userId: myId, isTyping: false } });
+                    typingTimeoutRef.current = null;
+                  }, 2000);
+                }}
+                onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && handleSend()}
+                placeholder="Message…"
+                autoComplete="off"
+                className="flex-1 bg-transparent py-2 text-[16px] text-[var(--cream)] outline-none placeholder:text-[var(--muted)] min-w-0"
+              />
 
-          <button
-            type="button"
-            onClick={() => fileInputRef.current?.click()}
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-[var(--muted)] hover:text-[var(--cream)] transform -rotate-45"
-          >
-            <Paperclip className="h-[20px] w-[20px]" strokeWidth={1.5} />
-          </button>
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-[var(--muted)] hover:text-[var(--cream)] transform -rotate-45"
+              >
+                <Paperclip className="h-[20px] w-[20px]" strokeWidth={1.5} />
+              </button>
+            </>
+          )}
 
           {!draft.trim() && (
             <button
@@ -1037,7 +1052,7 @@ export default function Chat() {
               onClick={() => handleSend()}
               disabled={!isOnline}
               aria-label="Send"
-              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#4C7A5B] text-white transition-all disabled:opacity-40"
+              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[var(--wine)] text-white transition-all disabled:opacity-40"
             >
               <Send className="h-[18px] w-[18px]" strokeWidth={2} />
             </button>
