@@ -962,92 +962,97 @@ export default function Chat() {
       </div>
 
       {/* ── Input bar ───────────────────────────────────────────────────── */}
-      <div className="shrink-0 flex items-center gap-2.5 border-t border-[var(--border)] bg-[var(--surface)] px-3.5 py-3 relative">
+      <div className="shrink-0 flex items-end gap-2 border-t border-[var(--border)] bg-[var(--surface)] px-2 py-2 relative">
+        
         {showEmojiPicker && (
-          <div className="absolute bottom-16 left-4 flex gap-2 p-2 bg-zinc-800 rounded-lg shadow-lg border border-zinc-700">
-            {['❤️','😂','🥺','🔥','👍','✨','😭','👀','🥰','💀'].map(emoji => (
-              <button
-                key={emoji}
-                type="button"
-                className="text-xl hover:scale-110 transition-transform"
-                onClick={() => setDraft(d => d + emoji)}
-              >
-                {emoji}
-              </button>
+          <div className="absolute bottom-[100%] left-4 mb-2 flex flex-wrap gap-2 rounded-lg bg-[var(--card)] p-2 shadow-lg border border-[var(--border)] max-w-[200px]">
+            {['❤️', '😂', '🥺', '😭', '🔥', '✨', '🥰', '👍'].map(emoji => (
+              <button key={emoji} type="button" onClick={() => setDraft(prev => prev + emoji)} className="text-xl hover:scale-110 transition-transform">{emoji}</button>
             ))}
           </div>
         )}
+
         <input type="file" ref={fileInputRef} accept="image/*,video/*,audio/*" className="hidden" onChange={handleFileUpload} />
-        <button
-          type="button"
-          onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-          aria-label="Emoji"
-          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-[var(--muted)] transition-all hover:text-[var(--cream)] hover:bg-[var(--card)]"
-        >
-          <Smile className="h-[20px] w-[20px]" strokeWidth={2} />
-        </button>
-        <button
-          type="button"
-          onClick={() => fileInputRef.current?.click()}
-          aria-label="Attach file"
-          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-[var(--muted)] transition-all hover:text-[var(--cream)] hover:bg-[var(--card)]"
-        >
-          <Paperclip className="h-[20px] w-[20px]" strokeWidth={2} />
-        </button>
-        <input
-          ref={inputRef}
-          type="text"
-          value={draft}
-          onChange={(e) => {
-            setDraft(e.target.value);
-            if (!signalChRef.current || !isOnline) return;
-            if (!typingTimeoutRef.current) {
-              signalChRef.current.send({ type: "broadcast", event: "typing", payload: { userId: myId, isTyping: true } });
-            } else {
-              clearTimeout(typingTimeoutRef.current);
-            }
-            typingTimeoutRef.current = setTimeout(() => {
-              signalChRef.current?.send({ type: "broadcast", event: "typing", payload: { userId: myId, isTyping: false } });
-              typingTimeoutRef.current = null;
-            }, 2000);
-          }}
-          onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && handleSend()}
-          placeholder="Message…"
-          autoComplete="off"
-          className="flex-1 rounded-[22px] border border-[var(--border)] bg-[var(--card)] px-4 py-2.5 text-[15px] text-[var(--cream)] outline-none placeholder:text-[var(--muted)] focus:border-[var(--wine)]"
-        />
-        {draft.trim() ? (
+        
+        {/* Input Bubble Container */}
+        <div className="flex-1 flex items-end gap-1.5 rounded-[24px] bg-[var(--card)] px-1.5 py-1 min-h-[44px]">
+          
           <button
             type="button"
-            onClick={() => handleSend()}
-            disabled={!isOnline}
-            aria-label="Send"
-            className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-[var(--cream)] transition-all disabled:opacity-40 ${!isOnline ? 'bg-[var(--muted)]' : 'bg-[var(--wine)]'}`}
+            onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-[var(--muted)] hover:text-[var(--cream)]"
           >
-            <Send className="h-[17px] w-[17px]" strokeWidth={2} />
+            <Smile className="h-[22px] w-[22px]" strokeWidth={1.5} />
           </button>
-        ) : (
-          <>
+          
+          <input
+            ref={inputRef}
+            type="text"
+            value={draft}
+            onChange={(e) => {
+              setDraft(e.target.value);
+              if (!signalChRef.current || !isOnline) return;
+              if (!typingTimeoutRef.current) {
+                signalChRef.current.send({ type: "broadcast", event: "typing", payload: { userId: myId, isTyping: true } });
+              } else {
+                clearTimeout(typingTimeoutRef.current);
+              }
+              typingTimeoutRef.current = setTimeout(() => {
+                signalChRef.current?.send({ type: "broadcast", event: "typing", payload: { userId: myId, isTyping: false } });
+                typingTimeoutRef.current = null;
+              }, 2000);
+            }}
+            onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && handleSend()}
+            placeholder="Message…"
+            autoComplete="off"
+            className="flex-1 bg-transparent py-2 text-[16px] text-[var(--cream)] outline-none placeholder:text-[var(--muted)] min-w-0"
+          />
+
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-[var(--muted)] hover:text-[var(--cream)] transform -rotate-45"
+          >
+            <Paperclip className="h-[20px] w-[20px]" strokeWidth={1.5} />
+          </button>
+
+          {!draft.trim() && (
+            <button
+              type="button"
+              onClick={isRecording ? stopRecording : startRecording}
+              disabled={!isOnline}
+              className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full transition-colors disabled:opacity-40 ${isRecording ? 'text-red-500 animate-pulse' : 'text-[var(--muted)] hover:text-[var(--cream)]'}`}
+            >
+              {isRecording ? <Square className="h-[18px] w-[18px]" strokeWidth={2} /> : <Mic className="h-[20px] w-[20px]" strokeWidth={1.5} />}
+            </button>
+          )}
+
+        </div>
+
+        {/* Outside Circle Button (Send or Nudge) */}
+        <div className="shrink-0 mb-[2px]">
+          {draft.trim() ? (
+            <button
+              type="button"
+              onClick={() => handleSend()}
+              disabled={!isOnline}
+              aria-label="Send"
+              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#4C7A5B] text-white transition-all disabled:opacity-40"
+            >
+              <Send className="h-[18px] w-[18px]" strokeWidth={2} />
+            </button>
+          ) : (
             <button
               type="button"
               onClick={handleNudge}
               disabled={!isOnline}
               aria-label="Nudge"
-              className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-[#7A2C3B] bg-[#7A2C3B]/15 transition-all active:scale-95 disabled:opacity-40`}
+              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#7A2C3B] text-[var(--cream)] transition-all active:scale-95 disabled:opacity-40"
             >
-              <Heart className="h-[20px] w-[20px] fill-current" />
+              <Heart className="h-[22px] w-[22px] fill-current" />
             </button>
-            <button
-              type="button"
-              onClick={isRecording ? stopRecording : startRecording}
-              disabled={!isOnline}
-              aria-label={isRecording ? "Stop recording" : "Record voice note"}
-              className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-[var(--cream)] transition-all disabled:opacity-40 ${isRecording ? 'bg-red-500 animate-pulse' : 'bg-[var(--card)] hover:bg-[var(--muted)]'}`}
-            >
-              {isRecording ? <Square className="h-[17px] w-[17px]" strokeWidth={2} /> : <Mic className="h-[17px] w-[17px]" strokeWidth={2} />}
-            </button>
-          </>
-        )}
+          )}
+        </div>
       </div>
 
       {pendingMedia && (
