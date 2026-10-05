@@ -26,7 +26,11 @@ export default function CalendarPage() {
   const month = currentDate.getMonth();
 
   const daysInMonth = new Date(year, month + 1, 0).getDate();
-  const firstDay = new Date(year, month, 1).getDay();
+  const daysInPrevMonth = new Date(year, month, 0).getDate();
+  
+  // 0 = Sunday, 1 = Monday. We want 0 = Monday, 6 = Sunday.
+  const firstDayRaw = new Date(year, month, 1).getDay();
+  const firstDay = (firstDayRaw + 6) % 7; 
   
   const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
   
@@ -91,36 +95,56 @@ export default function CalendarPage() {
 
   const renderGrid = () => {
     const days = [];
-    // empty slots
+    const totalCells = 42;
+    const colors = ['bg-[#1EA1F2]', 'bg-[#FFB100]', 'bg-[#A855F7]', 'bg-[#FF3E6C]'];
+
     for (let i = 0; i < firstDay; i++) {
-      days.push(<div key={`empty-${i}`} className="h-10"></div>);
+      const d = daysInPrevMonth - firstDay + i + 1;
+      days.push(
+        <div key={`prev-${i}`} className="relative flex aspect-square w-full flex-col items-center justify-start pt-[12px] bg-[#18181A] text-[15px] font-medium text-white/20">
+          {d}
+        </div>
+      );
     }
-    // days
+    
     for (let d = 1; d <= daysInMonth; d++) {
       const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
       const dayEvents = events[dateStr] || [];
-      const hasEvents = dayEvents.length > 0;
       
       const isToday = new Date().toDateString() === new Date(year, month, d).toDateString();
+      const isSelected = selectedDateStr === dateStr;
       
       days.push(
         <button
-          key={d}
+          key={`current-${d}`}
           onClick={() => setSelectedDateStr(dateStr)}
-          className={`relative flex h-12 w-full flex-col items-center justify-center rounded-xl text-[15px] font-medium transition-all active:scale-90
-            ${isToday ? "bg-[var(--wine)] text-white shadow-md" : "text-white/80 hover:bg-white/10"}
-            ${selectedDateStr === dateStr && !isToday ? "ring-2 ring-[var(--gold)]" : ""}
+          className={`relative flex aspect-square w-full flex-col items-center justify-start pt-[8px] text-[15px] font-medium transition-colors active:bg-white/5
+            ${isSelected ? "bg-white/5" : "bg-[#18181A] hover:bg-white/5"}
           `}
         >
-          {d}
-          {hasEvents && (
-            <div className="absolute bottom-1.5 flex gap-0.5">
-              <div className={`h-1 w-1 rounded-full ${isToday ? 'bg-white' : 'bg-[var(--gold)]'}`} />
-            </div>
-          )}
+          <div className={`flex h-8 w-8 items-center justify-center rounded-full ${isSelected ? "bg-[#5135FF] text-white" : isToday ? "text-[#5135FF]" : "text-white/90"}`}>
+            {d}
+          </div>
+          
+          <div className="absolute bottom-2.5 flex w-full justify-center gap-[4px] px-1 flex-wrap">
+            {dayEvents.slice(0, 3).map((ev, idx) => (
+              <div key={idx} className={`h-1.5 w-1.5 rounded-full ${colors[idx % 4]}`} />
+            ))}
+            {dayEvents.length > 3 && <div className="h-1.5 w-1.5 rounded-full bg-white/50" />}
+          </div>
         </button>
       );
     }
+    
+    const remainingCells = totalCells - (firstDay + daysInMonth);
+    for (let i = 1; i <= remainingCells; i++) {
+      days.push(
+        <div key={`next-${i}`} className="relative flex aspect-square w-full flex-col items-center justify-start pt-[12px] bg-[#18181A] text-[15px] font-medium text-white/20">
+          {i}
+        </div>
+      );
+    }
+    
     return days;
   };
 
@@ -157,32 +181,33 @@ export default function CalendarPage() {
         </motion.div>
       </div>
 
-      {/* Calendar Card */}
-      <div className="mt-4 rounded-[28px] border border-white/10 bg-[#18181A]/90 p-5 backdrop-blur-xl shadow-xl">
-        <div className="mb-4 flex items-center justify-between px-2">
-          <h2 className="text-[18px] font-semibold text-white">
-            {monthNames[month]} {year}
+      {/* Calendar Grid Container */}
+      <div className="mt-6">
+        <div className="mb-6 flex items-center justify-between px-2">
+          <h2 className="text-[22px] font-bold text-white flex items-center gap-2">
+            {monthNames[month]} {year} <span className="text-white/40 text-[14px]">▼</span>
           </h2>
-          <div className="flex gap-2">
-            <button onClick={handlePrevMonth} className="rounded-full bg-white/5 p-2 hover:bg-white/10 text-white transition-colors">
-              <ChevronLeft className="h-5 w-5" />
-            </button>
-            <button onClick={handleNextMonth} className="rounded-full bg-white/5 p-2 hover:bg-white/10 text-white transition-colors">
-              <ChevronRight className="h-5 w-5" />
-            </button>
+          <div className="flex gap-4 items-center text-white/70">
+            <CalendarIcon className="h-5 w-5 opacity-60" />
+            <div className="flex gap-2">
+              <button onClick={handlePrevMonth} className="hover:text-white transition-colors"><ChevronLeft className="h-6 w-6" /></button>
+              <button onClick={handleNextMonth} className="hover:text-white transition-colors"><ChevronRight className="h-6 w-6" /></button>
+            </div>
           </div>
         </div>
         
-        <div className="grid grid-cols-7 gap-y-2 mb-2">
-          {['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'].map(day => (
-            <div key={day} className="text-center text-[12px] font-medium text-white/40 uppercase tracking-wider">
+        <div className="flex w-full justify-between px-2 mb-3">
+          {['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'].map(day => (
+            <div key={day} className="w-full text-center text-[11px] font-bold text-white/40 uppercase tracking-widest">
               {day}
             </div>
           ))}
         </div>
         
-        <div className="grid grid-cols-7 gap-y-2 gap-x-1">
-          {renderGrid()}
+        <div className="overflow-hidden rounded-[24px] border border-white/10 bg-white/10 backdrop-blur-xl shadow-2xl">
+          <div className="grid grid-cols-7 gap-[1px]">
+            {renderGrid()}
+          </div>
         </div>
       </div>
 
