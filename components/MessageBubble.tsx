@@ -2,6 +2,7 @@ import { Check, CheckCheck, Clock, Heart, Play, Pause, X, Download, Mic, User, P
 import { TransformWrapper, TransformComponent } from "react-zoom-pan-pinch";
 import { useState, useRef } from "react";
 import EmojiPicker, { Theme } from 'emoji-picker-react';
+import { motion, AnimatePresence } from 'framer-motion';
 
 interface MessageBubbleProps {
   content: string;
@@ -14,6 +15,7 @@ interface MessageBubbleProps {
   onReact?: (emoji: string) => void;
   reactions?: Record<string, string>;
   myReaction?: string;
+  groupPosition?: "single" | "top" | "middle" | "bottom";
 }
 
 const AudioPlayer = ({ url, isMine, timestamp, status, queued }: { url: string, isMine: boolean, timestamp: string, status?: string, queued?: boolean }) => {
@@ -40,7 +42,7 @@ const AudioPlayer = ({ url, isMine, timestamp, status, queued }: { url: string, 
   const displayTime = isPlaying || progress > 0 ? progress : duration;
 
   return (
-    <div className={`relative w-[280px] p-2 flex items-center gap-3 ${isMine ? "rounded-[16px_16px_4px_16px] bg-[var(--wine)]" : "rounded-[16px_16px_16px_4px] bg-[var(--card)]"}`}>
+    <div className={`relative w-[280px] p-2 flex items-center gap-3 ${isMine ? "rounded-[16px_16px_4px_16px] bg-[var(--wine)] shadow-[0_8px_16px_-6px_rgba(122,44,59,0.3)]" : "rounded-[16px_16px_16px_4px] bg-[var(--card)] shadow-sm"}`}>
       <audio 
         ref={audioRef} 
         src={url} 
@@ -56,7 +58,7 @@ const AudioPlayer = ({ url, isMine, timestamp, status, queued }: { url: string, 
             <User className="h-8 w-8 text-white/50 mt-3" strokeWidth={1.5} />
          </div>
          {/* Little green mic overlay */}
-         <div className="absolute -bottom-1 -right-1 h-5 w-5 bg-[#4C7A5B] rounded-full flex items-center justify-center border-2 border-white/10">
+         <div className="absolute -bottom-1 -right-1 h-5 w-5 bg-[#4C7A5B] rounded-full flex items-center justify-center border-2 border-[var(--surface)]">
             <Mic className="h-3 w-3 text-[var(--cream)]" strokeWidth={2.5} /> 
          </div>
       </div>
@@ -64,7 +66,7 @@ const AudioPlayer = ({ url, isMine, timestamp, status, queued }: { url: string, 
       <div className="flex flex-col flex-1 min-w-0">
         <div className="flex items-center gap-2">
           {/* Play/Pause Button */}
-          <button onClick={toggle} className="shrink-0 text-[var(--cream)]">
+          <button onClick={toggle} className="shrink-0 text-[var(--cream)] active:scale-95 transition-all active:opacity-80 md:hover:opacity-80">
             {isPlaying ? <Pause className="h-7 w-7 fill-current" /> : <Play className="h-7 w-7 fill-current" />}
           </button>
 
@@ -90,7 +92,7 @@ const AudioPlayer = ({ url, isMine, timestamp, status, queued }: { url: string, 
               ))}
             </div>
             {/* Knob thumb */}
-            <div className="absolute top-1/2 -translate-y-1/2 w-[10px] h-[10px] rounded-full bg-[#34B7F1] shadow pointer-events-none" style={{ left: `calc(${progressPercent}% - 5px)` }} />
+            <div className="absolute top-1/2 -translate-y-1/2 w-[10px] h-[10px] rounded-full bg-[#34B7F1] shadow pointer-events-none transition-all" style={{ left: `calc(${progressPercent}% - 5px)` }} />
           </div>
         </div>
 
@@ -124,7 +126,7 @@ const AudioPlayer = ({ url, isMine, timestamp, status, queued }: { url: string, 
 
 const VideoPlayer = ({ url, onClick, children }: { url: string; onClick: () => void; children?: React.ReactNode }) => {
   return (
-    <div className="relative overflow-hidden rounded-[12px] shadow-sm border border-black/10 bg-black cursor-pointer group" onClick={onClick}>
+    <div className="relative overflow-hidden rounded-2xl shadow-sm border border-black/10 bg-black cursor-pointer group active:opacity-95 md:hover:opacity-95 transition-all" onClick={onClick}>
       <video 
         src={url} 
         className="max-w-[240px] max-h-[300px] object-cover" 
@@ -135,6 +137,7 @@ const VideoPlayer = ({ url, onClick, children }: { url: string; onClick: () => v
           <Play className="h-6 w-6 fill-current ml-1" />
         </div>
       </div>
+      <div className="absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-black/60 to-transparent pointer-events-none" />
       {children}
     </div>
   );
@@ -157,6 +160,7 @@ export default function MessageBubble({
   onReact,
   reactions,
   myReaction,
+  groupPosition = "single",
 }: MessageBubbleProps) {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showReactionMenu, setShowReactionMenu] = useState(false);
@@ -209,15 +213,17 @@ export default function MessageBubble({
 
   return (
     <>
+      <AnimatePresence>
       {showFullPicker && (
-        <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/60 p-4" onClick={() => { setShowFullPicker(false); setShowReactionMenu(false); }}>
-          <div className="w-full max-w-sm rounded-xl overflow-hidden shadow-2xl" onClick={e => e.stopPropagation()}>
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-y-0 inset-x-0 mx-auto max-w-md z-[110] flex items-center justify-center bg-black/60 p-4" onClick={() => { setShowFullPicker(false); setShowReactionMenu(false); }}>
+          <motion.div initial={{ scale: 0.9, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.9, y: 20 }} transition={{ type: "spring", damping: 25, stiffness: 300 }} className="w-full max-w-sm rounded-xl overflow-hidden shadow-2xl" onClick={e => e.stopPropagation()}>
             <EmojiPicker theme={Theme.DARK} width="100%" height={400} onEmojiClick={(e) => { onReact?.(e.emoji === myReaction ? 'NONE' : e.emoji); setShowFullPicker(false); setShowReactionMenu(false); }} />
-          </div>
-        </div>
+          </motion.div>
+        </motion.div>
       )}
+      </AnimatePresence>
       {isFullscreen && (
-        <div className="fixed inset-0 z-[100] bg-black flex flex-col animate-in fade-in duration-200">
+        <div className="fixed inset-y-0 inset-x-0 mx-auto max-w-md z-[100] bg-black flex flex-col animate-in fade-in duration-200">
           <div className="flex items-center justify-between p-4 bg-gradient-to-b from-black/60 to-transparent absolute top-0 inset-x-0 z-20 pointer-events-none">
             <button onClick={() => setIsFullscreen(false)} className="text-white p-2 pointer-events-auto">
               <X className="h-6 w-6" />
@@ -250,10 +256,13 @@ export default function MessageBubble({
         </div>
       )}
       {showReactionMenu && !showFullPicker && (
-        <div className="fixed inset-0 z-[100] bg-black/50 transition-opacity" onClick={() => setShowReactionMenu(false)} onContextMenu={(e) => { e.preventDefault(); setShowReactionMenu(false); }} />
+        <div className="fixed inset-y-0 inset-x-0 mx-auto max-w-md z-[100] bg-black/50 transition-opacity" onClick={() => setShowReactionMenu(false)} onContextMenu={(e) => { e.preventDefault(); setShowReactionMenu(false); }} />
       )}
-      <div 
-        className={`group relative flex flex-col ${isMine ? "items-end" : "items-start"} ${showReactionMenu ? "z-[110] scale-[1.02] transition-transform shadow-2xl" : "z-0 transition-transform"}`}
+      <motion.div
+        initial={{ y: 20, opacity: 0, scale: 0.95 }}
+        animate={{ y: 0, opacity: 1, scale: 1 }}
+        transition={{ type: "spring", stiffness: 300, damping: 25 }}
+        className={`group relative flex w-full flex-col ${isMine ? "items-end" : "items-start"} ${showReactionMenu ? "z-[110] scale-[1.02] transition-transform shadow-2xl" : "z-0 transition-transform"}`}
         onTouchStart={startPress}
         onTouchEnd={cancelPress}
         onTouchMove={cancelPress}
@@ -266,7 +275,7 @@ export default function MessageBubble({
           if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(50);
         }}
       >
-        <div className="group relative">
+        <div className="group relative max-w-[75%]">
         {actualContent === "NUDGE_PING_💖" ? (
           <div className="py-1 text-[64px] leading-none animate-in zoom-in-50 duration-500 drop-shadow-xl" style={{ filter: 'drop-shadow(0 10px 15px rgba(255,50,100,0.4))' }}>
              💖
@@ -314,10 +323,20 @@ export default function MessageBubble({
         <AudioPlayer url={actualContent} isMine={isMine} timestamp={timestamp} status={status} queued={queued} />
       ) : (
         <div
-          className={`max-w-[78%] px-4 py-2.5 text-[15px] leading-[1.5] text-[var(--cream)] ${
+          className={`px-4 py-2.5 text-base leading-relaxed text-[var(--cream)] shadow-sm break-words ${
             isMine
-              ? "rounded-[16px_16px_4px_16px] bg-[var(--wine)]"
-              : "rounded-[16px_16px_16px_4px] bg-[var(--card)]"
+              ? `bg-[var(--wine)] ${
+                  groupPosition === "top" ? "rounded-[16px_16px_4px_16px]" :
+                  groupPosition === "middle" ? "rounded-[16px_4px_4px_16px]" :
+                  groupPosition === "bottom" ? "rounded-[16px_4px_16px_16px]" :
+                  "rounded-[16px_16px_4px_16px]"
+                }`
+              : `bg-[var(--card)] ${
+                  groupPosition === "top" ? "rounded-[16px_16px_16px_4px]" :
+                  groupPosition === "middle" ? "rounded-[4px_16px_16px_4px]" :
+                  groupPosition === "bottom" ? "rounded-[4px_16px_16px_16px]" :
+                  "rounded-[16px_16px_16px_4px]"
+                }`
           }`}
         >
           {actualContent}
@@ -325,16 +344,23 @@ export default function MessageBubble({
       )}
 
 
+        <AnimatePresence>
         {showReactionMenu && !showFullPicker && (
-          <div className={`absolute -top-12 ${isMine ? 'right-0' : 'left-0'} z-50 flex gap-1 bg-[var(--card)] p-1.5 rounded-full shadow-lg border border-[var(--border)]`}>
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.8, y: 10 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.8, y: 10 }}
+            className={`absolute -top-12 ${isMine ? 'right-0' : 'left-0'} z-50 flex gap-1 bg-[var(--card)] p-1.5 rounded-full shadow-lg border border-[var(--border)]`}
+          >
             {['❤️', '😂', '😮', '😢', '👍'].map(emoji => (
-              <button key={emoji} onClick={() => { onReact?.(emoji === myReaction ? 'NONE' : emoji); setShowReactionMenu(false); }} className={`text-xl hover:scale-125 transition-transform px-1 ${emoji === myReaction ? 'bg-white/10 rounded-full' : ''}`}>{emoji}</button>
+              <motion.button whileTap={{ scale: 1.3 }} key={emoji} onClick={() => { onReact?.(emoji === myReaction ? 'NONE' : emoji); setShowReactionMenu(false); }} className={`text-xl md:hover:scale-125 transition-transform px-1 ${emoji === myReaction ? 'bg-white/10 rounded-full' : ''}`}>{emoji}</motion.button>
             ))}
-            <button onClick={() => setShowFullPicker(true)} className="flex items-center justify-center w-8 h-8 rounded-full bg-[var(--surface)] text-[var(--muted)] hover:text-[var(--cream)] ml-1">
+            <motion.button whileTap={{ scale: 0.9 }} onClick={() => setShowFullPicker(true)} className="flex items-center justify-center w-8 h-8 rounded-full bg-[var(--surface)] text-[var(--muted)] active:text-[var(--cream)] md:hover:text-[var(--cream)] ml-1">
               <Plus className="h-5 w-5" strokeWidth={2} />
-            </button>
-          </div>
+            </motion.button>
+          </motion.div>
         )}
+        </AnimatePresence>
 
         {reactions && Object.keys(reactions).length > 0 && (
           <div 
@@ -346,7 +372,7 @@ export default function MessageBubble({
                 setShowReactionMenu(true);
               }
             }}
-            className={`absolute -bottom-3 ${isMine ? 'right-4' : 'left-4'} flex items-center bg-[var(--surface)] border ${myReaction ? 'border-[var(--wine)] bg-[var(--wine)]/10' : 'border-[var(--border)]'} rounded-full px-1.5 py-0.5 shadow-sm z-20 cursor-pointer hover:bg-white/5 transition-colors`}
+            className={`absolute -bottom-3 ${isMine ? 'right-4' : 'left-4'} flex items-center bg-[var(--surface)] border ${myReaction ? 'border-[var(--wine)] bg-[var(--wine)]/10' : 'border-[var(--border)]'} rounded-full px-1.5 py-0.5 shadow-sm z-20 cursor-pointer active:bg-white/5 md:hover:bg-white/5 transition-colors`}
           >
             {Array.from(new Set(Object.values(reactions))).map((emoji, idx) => (
               <span key={idx} className="text-[12px]">{emoji}</span>
@@ -391,7 +417,8 @@ export default function MessageBubble({
           )}
         </div>
       )}
-      </div>
+      </motion.div>
     </>
   );
 }
+

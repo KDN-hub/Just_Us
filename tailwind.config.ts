@@ -29,8 +29,9 @@ const config: Config = {
         ink: "var(--ink)",
       },
       fontFamily: {
-        sans: ["var(--font-dm-sans)", "sans-serif"],
-        serif: ["var(--font-fraunces)", "serif"],
+        sans: ['"Stack Sans Text"', "sans-serif"],
+        serif: ['"Stack Sans Text"', "sans-serif"],
+        notch: ['"Stack Sans Notch"', "sans-serif"],
       },
       keyframes: {
         shake: {
@@ -40,9 +41,14 @@ const config: Config = {
           "60%": { transform: "translateX(-4px)" },
           "80%": { transform: "translateX(4px)" },
         },
+        float: {
+          "0%, 100%": { transform: "translateY(0)" },
+          "50%": { transform: "translateY(-12px)" },
+        },
       },
       animation: {
         shake: "shake 0.5s ease-in-out",
+        float: "float 3s ease-in-out infinite",
       },
     },
   },

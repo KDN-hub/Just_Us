@@ -2,10 +2,13 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { Delete, Fingerprint } from "lucide-react";
+import { motion } from "framer-motion";
 
 interface PinPadProps {
   /** Called with the full PIN string once all 4 digits are entered. */
-  onComplete: (pin: string) => void;
+  onComplete?: (pin: string) => void;
+  /** Called whenever digits change. */
+  onChange?: (pin: string) => void;
   /** If true the dots shake and clear (signals a wrong PIN from parent). */
   error?: boolean;
   /** Label shown above the dots, e.g. "Enter PIN" or "Confirm your PIN". */
@@ -16,17 +19,21 @@ interface PinPadProps {
   showBiometric?: boolean;
   /** Triggered when the biometric button is tapped */
   onBiometric?: () => void;
+  /** Whether to automatically call onComplete when full length is reached (default true) */
+  autoComplete?: boolean;
 }
 
 const KEYS = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "", "0", "del"] as const;
 
 export default function PinPad({
   onComplete,
+  onChange,
   error = false,
   label = "Enter PIN",
   length = 4,
   showBiometric = false,
   onBiometric,
+  autoComplete = true,
 }: PinPadProps) {
   const [digits, setDigits] = useState<string[]>([]);
   const [shake, setShake] = useState(false);
@@ -38,84 +45,92 @@ export default function PinPad({
       const t = setTimeout(() => {
         setShake(false);
         setDigits([]);
+        onChange?.("");
       }, 600);
       return () => clearTimeout(t);
     }
-  }, [error]);
+  }, [error, onChange]);
 
   const handleKey = useCallback(
     (key: string) => {
       if (key === "del") {
-        setDigits((prev) => prev.slice(0, -1));
+        const next = digits.slice(0, -1);
+        setDigits(next);
+        onChange?.(next.join(""));
         return;
       }
       if (digits.length >= length) return;
       const next = [...digits, key];
       setDigits(next);
-      if (next.length === length) {
+      onChange?.(next.join(""));
+      if (next.length === length && autoComplete && onComplete) {
         // Small delay so the last dot visually fills before callback fires
         setTimeout(() => onComplete(next.join("")), 80);
       }
     },
-    [digits, length, onComplete],
+    [digits, length, onComplete, onChange, autoComplete],
   );
 
   return (
-    <div className="flex flex-col items-center gap-5">
+    <div className="flex flex-col items-center gap-6">
       {/* Label */}
-      <p className="text-[14px] text-[#8A8177]">{label}</p>
+      <p className="text-[15px] font-medium text-white/60">{label}</p>
 
       {/* Dot indicators */}
-      <div
-        className={`flex gap-4 transition-all ${shake ? "animate-shake" : ""}`}
+      <motion.div
+        animate={shake ? { x: [-10, 10, -8, 8, -5, 5, 0] } : {}}
+        transition={{ duration: 0.4 }}
+        className="flex gap-5 transition-all"
       >
         {Array.from({ length }).map((_, i) => (
           <span
             key={i}
-            className={`h-[14px] w-[14px] rounded-full border-2 transition-colors duration-150 ${
+            className={`h-[16px] w-[16px] rounded-full border-2 transition-all duration-200 ${
               i < digits.length
-                ? "border-[#7A2C3B] bg-[#7A2C3B]"
-                : "border-[#3A342E] bg-transparent"
+                ? "border-[var(--wine)] bg-[var(--wine)] scale-110"
+                : "border-[var(--border)] bg-transparent"
             }`}
           />
         ))}
-      </div>
+      </motion.div>
 
       {/* Keypad grid */}
-      <div className="grid w-fit grid-cols-[repeat(3,68px)] gap-4">
+      <div className="grid w-fit grid-cols-[repeat(3,72px)] gap-5 mt-4">
         {KEYS.map((key, i) => {
           if (key === "") {
             if (showBiometric && onBiometric) {
               return (
-                <button
+                <motion.button
+                  whileTap={{ scale: 0.9, backgroundColor: "rgba(122,44,59,0.3)" }}
                   key="biometric-btn"
                   type="button"
                   onClick={onBiometric}
-                  className="flex h-16 w-16 items-center justify-center rounded-full border border-[#3A342E] bg-[#1E1B18] text-[#C9A66B] transition-colors hover:border-[#C9A66B]/50 active:bg-[#7A2C3B]/30"
+                  className="flex h-[72px] w-[72px] items-center justify-center rounded-full border border-[var(--border)] bg-[var(--surface)] text-[var(--gold)] transition-all hover:bg-white/5"
                   aria-label="Unlock with Face ID or fingerprint"
                   title="Unlock with biometrics"
                 >
-                  <Fingerprint className="h-6 w-6 text-[#C9A66B]" strokeWidth={1.8} />
-                </button>
+                  <Fingerprint className="h-7 w-7 text-[var(--gold)]" strokeWidth={1.8} />
+                </motion.button>
               );
             }
-            return <div key={`empty-${i}`} className="h-16" />;
+            return <div key={`empty-${i}`} className="h-[72px]" />;
           }
 
           return (
-            <button
+            <motion.button
+              whileTap={{ scale: 0.9, backgroundColor: "rgba(122,44,59,0.3)" }}
               key={key}
               type="button"
               onClick={() => handleKey(key)}
-              className="flex h-16 w-16 items-center justify-center rounded-full border border-[#3A342E] bg-[#1E1B18] text-[22px] font-medium text-[#F5F0E8] transition-colors active:bg-[#7A2C3B]/30"
+              className="flex h-[72px] w-[72px] items-center justify-center rounded-full border border-[var(--border)] bg-[var(--surface)] text-[24px] font-medium text-[var(--cream)] transition-all hover:bg-white/5 shadow-sm"
               aria-label={key === "del" ? "Delete" : key}
             >
               {key === "del" ? (
-                <Delete className="h-5 w-5 text-[#F5F0E8]" strokeWidth={2} />
+                <Delete className="h-6 w-6 text-[var(--cream)]" strokeWidth={2} />
               ) : (
                 key
               )}
-            </button>
+            </motion.button>
           );
         })}
       </div>

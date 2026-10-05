@@ -1,20 +1,13 @@
 import type { Metadata, Viewport } from "next";
-import { Fraunces, DM_Sans } from "next/font/google";
+import "@fontsource/stack-sans-text/400.css";
+import "@fontsource/stack-sans-text/500.css";
+import "@fontsource/stack-sans-text/600.css";
+import "@fontsource/stack-sans-text/700.css";
+import "@fontsource/stack-sans-notch/400.css";
+import "@fontsource/stack-sans-notch/500.css";
+import "@fontsource/stack-sans-notch/600.css";
+import "@fontsource/stack-sans-notch/700.css";
 import "./globals.css";
-
-const fraunces = Fraunces({
-  subsets: ["latin"],
-  weight: ["400", "500"],
-  variable: "--font-fraunces",
-  display: "swap",
-});
-
-const dmSans = DM_Sans({
-  subsets: ["latin"],
-  weight: ["400", "500", "600"],
-  variable: "--font-dm-sans",
-  display: "swap",
-});
 
 export const metadata: Metadata = {
   title: "Just Us",
@@ -49,9 +42,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body
-        className={`${fraunces.variable} ${dmSans.variable} flex min-h-dvh flex-col font-sans antialiased`}
-      >
+      <body className="flex min-h-dvh flex-col font-sans antialiased overflow-x-hidden">
         {children}
       </body>
     </html>

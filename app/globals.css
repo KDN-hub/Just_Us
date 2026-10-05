@@ -4,11 +4,11 @@
 
 :root {
   --bg: #141210;
-  --gradient: linear-gradient(160deg, #0F0D0B 0%, #1A1210 20%, #3B1520 50%, #5A1D2E 75%, #2A1018 100%);
+  --gradient: radial-gradient(125% 115% at 100% 100%, #c1182d 0%, #a50e21 30%, #5e0813 60%, #200307 82%, #050505 100%);
   --surface: #1e1b18;
   --card: #26221e;
-  --wine: #7a2c3b;
-  --wine-l: #9b3a4c;
+  --wine: #bc1529;
+  --wine-l: #c2192e;
   --gold: #c9a66b;
   --gold-l: #e0bf8a;
   --cream: #f5f0e8;

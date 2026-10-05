@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import Avatar from "@/components/Avatar";
+import { motion } from "framer-motion";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -530,7 +531,11 @@ function CallScreen() {
 
   // ── Render ────────────────────────────────────────────────────────────────
   return (
-    <main
+    <motion.main
+      initial={{ opacity: 0, y: "100%" }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: "100%" }}
+      transition={{ type: "spring", stiffness: 300, damping: 30 }}
       className="relative mx-auto flex h-dvh w-full max-w-md flex-col overflow-hidden font-sans"
       style={{ backgroundColor: "#0F0D0B" }}
     >
@@ -558,7 +563,7 @@ function CallScreen() {
       <div className="relative z-10 flex h-full flex-col">
 
         {/* Top: partner name + status/timer */}
-        <div className="flex flex-col items-center gap-1 pt-[60px]">
+        <div className="flex flex-col items-center gap-1 pt-[max(env(safe-area-inset-top),60px)]">
           <p className="text-[15px] font-medium text-[var(--cream)]">
             {partnerName}
           </p>
@@ -606,7 +611,7 @@ function CallScreen() {
         )}
 
         {/* Controls row */}
-        <div className="flex items-center justify-center gap-5 pb-14">
+        <div className="flex items-center justify-center gap-5 pb-[max(env(safe-area-inset-bottom),3.5rem)]">
 
           {/* Mute / Unmute */}
           <button
@@ -659,7 +664,7 @@ function CallScreen() {
           </button>
         </div>
       </div>
-    </main>
+    </motion.main>
   );
 }
 
@@ -676,3 +681,4 @@ export default function CallPage() {
     </Suspense>
   );
 }
+

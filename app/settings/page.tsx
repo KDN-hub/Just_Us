@@ -119,41 +119,41 @@ export default function Settings() {
 
   return (
     <main className="mx-auto flex h-dvh w-full max-w-md flex-col font-sans" style={{ background: "var(--gradient)" }}>
-      <header className="flex shrink-0 items-center gap-2 border-b border-[var(--border)] bg-[var(--surface)] px-3.5 py-3">
+      <header className="flex shrink-0 items-center gap-2 border-b border-[var(--border)] bg-[var(--surface)] px-4 pb-4 pt-[max(env(safe-area-inset-top),1rem)]">
         <button
           onClick={() => (step === "menu" ? router.back() : (setStep("menu"), setNewPin("")))}
           aria-label="Back"
-          className="flex h-7 w-7 items-center justify-center rounded-full text-[var(--muted)]"
+          className="flex h-9 w-9 items-center justify-center rounded-full text-[var(--muted)] active:text-white md:hover:text-white transition-colors"
         >
-          <ArrowLeft className="h-4 w-4" strokeWidth={2} />
+          <ArrowLeft className="h-5 w-5" strokeWidth={2} />
         </button>
-        <h1 className="text-[14px] font-medium text-[var(--cream)]">Settings</h1>
+        <h1 className="text-xl font-serif tracking-tight text-[var(--cream)] ml-1">Settings</h1>
       </header>
 
       {step === "menu" ? (
-        <div className="flex flex-col gap-3 p-4">
+        <div className="flex flex-col gap-3 p-4 px-6">
           {done && (
-            <p className="rounded-[10px] bg-[#4C7A5B]/20 px-3 py-2 text-[12px] text-[#4C7A5B]">
+            <p className="rounded-2xl bg-[#4C7A5B]/20 px-4 py-3 text-[13px] text-[#4C7A5B]">
               PIN changed. It applies to this device only.
             </p>
           )}
 
           <button
             onClick={() => { setDone(false); setStep("old"); }}
-            className="flex items-center gap-3 rounded-[12px] border border-[var(--border)] bg-[var(--card)] px-4 py-3.5 text-left"
+            className="flex items-center gap-4 rounded-2xl border border-[var(--border)] bg-[var(--card)] px-5 py-4 text-left transition-all active:scale-[0.98] active:border-white/10 md:hover:border-white/10"
           >
-            <KeyRound className="h-4 w-4 text-[var(--gold)]" strokeWidth={2} />
+            <KeyRound className="h-5 w-5 text-[var(--gold)]" strokeWidth={2} />
             <div>
-              <p className="text-[13px] text-[var(--cream)]">Change PIN</p>
-              <p className="text-[11px] text-[var(--muted)]">The 4-digit code that unlocks Just Us on this device</p>
+              <p className="text-[14px] font-medium text-[var(--cream)]">Change PIN</p>
+              <p className="text-[13px] text-white/50">The 4-digit code that unlocks Just Us on this device</p>
             </div>
           </button>
 
-          <button onClick={() => setStep("wallpaper")} className="flex items-center gap-3 rounded-[12px] border border-[var(--border)] bg-[var(--card)] px-4 py-3.5 text-left mt-3">
-            <Image className="h-4 w-4 text-[#34B7F1]" strokeWidth={2} />
+          <button onClick={() => setStep("wallpaper")} className="flex items-center gap-4 rounded-2xl border border-[var(--border)] bg-[var(--card)] px-5 py-4 text-left transition-all active:scale-[0.98] active:border-white/10 md:hover:border-white/10">
+            <Image className="h-5 w-5 text-[#34B7F1]" strokeWidth={2} />
             <div>
-              <p className="text-[13px] text-[var(--cream)]">Chat Wallpaper</p>
-              <p className="text-[11px] text-[var(--muted)]">Change the background of your chat</p>
+              <p className="text-[14px] font-medium text-[var(--cream)]">Chat Wallpaper</p>
+              <p className="text-[13px] text-white/50">Change the background of your chat</p>
             </div>
           </button>
 
@@ -161,16 +161,16 @@ export default function Settings() {
             <button
               onClick={handleToggleBiometrics}
               disabled={bioLoading}
-              className="flex items-center justify-between rounded-[12px] border border-[var(--border)] bg-[var(--card)] px-4 py-3.5 text-left transition-opacity active:opacity-80"
+              className="flex items-center justify-between rounded-2xl border border-[var(--border)] bg-[var(--card)] px-5 py-4 text-left transition-all active:scale-[0.98] active:border-white/10 md:hover:border-white/10 disabled:opacity-70"
             >
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-4">
                 <Fingerprint
-                  className={`h-4 w-4 ${bioEnabled ? "text-[var(--gold)]" : "text-[var(--muted)]"}`}
+                  className={`h-5 w-5 ${bioEnabled ? "text-[var(--gold)]" : "text-[var(--muted)]"}`}
                   strokeWidth={2}
                 />
                 <div>
-                  <p className="text-[13px] text-[var(--cream)]">Face ID / Fingerprint</p>
-                  <p className="text-[11px] text-[var(--muted)]">
+                  <p className="text-[14px] font-medium text-[var(--cream)]">Face ID / Fingerprint</p>
+                  <p className="text-[13px] text-white/50">
                     {bioLoading
                       ? "Verifying biometric..."
                       : bioEnabled
@@ -180,13 +180,13 @@ export default function Settings() {
                 </div>
               </div>
               <div
-                className={`relative h-6 w-11 rounded-full transition-colors ${
-                  bioEnabled ? "bg-[var(--gold)]" : "bg-[#3A342E]"
+                className={`relative h-7 w-12 rounded-full transition-colors ${
+                  bioEnabled ? "bg-[var(--gold)]" : "bg-black/30 border border-white/5"
                 }`}
               >
                 <span
-                  className={`absolute top-0.5 h-5 w-5 rounded-full bg-white transition-all ${
-                    bioEnabled ? "left-[22px]" : "left-0.5"
+                  className={`absolute top-[3px] h-[20px] w-[20px] rounded-full bg-white transition-all shadow-sm ${
+                    bioEnabled ? "left-[25px]" : "left-[3px]"
                   }`}
                 />
               </div>
@@ -194,19 +194,19 @@ export default function Settings() {
           )}
 
           {bioMsg && (
-            <p className="rounded-[10px] bg-white/5 px-3 py-2 text-[12px] text-[var(--cream)]">
+            <p className="rounded-2xl bg-white/5 px-4 py-3 text-[13px] text-[var(--cream)]">
               {bioMsg}
             </p>
           )}
 
           <button
             onClick={handleSignOut}
-            className="flex items-center gap-3 rounded-[12px] border border-[var(--border)] bg-[var(--card)] px-4 py-3.5 text-left"
+            className="flex items-center gap-4 rounded-2xl border border-[var(--border)] bg-[var(--card)] px-5 py-4 text-left transition-all active:scale-[0.98] active:border-white/10 md:hover:border-white/10 mt-2"
           >
-            <LogOut className="h-4 w-4 text-red-400" strokeWidth={2} />
+            <LogOut className="h-5 w-5 text-red-400" strokeWidth={2} />
             <div>
-              <p className="text-[13px] text-[var(--cream)]">Sign out of this device</p>
-              <p className="text-[11px] text-[var(--muted)]">You&apos;ll need your email and password to come back</p>
+              <p className="text-[14px] font-medium text-[var(--cream)]">Sign out of this device</p>
+              <p className="text-[13px] text-white/50">You&apos;ll need your email and password to come back</p>
             </div>
           </button>
         </div>
@@ -237,3 +237,4 @@ export default function Settings() {
     </main>
   );
 }
+
