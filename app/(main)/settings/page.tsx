@@ -19,7 +19,6 @@ type Step = "menu" | "auth" | "new" | "confirm" | "wallpaper";
 
 const LABELS: Record<Exclude<Step, "menu" | "wallpaper">, string> = {
   auth:     "Enter your PIN",
-  old:     "Enter your current PIN", // unused
   new:     "Choose a new PIN",
   confirm: "Confirm your new PIN",
 };
@@ -163,6 +162,7 @@ export default function Settings() {
         setStep("menu");
       }
     },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [step, newPin, router],
   );
 
