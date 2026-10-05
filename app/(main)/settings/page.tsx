@@ -2,7 +2,7 @@
 
 import { useCallback, useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, KeyRound, LogOut, Fingerprint, Image, X } from "lucide-react";
+import { ArrowLeft, KeyRound, LogOut, Fingerprint, Image, X, ChevronLeft } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import PinPad from "@/components/PinPad";
 import { setLocalPin, signOutAndWipe, verifyLocalPin, setSignInNotice } from "@/lib/auth";
@@ -172,22 +172,26 @@ export default function Settings() {
   }
 
   return (
-    <main className="flex min-h-full w-full flex-col font-sans pb-28">
-      <div className="mt-12 px-6 pb-2 w-full flex items-center gap-4">
-        {step !== "menu" && (
+    <motion.main 
+      initial={{ opacity: 0, y: 15 }} 
+      animate={{ opacity: 1, y: 0 }} 
+      transition={{ duration: 0.5, ease: "easeOut" }}
+      className="flex min-h-full w-full flex-col font-sans pt-[72px] pb-28 relative"
+    >
+      {step !== "menu" && (
+        <div className="absolute top-[72px] left-6 z-10">
           <button
             onClick={() => { setStep("menu"); setNewPin(""); }}
             aria-label="Back"
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white/10 text-white backdrop-blur-md transition-transform active:scale-95"
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[var(--wine)] text-white shadow-md transition-transform active:scale-95"
           >
-            <ArrowLeft className="h-5 w-5" strokeWidth={2.5} />
+            <ChevronLeft className="h-6 w-6 pr-[2px]" strokeWidth={3} />
           </button>
-        )}
-        <h1 className="text-[36px] font-bold text-white tracking-tight" style={{ fontFamily: "var(--font-fraunces), serif" }}>Profile</h1>
-      </div>
+        </div>
+      )}
 
       {step === "menu" ? (
-        <div className="flex flex-col w-full gap-4 px-6 mt-2">
+        <div className="flex flex-col w-full gap-4 px-6 mt-0">
           {done && (
             <p className="rounded-2xl bg-[#4C7A5B]/20 px-4 py-3 text-[13px] text-[#4C7A5B]">
               PIN changed. It applies to this device only.
@@ -339,7 +343,7 @@ export default function Settings() {
         )}
       </AnimatePresence>
 
-    </main>
+    </motion.main>
   );
 }
 
