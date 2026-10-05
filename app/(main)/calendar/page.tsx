@@ -101,7 +101,7 @@ export default function CalendarPage() {
     for (let i = 0; i < firstDay; i++) {
       const d = daysInPrevMonth - firstDay + i + 1;
       days.push(
-        <div key={`prev-${i}`} className="relative flex aspect-square w-full flex-col items-center justify-start pt-[12px] bg-[#18181A] text-[15px] font-medium text-white/20">
+        <div key={`prev-${i}`} className="relative flex aspect-[0.75] w-full flex-col items-center justify-start pt-[12px] bg-[#18181A] text-[17px] font-medium text-white/20">
           {d}
         </div>
       );
@@ -118,19 +118,19 @@ export default function CalendarPage() {
         <button
           key={`current-${d}`}
           onClick={() => setSelectedDateStr(dateStr)}
-          className={`relative flex aspect-square w-full flex-col items-center justify-start pt-[8px] text-[15px] font-medium transition-colors active:bg-white/5
+          className={`relative flex aspect-[0.75] w-full flex-col items-center justify-start pt-[8px] text-[17px] font-medium transition-colors active:bg-white/5
             ${isSelected ? "bg-white/5" : "bg-[#18181A] hover:bg-white/5"}
           `}
         >
-          <div className={`flex h-8 w-8 items-center justify-center rounded-full ${isSelected ? "bg-[#5135FF] text-white" : isToday ? "text-[#5135FF]" : "text-white/90"}`}>
+          <div className={`flex h-[34px] w-[34px] items-center justify-center rounded-full ${isSelected ? "bg-[#5135FF] text-white" : isToday ? "text-[#5135FF]" : "text-white/90"}`}>
             {d}
           </div>
           
-          <div className="absolute bottom-2.5 flex w-full justify-center gap-[4px] px-1 flex-wrap">
+          <div className="absolute bottom-3 flex w-full justify-center gap-[4px] px-1 flex-wrap">
             {dayEvents.slice(0, 3).map((ev, idx) => (
-              <div key={idx} className={`h-1.5 w-1.5 rounded-full ${colors[idx % 4]}`} />
+              <div key={idx} className={`h-[5px] w-[5px] rounded-full ${colors[idx % 4]}`} />
             ))}
-            {dayEvents.length > 3 && <div className="h-1.5 w-1.5 rounded-full bg-white/50" />}
+            {dayEvents.length > 3 && <div className="h-[5px] w-[5px] rounded-full bg-white/50" />}
           </div>
         </button>
       );
@@ -139,7 +139,7 @@ export default function CalendarPage() {
     const remainingCells = totalCells - (firstDay + daysInMonth);
     for (let i = 1; i <= remainingCells; i++) {
       days.push(
-        <div key={`next-${i}`} className="relative flex aspect-square w-full flex-col items-center justify-start pt-[12px] bg-[#18181A] text-[15px] font-medium text-white/20">
+        <div key={`next-${i}`} className="relative flex aspect-[0.75] w-full flex-col items-center justify-start pt-[12px] bg-[#18181A] text-[17px] font-medium text-white/20">
           {i}
         </div>
       );
@@ -154,8 +154,8 @@ export default function CalendarPage() {
     : '';
 
   return (
-    <div className="relative flex min-h-full w-full flex-col p-6 pb-28">
-      <div className="mt-12">
+    <div className="relative flex min-h-full w-full flex-col px-4 pt-6 pb-28">
+      <div className="mt-12 px-2">
         <h1 className="text-[36px] font-bold text-white tracking-tight" style={{ fontFamily: "var(--font-fraunces), serif" }}>
           Calendar
         </h1>
