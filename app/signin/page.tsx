@@ -95,28 +95,31 @@ export default function SignIn() {
       {/* Overlay to ensure text readability */}
       <div className="absolute inset-0 z-0 bg-black/40" />
 
-      <motion.div
-        initial={{ opacity: 0, y: -16 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.55, delay: 0.1, ease: [0.16, 1, 0.3, 1] }}
-        className="relative z-10 flex flex-1 flex-col items-center justify-center gap-1.5 px-6 text-center"
-      >
-        <p
-          className="text-[26px] leading-tight text-[#F5F0E8] font-bold tracking-tight"
+      <div className="relative z-10 flex flex-1 flex-col items-center justify-center gap-2.5 px-4 text-center">
+        <motion.p
+          initial={{ opacity: 0, y: 15, filter: "blur(6px)" }}
+          animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+          transition={{ duration: 0.6, delay: 0.1, ease: [0.16, 1, 0.3, 1] }}
+          className="text-[38px] leading-tight text-[#F5F0E8] font-bold tracking-tight"
           style={{ fontFamily: "var(--font-fraunces), serif" }}
         >
           Sign in to Just Us
-        </p>
-        <p className="max-w-[260px] text-[12px] leading-relaxed text-[#8A8177]">
+        </motion.p>
+        <motion.p 
+          initial={{ opacity: 0, y: 15, filter: "blur(6px)" }}
+          animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+          transition={{ duration: 0.6, delay: 0.25, ease: [0.16, 1, 0.3, 1] }}
+          className="max-w-[340px] text-[16px] leading-relaxed text-[#8A8177] px-2"
+        >
           Only needed once on each device. After this you&apos;ll just use your PIN.
-        </p>
-      </motion.div>
+        </motion.p>
+      </div>
 
       <motion.div
         initial={{ opacity: 0, y: 70 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6, delay: 0.15, ease: [0.16, 1, 0.3, 1] }}
-        className="relative z-10 flex flex-col gap-3.5 rounded-t-[36px] bg-[#26221E] px-6 pb-12 pt-9 shadow-[0_-8px_30px_rgba(0,0,0,0.35)]"
+        className="relative z-10 flex flex-col gap-3.5 rounded-t-[36px] bg-[#26221E] px-6 pb-24 pt-9 shadow-[0_-8px_30px_rgba(0,0,0,0.35)]"
       >
         {notice && <p className="text-[12px] text-[#C9A66B]">{notice}</p>}
 

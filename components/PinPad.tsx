@@ -72,22 +72,22 @@ export default function PinPad({
   );
 
   return (
-    <div className="flex flex-col items-center gap-6">
+    <div className="flex flex-col items-center gap-5">
       {/* Label */}
-      <p className="text-[15px] font-medium text-white/60">{label}</p>
+      <p className="text-[18px] font-semibold tracking-wide text-white/90">{label}</p>
 
       {/* Dot indicators */}
       <motion.div
         animate={shake ? { x: [-10, 10, -8, 8, -5, 5, 0] } : {}}
         transition={{ duration: 0.4 }}
-        className="flex gap-5 transition-all"
+        className="flex gap-6 transition-all mt-2"
       >
         {Array.from({ length }).map((_, i) => (
           <span
             key={i}
-            className={`h-[16px] w-[16px] rounded-full border-2 transition-all duration-200 ${
+            className={`h-[20px] w-[20px] rounded-full border-[2.5px] transition-all duration-200 ${
               i < digits.length
-                ? "border-[var(--wine)] bg-[var(--wine)] scale-110"
+                ? "border-[var(--wine)] bg-[var(--wine)] scale-110 shadow-[0_0_8px_rgba(188,21,41,0.6)]"
                 : "border-[var(--border)] bg-transparent"
             }`}
           />
@@ -95,7 +95,7 @@ export default function PinPad({
       </motion.div>
 
       {/* Keypad grid */}
-      <div className="grid w-fit grid-cols-[repeat(3,72px)] gap-5 mt-4">
+      <div className="grid w-fit grid-cols-[repeat(3,64px)] gap-4 mt-2">
         {KEYS.map((key, i) => {
           if (key === "") {
             if (showBiometric && onBiometric) {
@@ -105,15 +105,15 @@ export default function PinPad({
                   key="biometric-btn"
                   type="button"
                   onClick={onBiometric}
-                  className="flex h-[72px] w-[72px] items-center justify-center rounded-full border border-[var(--border)] bg-[var(--surface)] text-[var(--gold)] transition-all hover:bg-white/5"
+                  className="flex h-[64px] w-[64px] items-center justify-center rounded-full border border-[var(--border)] bg-[var(--surface)] text-[var(--gold)] transition-all hover:bg-white/5"
                   aria-label="Unlock with Face ID or fingerprint"
                   title="Unlock with biometrics"
                 >
-                  <Fingerprint className="h-7 w-7 text-[var(--gold)]" strokeWidth={1.8} />
+                  <Fingerprint className="h-6 w-6 text-[var(--gold)]" strokeWidth={1.8} />
                 </motion.button>
               );
             }
-            return <div key={`empty-${i}`} className="h-[72px]" />;
+            return <div key={`empty-${i}`} className="h-[64px]" />;
           }
 
           return (
@@ -122,11 +122,11 @@ export default function PinPad({
               key={key}
               type="button"
               onClick={() => handleKey(key)}
-              className="flex h-[72px] w-[72px] items-center justify-center rounded-full border border-[var(--border)] bg-[var(--surface)] text-[24px] font-medium text-[var(--cream)] transition-all hover:bg-white/5 shadow-sm"
+              className="flex h-[64px] w-[64px] items-center justify-center rounded-full border border-[var(--border)] bg-[var(--surface)] text-[22px] font-medium text-[var(--cream)] transition-all hover:bg-white/5 shadow-sm"
               aria-label={key === "del" ? "Delete" : key}
             >
               {key === "del" ? (
-                <Delete className="h-6 w-6 text-[var(--cream)]" strokeWidth={2} />
+                <Delete className="h-[22px] w-[22px] text-[var(--cream)]" strokeWidth={2} />
               ) : (
                 key
               )}

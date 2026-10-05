@@ -33,24 +33,29 @@ export default function Welcome() {
         </motion.div>
 
         {/* Text Content */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.65, delay: 0.2, ease: [0.16, 1, 0.3, 1] }}
-          className="flex flex-col gap-4 px-2"
-        >
-          <h1 className="text-[44px] font-bold tracking-tight leading-[1.1] text-[var(--cream)]">
+        <div className="flex flex-col gap-4 px-2">
+          <motion.h1 
+            initial={{ opacity: 0, y: 15, filter: "blur(8px)" }}
+            animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+            transition={{ duration: 0.7, delay: 0.25, ease: [0.16, 1, 0.3, 1] }}
+            className="text-[44px] font-bold tracking-tight leading-[1.1] text-[var(--cream)]"
+          >
             Made for just
             <br />
             the two of us
-          </h1>
+          </motion.h1>
 
-          <p className="text-[17px] font-medium tracking-tight leading-relaxed text-white/60">
+          <motion.p 
+            initial={{ opacity: 0, y: 15, filter: "blur(8px)" }}
+            animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+            transition={{ duration: 0.7, delay: 0.4, ease: [0.16, 1, 0.3, 1] }}
+            className="text-[17px] font-medium tracking-tight leading-relaxed text-white/60"
+          >
             No strangers, no groups.
             <br />
             Just a space for YOU and I
-          </p>
-        </motion.div>
+          </motion.p>
+        </div>
       </div>
 
       {/* Bottom Action Row (Anchored to bottom) */}

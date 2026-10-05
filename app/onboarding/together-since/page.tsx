@@ -79,15 +79,25 @@ export default function TogetherSince() {
         initial={{ opacity: 0, y: 70 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6, delay: 0.1, ease: [0.16, 1, 0.3, 1] }}
-        className="relative z-10 flex flex-col gap-4 rounded-t-[36px] bg-[var(--card)] px-6 pb-12 pt-9 shadow-[0_-8px_30px_rgba(0,0,0,0.35)]"
+        className="relative z-10 flex flex-col gap-4 rounded-t-[36px] bg-[var(--card)] px-6 pb-24 pt-9 shadow-[0_-8px_30px_rgba(0,0,0,0.35)]"
       >
         <div>
-          <h2 className="text-[24px] font-notch font-bold tracking-tight text-[var(--cream)]">
+          <motion.h2 
+            initial={{ opacity: 0, filter: "blur(6px)", y: 10 }}
+            animate={{ opacity: 1, filter: "blur(0px)", y: 0 }}
+            transition={{ duration: 0.5, delay: 0.2, ease: [0.16, 1, 0.3, 1] }}
+            className="text-[24px] font-notch font-bold tracking-tight text-[var(--cream)]"
+          >
             When did you two start?
-          </h2>
-          <p className="mt-1 text-[13px] leading-relaxed text-white/60">
+          </motion.h2>
+          <motion.p 
+            initial={{ opacity: 0, filter: "blur(6px)", y: 10 }}
+            animate={{ opacity: 1, filter: "blur(0px)", y: 0 }}
+            transition={{ duration: 0.5, delay: 0.35, ease: [0.16, 1, 0.3, 1] }}
+            className="mt-1 text-[13px] leading-relaxed text-white/60"
+          >
             Sets your relationship streak counter — only entered once, ever.
-          </p>
+          </motion.p>
         </div>
 
         {/* Date input */}
