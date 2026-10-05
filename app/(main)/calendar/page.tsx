@@ -167,8 +167,8 @@ export default function CalendarPage() {
       {/* Calendar Grid Container */}
       <div className="mt-6">
         <div className="mb-6 flex items-center justify-between px-2">
-          <h2 className="text-[22px] font-bold text-white flex items-center gap-2">
-            {monthNames[month]} {year} <span className="text-white/40 text-[14px]">▼</span>
+          <h2 className="text-[28px] font-bold text-white flex items-center gap-2">
+            {monthNames[month]} {year} <span className="text-white/40 text-[16px]">▼</span>
           </h2>
           <div className="flex gap-4 items-center text-white/70">
             <CalendarIcon className="h-5 w-5 opacity-60" />
