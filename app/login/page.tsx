@@ -109,7 +109,7 @@ export default function Login() {
     const result = await authenticateBiometrics();
     if (result.ok) {
       setUnlocked();
-      router.replace("/chat");
+      router.replace("/home");
       return;
     }
     if (result.error && !result.cancelled) {
@@ -135,7 +135,7 @@ export default function Login() {
 
       if (ok) {
         setUnlocked();
-        router.replace("/chat");
+        router.replace("/home");
         return;
       }
 
@@ -222,7 +222,7 @@ export default function Login() {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 70 }}
             transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
-            className="relative z-10 flex flex-col items-center gap-6 rounded-t-[36px] bg-[var(--card)] px-6 pb-16 pt-10 shadow-[0_-8px_30px_rgba(0,0,0,0.35)]"
+            className="relative z-10 flex flex-col items-center gap-6 rounded-t-[36px] border-t border-white/10 bg-[#18181A]/90 px-6 backdrop-blur-2xl pb-16 pt-10 shadow-[0_-8px_30px_rgba(0,0,0,0.35)]"
           >
             <motion.div 
               initial={{ opacity: 0, scale: 0.5, filter: "blur(10px)" }}
@@ -263,7 +263,7 @@ export default function Login() {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 70 }}
             transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
-            className="relative z-10 flex flex-col items-center gap-5 rounded-t-[36px] bg-[var(--card)] px-6 pb-24 pt-8 shadow-[0_-8px_30px_rgba(0,0,0,0.35)]"
+            className="relative z-10 flex flex-col items-center gap-5 rounded-t-[36px] border-t border-white/10 bg-[#18181A]/90 px-6 backdrop-blur-2xl pb-24 pt-8 shadow-[0_-8px_30px_rgba(0,0,0,0.35)]"
           >
             {/* Avatar */}
             <div

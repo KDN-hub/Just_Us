@@ -88,7 +88,7 @@ export default function ProfileSetup() {
         initial={{ opacity: 0, y: 70 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6, delay: 0.1, ease: [0.16, 1, 0.3, 1] }}
-        className="relative z-10 flex flex-col gap-4 rounded-t-[36px] bg-[var(--card)] px-6 pb-24 pt-9 shadow-[0_-8px_30px_rgba(0,0,0,0.35)]"
+        className="relative z-10 flex flex-col gap-4 rounded-t-[36px] border-t border-white/10 bg-[#18181A]/90 px-6 backdrop-blur-2xl pb-24 pt-9 shadow-[0_-8px_30px_rgba(0,0,0,0.35)]"
       >
         <div>
           <motion.h2 

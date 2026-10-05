@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Settings, Phone, Video, Flame } from "lucide-react";
+import { ArrowLeft, Phone, Video, Flame } from "lucide-react";
 import Avatar from "@/components/Avatar";
 
 interface ChatHeaderProps {
@@ -24,7 +24,15 @@ export default function ChatHeader({
   partnerLastSeenText
 }: ChatHeaderProps) {
   return (
-    <header className="relative z-10 shrink-0 flex items-center gap-3 border-b border-[var(--border)] bg-[var(--surface)] px-5 pb-4 pt-[max(env(safe-area-inset-top),1rem)]">
+    <header className="relative z-10 shrink-0 flex items-center gap-3 border-b border-[var(--border)] bg-[var(--surface)] px-4 pb-4 pt-[max(env(safe-area-inset-top),1rem)]">
+      <Link
+        href="/home"
+        aria-label="Back"
+        className="flex h-9 w-9 items-center justify-center rounded-full text-[var(--muted)]"
+      >
+        <ArrowLeft className="h-[22px] w-[22px]" strokeWidth={2} />
+      </Link>
+
       <Avatar initial={partnerInitial} color={partnerColor} size={42} />
 
       <div className="min-w-0 flex-1">
@@ -59,16 +67,7 @@ export default function ChatHeader({
             </span>
           )}
         </div>
-      </div>
-
-      <Link
-        href="/settings"
-        aria-label="Settings"
-        className="flex h-9 w-9 items-center justify-center rounded-full text-[var(--muted)]"
-      >
-        <Settings className="h-[18px] w-[18px]" strokeWidth={2} />
-      </Link>
-      <Link
+      </div>      <Link
         href="/call?type=voice"
         aria-label="Voice call"
         className="flex h-9 w-9 items-center justify-center rounded-full border border-[var(--border)] bg-[var(--surface)] text-[var(--muted)]"

@@ -463,7 +463,7 @@ export default function Chat() {
 
       {incomingCall && (
         <div className="absolute inset-x-0 top-0 z-50 mx-auto max-w-md">
-          <div className="m-3 flex items-center gap-3.5 rounded-[16px] bg-[var(--card)] px-4 py-4 shadow-xl ring-1 ring-white/10">
+          <div className="m-3 flex items-center gap-3.5 rounded-[16px] border border-white/10 bg-[#18181A]/90 px-4 py-4 shadow-xl backdrop-blur-md">
             <Avatar initial={partnerInitial} color={partnerColor} size={46} />
             <div className="flex-1">
               <p className="text-[15px] font-semibold text-[var(--cream)]">

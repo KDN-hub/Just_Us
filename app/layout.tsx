@@ -42,7 +42,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body className="flex min-h-dvh flex-col font-sans antialiased overflow-x-hidden">
+      <body className="flex min-h-dvh flex-col font-sans antialiased overflow-x-hidden" style={{ background: "var(--gradient)" }}>
         {children}
       </body>
     </html>
