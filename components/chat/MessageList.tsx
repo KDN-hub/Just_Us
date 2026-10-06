@@ -33,13 +33,38 @@ export default function MessageList({
         <p className="mx-auto mt-10 text-[16px] text-white/60">Say something 💬</p>
       )}
 
-      {timeline.map((item, i) => {
+      {(() => {
+        const clustered = [];
+        let i = 0;
+        while (i < timeline.length) {
+          const item = timeline[i];
+          if (item.kind === "message" && item.data.type === "image") {
+            const group = [item];
+            let j = i + 1;
+            while (j < timeline.length && timeline[j].kind === "message" && timeline[j].data.type === "image" && timeline[j].data.sender_id === item.data.sender_id) {
+              const timeA = new Date(group[group.length - 1].data.created_at).getTime();
+              const timeB = new Date(timeline[j].data.created_at).getTime();
+              if (timeB - timeA > 60 * 1000) break;
+              group.push(timeline[j]);
+              j++;
+            }
+            if (group.length > 1) {
+              clustered.push({ kind: "message", data: { ...item.data, type: "image_group", content: JSON.stringify(group.map(g => g.data.content)), originalMessages: group } });
+              i = j;
+              continue;
+            }
+          }
+          clustered.push(item);
+          i++;
+        }
+        return clustered;
+      })().map((item: any, i, arr) => {
         let groupPosition: "single" | "top" | "middle" | "bottom" = "single";
         let mb = "mb-4";
 
         if (item.kind === "message") {
-          const prev = timeline[i - 1];
-          const next = timeline[i + 1];
+          const prev = arr[i - 1];
+          const next = arr[i + 1];
 
           const isSameAsPrev = prev?.kind === "message" && prev.data.sender_id === item.data.sender_id;
           const isSameAsNext = next?.kind === "message" && next.data.sender_id === item.data.sender_id;
@@ -97,3 +122,4 @@ export default function MessageList({
     </div>
   );
 }
+

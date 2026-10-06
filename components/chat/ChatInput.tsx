@@ -116,7 +116,7 @@ export default function ChatInput({
           </div>
         )}
 
-        <input type="file" ref={fileInputRef} accept="image/*,video/*,audio/*" className="hidden" onChange={handleFileUpload} />
+        <input type="file" ref={fileInputRef} accept="image/*,video/*,audio/*" multiple className="hidden" onChange={handleFileUpload} />
         
         {/* Input Bubble Container */}
         <div className="flex-1 flex items-end gap-1.5 rounded-[24px] bg-white/20 border border-white/10 px-1.5 py-1 min-h-[46px]">

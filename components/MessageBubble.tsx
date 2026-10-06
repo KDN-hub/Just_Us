@@ -172,6 +172,7 @@ export default function MessageBubble({
   partnerAvatarUrl,
 }: MessageBubbleProps) {
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [fullscreenIndex, setFullscreenIndex] = useState(0);
   const [showReactionMenu, setShowReactionMenu] = useState(false);
   const [showFullPicker, setShowFullPicker] = useState(false);
   const pressTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -241,7 +242,7 @@ export default function MessageBubble({
               {formatTime(timestamp)}
             </div>
             <div className="flex items-center pointer-events-auto">
-              {actualType === "image" ? (
+              {actualType === "image" || actualType === "image_group" ? (
                 <button onClick={handleDownload} className="text-white p-2" aria-label="Download">
                   <Download className="h-5 w-5" />
                 </button>
@@ -252,14 +253,26 @@ export default function MessageBubble({
           </div>
           
           <div className="flex-1 flex items-center justify-center min-h-0 bg-black relative">
-            {actualType === "image" ? (
-              <TransformWrapper initialScale={1} minScale={1} maxScale={5}>
-                <TransformComponent wrapperStyle={{ width: "100%", height: "100%" }} contentStyle={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                  <img src={actualContent} style={{ maxWidth: "100%", maxHeight: "100%", objectFit: "contain" }} />
-                </TransformComponent>
-              </TransformWrapper>
+            {actualType === "image" || actualType === "image_group" ? (
+              <div className="w-full h-full relative flex items-center justify-center">
+                {actualType === "image_group" && JSON.parse(actualContent).length > 1 && fullscreenIndex > 0 && (
+                  <button onClick={(e) => { e.stopPropagation(); setFullscreenIndex(i => i - 1); }} className="absolute left-4 z-50 p-3 rounded-full bg-black/50 text-white hover:bg-black/80">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
+                  </button>
+                )}
+                {actualType === "image_group" && JSON.parse(actualContent).length > 1 && fullscreenIndex < JSON.parse(actualContent).length - 1 && (
+                  <button onClick={(e) => { e.stopPropagation(); setFullscreenIndex(i => i + 1); }} className="absolute right-4 z-50 p-3 rounded-full bg-black/50 text-white hover:bg-black/80">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+                  </button>
+                )}
+                <TransformWrapper initialScale={1} minScale={1} maxScale={5}>
+                    <TransformComponent wrapperStyle={{ width: "100%", height: "100%" }} contentStyle={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                      <img src={actualType === "image_group" ? JSON.parse(actualContent)[fullscreenIndex] : actualContent} style={{ maxWidth: "100%", maxHeight: "100%", objectFit: "contain" }} />
+                    </TransformComponent>
+                  </TransformWrapper>
+              </div>
             ) : (
-              <video src={actualContent} controls autoPlay className="max-h-full max-w-full" />
+              <video src={actualType === "image_group" ? JSON.parse(actualContent)[fullscreenIndex] : actualContent} controls autoPlay className="max-h-full max-w-full" />
             )}
           </div>
         </div>
@@ -294,13 +307,58 @@ export default function MessageBubble({
 
 
         <div className="group relative w-full">
-        {actualContent === "NUDGE_PING_💖" ? (
+        {actualType === "image_group" ? (
+          (() => {
+            const urls = JSON.parse(actualContent);
+            const displayCount = Math.min(urls.length, 3);
+            const remainingCount = urls.length - 1;
+            
+            return (
+              <div className="relative inline-block group w-[220px] h-[260px] mt-4 mb-2 mx-6 cursor-pointer" onClick={() => { setIsFullscreen(true); setFullscreenIndex(0); }}> 
+                {Array.from({ length: displayCount }).map((_, domIndex) => {
+                  const realIndex = displayCount - 1 - domIndex;
+                  const url = urls[realIndex];
+                  
+                  let transforms = "";
+                  
+                  if (realIndex === 0) { // Front image
+                    transforms = "rotate-0 translate-y-0 z-30 group-active:scale-95";
+                  } else if (realIndex === 1) { // Middle image
+                    transforms = "rotate-[8deg] translate-x-12 -translate-y-2 z-20 opacity-95 group-hover:rotate-[10deg] group-hover:translate-x-16 group-active:scale-95";
+                  } else if (realIndex === 2) { // Back image
+                    transforms = "-rotate-[8deg] -translate-x-12 -translate-y-2 z-10 opacity-90 group-hover:-rotate-[10deg] group-hover:-translate-x-16 group-active:scale-95";
+                  }
+
+                  return (
+                    <div key={realIndex} className={`absolute inset-0 rounded-[20px] overflow-hidden border-2 border-[#18181A]/40 shadow-2xl transition-all duration-300 ease-out origin-bottom ${transforms}`}>
+                      <img src={url} className="w-full h-full object-cover" alt="" />
+                      
+                      {realIndex === 0 && remainingCount > 0 && (
+                        <div className="absolute bottom-4 inset-x-0 flex justify-center z-40">
+                          <span className="bg-black/60 backdrop-blur-xl px-4 py-1.5 rounded-full text-white font-medium text-[14px] shadow-xl border border-white/10 flex items-center gap-1.5">
+                            +{remainingCount} photos
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+                <div className="bg-black/50 backdrop-blur-md text-white px-2 py-1 rounded-full text-[13px] absolute -bottom-2 -right-4 flex items-center gap-1 z-40 pointer-events-none shadow-lg">
+                  <span>{formatTime(timestamp)}</span>
+                  {isMine && status && (
+                    <MessageStatusTicks status={status} queued={queued} />
+                  )}
+                </div>
+              </div>
+            );
+          })()
+        ) : actualContent === "NUDGE_PING_💖" ? (
           <div className="py-1 text-[64px] leading-none animate-in zoom-in-50 duration-500 drop-shadow-xl" style={{ filter: 'drop-shadow(0 10px 15px rgba(255,50,100,0.4))' }}>
              💖
           </div>
         ) : actualType === "image" ? (
           <div className="relative inline-block group">
-            <img src={actualContent} alt="Image message" onClick={() => setIsFullscreen(true)} className="max-w-[240px] max-h-[300px] rounded-[20px] object-cover cursor-pointer border border-white/5" />
+            <img src={actualContent} alt="Image message" onClick={() => { setIsFullscreen(true); setFullscreenIndex(0); }} className="max-w-[240px] max-h-[300px] rounded-[20px] object-cover cursor-pointer border border-white/5" />
             <div className="bg-black/50 backdrop-blur-md text-white px-2 py-1 rounded-full text-[13px] absolute bottom-2 right-2 flex items-center gap-1 z-10 pointer-events-none">
               <span>{formatTime(timestamp)}</span>
               {isMine && status && (
@@ -309,7 +367,7 @@ export default function MessageBubble({
             </div>
           </div>
         ) : actualType === "video" ? (
-          <VideoPlayer url={actualContent} onClick={() => setIsFullscreen(true)}>
+          <VideoPlayer url={actualContent} onClick={() => { setIsFullscreen(true); setFullscreenIndex(0); }}>
             <div className="bg-black/50 backdrop-blur-md text-white px-2 py-1 rounded-full text-[13px] absolute bottom-2 right-2 flex items-center gap-1 z-10 pointer-events-none">
               <span>{formatTime(timestamp)}</span>
               {isMine && status && (
@@ -383,4 +441,7 @@ export default function MessageBubble({
     </>
   );
 }
+
+
+
 
