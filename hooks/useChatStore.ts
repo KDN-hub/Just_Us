@@ -17,6 +17,7 @@ export interface Message {
   reactions?: Record<string, string>; // sender_id -> emoji
   reply_to?: string;
   reply_to_text?: string;
+  is_pinned?: boolean;
   is_edited?: boolean;
 }
 

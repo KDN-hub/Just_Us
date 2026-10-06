@@ -1,4 +1,4 @@
-import { Check, CheckCheck, Clock, Heart, Play, Pause, X, Download, Mic, User, Plus, Reply, Copy, Pencil, Trash2 } from "lucide-react";
+import { Check, CheckCheck, Clock, Heart, Play, Pause, X, Download, Mic, User, Plus, Reply, Copy, Pencil, Trash2, Share2, Pin, Info } from "lucide-react";
 import { TransformWrapper, TransformComponent } from "react-zoom-pan-pinch";
 import { useState, useRef } from "react";
 import EmojiPicker, { Theme } from 'emoji-picker-react';
@@ -26,6 +26,10 @@ interface MessageBubbleProps {
   onDelete?: () => void;
   replyToText?: string;
   isEdited?: boolean;
+  isPinned?: boolean;
+  onPin?: () => void;
+  onForward?: () => void;
+  onInfo?: () => void;
 }
 
 const MessageStatusTicks = ({ status, queued, className = "" }: { status?: string, queued?: boolean, className?: string }) => {
@@ -180,6 +184,10 @@ export default function MessageBubble({
   onDelete,
   replyToText,
   isEdited,
+  isPinned,
+  onPin,
+  onForward,
+  onInfo,
 }: MessageBubbleProps) {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [fullscreenIndex, setFullscreenIndex] = useState(0);
@@ -302,6 +310,7 @@ export default function MessageBubble({
       {showReactionMenu && !showFullPicker && (
         <div className="fixed inset-y-0 inset-x-0 mx-auto max-w-md z-[100] bg-black/50 transition-opacity" onClick={() => setShowReactionMenu(false)} onContextMenu={(e) => { e.preventDefault(); setShowReactionMenu(false); }} />
       )}
+{isPinned && <div className={`flex items-center gap-1.5 mb-1 ${isMine ? "justify-end mr-4" : "justify-start ml-12"}`}><Pin className="w-3 h-3 text-white/50" /><span className="text-[11px] font-medium text-white/50">Pinned</span></div>}
       <motion.div
         initial={{ y: 20, opacity: 0, scale: 0.95 }}
         animate={{ y: 0, opacity: 1, scale: 1 }}
@@ -452,7 +461,47 @@ export default function MessageBubble({
         )}
         </AnimatePresence>
 
-        {reactions && Object.keys(reactions).length > 0 && (
+        
+          <AnimatePresence>
+          {showReactionMenu && !showFullPicker && (
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.8, y: -10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.8, y: -10 }}
+              className={`absolute top-full mt-2 ${isMine ? 'right-0' : 'left-0'} z-50 flex flex-col min-w-[160px] bg-[#18181A]/95 backdrop-blur-xl rounded-2xl shadow-[0_10px_40px_rgba(0,0,0,0.5)] border border-white/10 overflow-hidden`}
+            >
+              <button onClick={(e) => { e.stopPropagation(); onReply?.(); setShowReactionMenu(false); }} className="flex items-center gap-3 px-4 py-3 text-[14px] text-white/90 hover:bg-white/10 transition-colors text-left active:bg-white/15">
+                 <Reply className="w-4 h-4 text-white/60" /> Reply
+              </button>
+              {actualType === 'text' && (
+                <button onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(actualContent); setShowReactionMenu(false); }} className="flex items-center gap-3 px-4 py-3 text-[14px] text-white/90 hover:bg-white/10 transition-colors text-left active:bg-white/15 border-t border-white/5">
+                   <Copy className="w-4 h-4 text-white/60" /> Copy
+                </button>
+              )}
+              {isMine && actualType === 'text' && (
+                <button onClick={(e) => { e.stopPropagation(); onEdit?.(); setShowReactionMenu(false); }} className="flex items-center gap-3 px-4 py-3 text-[14px] text-white/90 hover:bg-white/10 transition-colors text-left active:bg-white/15 border-t border-white/5">
+                   <Pencil className="w-4 h-4 text-white/60" /> Edit
+                </button>
+              )}
+              <button onClick={(e) => { e.stopPropagation(); onPin?.(); setShowReactionMenu(false); }} className="flex items-center gap-3 px-4 py-3 text-[14px] text-white/90 hover:bg-white/10 transition-colors text-left active:bg-white/15 border-t border-white/5">
+                 <Pin className="w-4 h-4 text-white/60" /> {isPinned ? 'Unpin' : 'Pin'}
+              </button>
+              <button onClick={(e) => { e.stopPropagation(); onForward?.(); setShowReactionMenu(false); }} className="flex items-center gap-3 px-4 py-3 text-[14px] text-white/90 hover:bg-white/10 transition-colors text-left active:bg-white/15 border-t border-white/5">
+                 <Share2 className="w-4 h-4 text-white/60" /> Forward
+              </button>
+              <button onClick={(e) => { e.stopPropagation(); onInfo?.(); setShowReactionMenu(false); }} className="flex items-center gap-3 px-4 py-3 text-[14px] text-white/90 hover:bg-white/10 transition-colors text-left active:bg-white/15 border-t border-white/5">
+                 <Info className="w-4 h-4 text-white/60" /> Info
+              </button>
+              {isMine && (
+                <button onClick={(e) => { e.stopPropagation(); onDelete?.(); setShowReactionMenu(false); }} className="flex items-center gap-3 px-4 py-3 text-[14px] text-red-400 hover:bg-white/10 transition-colors text-left active:bg-white/15 border-t border-white/5">
+                   <Trash2 className="w-4 h-4 text-red-400/80" /> Delete
+                </button>
+              )}
+            </motion.div>
+          )}
+          </AnimatePresence>
+
+{reactions && Object.keys(reactions).length > 0 && (
           <div 
             onClick={(e) => {
               e.stopPropagation();

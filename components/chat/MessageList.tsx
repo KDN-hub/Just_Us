@@ -17,6 +17,9 @@ interface MessageListProps {
   partnerColor: string;
   myAvatarUrl?: string | null;
   partnerAvatarUrl?: string | null;
+  onPin?: (id: string) => void;
+  onForward?: (id: string) => void;
+  onInfo?: (id: string) => void;
 }
 
 export default function MessageList({
@@ -32,6 +35,9 @@ export default function MessageList({
   partnerColor,
   myAvatarUrl,
   partnerAvatarUrl,
+  onPin,
+  onForward,
+  onInfo,
 }: MessageListProps) {
   return (
     <div className="relative z-10 flex flex-1 min-h-0 flex-col overflow-y-auto overflow-x-hidden px-4 pt-4 pb-6">
