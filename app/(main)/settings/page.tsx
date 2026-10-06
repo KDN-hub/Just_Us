@@ -43,6 +43,7 @@ export default function Settings() {
   const [bioMsg, setBioMsg] = useState("");
   const [authTarget, setAuthTarget] = useState<ActionType>(null);
   const [showSignOutModal, setShowSignOutModal] = useState(false);
+  const [showAvatarPrompt, setShowAvatarPrompt] = useState(false);
   const [myAvatar, setMyAvatar] = useState<string | null>(() => typeof window !== 'undefined' ? localStorage.getItem('my_avatar') : null);
   const [myName, setMyName] = useState<string>(() => typeof window !== 'undefined' ? localStorage.getItem('user_name') || 'User' : 'User');
 
@@ -208,13 +209,12 @@ export default function Settings() {
       {step === "menu" ? (
         <div className="flex flex-col w-full gap-4 px-6 mt-0">
           <div className="flex flex-col items-center justify-center py-6">
-            <label className="relative cursor-pointer group">
+            <button onClick={() => setShowAvatarPrompt(true)} className="relative cursor-pointer group focus:outline-none active:scale-95 transition-transform block rounded-full">
               <Avatar initial={myName[0] || "?"} color="var(--wine)" size={100} imageUrl={myAvatar} className="shadow-2xl border-4 border-[#18181A]" />
               <div className="absolute inset-0 bg-black/40 rounded-full opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
                 <Camera className="h-8 w-8 text-white" />
               </div>
-              <input type="file" accept="image/*" className="hidden" onChange={handleAvatarUpload} />
-            </label>
+            </button>
             <h2 className="text-[24px] font-semibold text-white mt-4">{myName}</h2>
             <p className="text-[14px] text-white/50">Tap picture to change</p>
           </div>
@@ -323,6 +323,22 @@ export default function Settings() {
       )}
     
       <AnimatePresence>
+        {showAvatarPrompt && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[100] bg-black/80 flex items-center justify-center p-4">
+            <motion.div initial={{ scale: 0.95 }} animate={{ scale: 1 }} exit={{ scale: 0.95 }} className="bg-[#18181A] w-full max-w-sm rounded-[24px] overflow-hidden border border-white/10 shadow-2xl p-5">
+              <h3 className="text-[18px] font-semibold text-white mb-2">Change Profile Picture</h3>
+              <p className="text-[14px] text-white/60 mb-6">Choose an image from your device to set as your profile picture.</p>
+              <div className="flex gap-3">
+                <button onClick={() => setShowAvatarPrompt(false)} className="flex-1 py-3 rounded-xl bg-white/5 text-white font-medium active:scale-95 transition-all">Cancel</button>
+                <label className="flex-1 py-3 rounded-xl bg-[var(--wine)] text-white font-medium flex items-center justify-center cursor-pointer active:scale-95 transition-all shadow-md">
+                  Select Image
+                  <input type="file" accept="image/*" className="hidden" onChange={(e) => { handleAvatarUpload(e); setShowAvatarPrompt(false); }} />
+                </label>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+
         {showSignOutModal && (
           <motion.div
             initial={{ opacity: 0 }}
@@ -373,4 +389,5 @@ export default function Settings() {
     </motion.main>
   );
 }
+
 

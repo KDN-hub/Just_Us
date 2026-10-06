@@ -35,6 +35,8 @@ export default function Chat() {
   const [wallpaper, setWallpaper] = useState<string>("default");
   
   const [showWallpaperModal, setShowWallpaperModal] = useState(false);
+    const [showCustomWallpaperPrompt, setShowCustomWallpaperPrompt] = useState(false);
+  const [showCustomWallpaperPrompt, setShowCustomWallpaperPrompt] = useState(false);
   const [showUsernameModal, setShowUsernameModal] = useState(false);
   const [showMediaModal, setShowMediaModal] = useState(false);
   const [showAvatarModal, setShowAvatarModal] = useState(false);
@@ -499,7 +501,7 @@ export default function Chat() {
       }}
     >
       {wallpaper !== 'default' && wallpaper !== 'black' && (
-        <div className="absolute inset-0 z-0 opacity-20 pointer-events-none bg-cover bg-center" style={{ backgroundImage: `url('${wallpaper}')` }} />
+        <div className="absolute inset-0 z-0 opacity-80 pointer-events-none bg-cover bg-center" style={{ backgroundImage: `url('${wallpaper}')` }} />
       )}
 
       {incomingCall && (
@@ -622,10 +624,26 @@ export default function Chat() {
                 <button onClick={() => { localStorage.setItem('chat_wallpaper', 'https://images.unsplash.com/photo-1519681393784-d120267933ba'); setWallpaper('https://images.unsplash.com/photo-1519681393784-d120267933ba'); setShowWallpaperModal(false); }} className={`h-32 rounded-xl border-2 ${wallpaper === 'https://images.unsplash.com/photo-1519681393784-d120267933ba' ? 'border-[var(--gold)]' : 'border-transparent'} relative overflow-hidden bg-cover bg-center`} style={{ backgroundImage: "url('https://images.unsplash.com/photo-1519681393784-d120267933ba')" }}>
                   <span className="absolute bottom-2 left-2 text-[12px] text-white/80 bg-black/40 px-2 rounded-full">Mountains</span>
                 </button>
-                <label className="h-32 rounded-xl border-2 border-transparent relative overflow-hidden bg-white/5 flex flex-col items-center justify-center cursor-pointer active:scale-95 transition-transform hover:bg-white/10">
+                <button onClick={() => { setShowWallpaperModal(false); setShowCustomWallpaperPrompt(true); }} className="h-32 rounded-xl border-2 border-transparent relative overflow-hidden bg-white/5 flex flex-col items-center justify-center cursor-pointer active:scale-95 transition-transform hover:bg-white/10">
                   <ImagePlus className="h-8 w-8 text-white/50 mb-1" />
                   <span className="text-[12px] text-white/80 font-medium">Custom</span>
-                  <input type="file" accept="image/*" className="hidden" onChange={handleWallpaperUpload} />
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+
+        {/* Custom Wallpaper Prompt */}
+        {showCustomWallpaperPrompt && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[100] bg-black/80 flex items-center justify-center p-4">
+            <motion.div initial={{ scale: 0.95 }} animate={{ scale: 1 }} exit={{ scale: 0.95 }} className="bg-[#18181A] w-full max-w-sm rounded-[24px] overflow-hidden border border-white/10 shadow-2xl p-5">
+              <h3 className="text-[18px] font-semibold text-white mb-2">Custom Wallpaper</h3>
+              <p className="text-[14px] text-white/60 mb-6">Choose an image from your device to set as your chat background.</p>
+              <div className="flex gap-3">
+                <button onClick={() => setShowCustomWallpaperPrompt(false)} className="flex-1 py-3 rounded-xl bg-white/5 text-white font-medium active:scale-95 transition-all">Cancel</button>
+                <label className="flex-1 py-3 rounded-xl bg-[var(--wine)] text-white font-medium flex items-center justify-center cursor-pointer active:scale-95 transition-all shadow-md">
+                  Select Image
+                  <input type="file" accept="image/*" className="hidden" onChange={(e) => { handleWallpaperUpload(e); setShowCustomWallpaperPrompt(false); }} />
                 </label>
               </div>
             </motion.div>
@@ -716,6 +734,11 @@ export default function Chat() {
     </motion.main>
   );
 }
+
+
+
+
+
 
 
 
