@@ -2,9 +2,10 @@
 
 import { useCallback, useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, KeyRound, LogOut, Fingerprint, Image, X, ChevronLeft } from "lucide-react";
+import { ArrowLeft, KeyRound, LogOut, Fingerprint, Image, X, ChevronLeft, Camera } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import PinPad from "@/components/PinPad";
+import Avatar from "@/components/Avatar";
 import { setLocalPin, signOutAndWipe, verifyLocalPin, setSignInNotice } from "@/lib/auth";
 import {
   isBiometricsSupported,
@@ -42,7 +43,21 @@ export default function Settings() {
   const [bioMsg, setBioMsg] = useState("");
   const [authTarget, setAuthTarget] = useState<ActionType>(null);
   const [showSignOutModal, setShowSignOutModal] = useState(false);
+  const [myAvatar, setMyAvatar] = useState<string | null>(() => typeof window !== 'undefined' ? localStorage.getItem('my_avatar') : null);
+  const [myName, setMyName] = useState<string>(() => typeof window !== 'undefined' ? localStorage.getItem('user_name') || 'User' : 'User');
 
+  const handleAvatarUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const dataUrl = event.target?.result as string;
+      setMyAvatar(dataUrl);
+      localStorage.setItem('my_avatar', dataUrl);
+      window.dispatchEvent(new Event("storage"));
+    };
+    reader.readAsDataURL(file);
+  };
 
   useEffect(() => {
     if (done) {
@@ -183,7 +198,7 @@ export default function Settings() {
           <button
             onClick={() => { setStep("menu"); setNewPin(""); }}
             aria-label="Back"
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[var(--wine)] text-white shadow-md transition-transform active:scale-95"
+            className="flex h-[42px] w-[42px] shrink-0 items-center justify-center rounded-full bg-[#18181A]/80 backdrop-blur-xl border border-white/10 text-white shadow-lg transition-transform active:scale-95"
           >
             <ChevronLeft className="h-6 w-6 pr-[2px]" strokeWidth={3} />
           </button>
@@ -192,6 +207,18 @@ export default function Settings() {
 
       {step === "menu" ? (
         <div className="flex flex-col w-full gap-4 px-6 mt-0">
+          <div className="flex flex-col items-center justify-center py-6">
+            <label className="relative cursor-pointer group">
+              <Avatar initial={myName[0] || "?"} color="var(--wine)" size={100} imageUrl={myAvatar} className="shadow-2xl border-4 border-[#18181A]" />
+              <div className="absolute inset-0 bg-black/40 rounded-full opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
+                <Camera className="h-8 w-8 text-white" />
+              </div>
+              <input type="file" accept="image/*" className="hidden" onChange={handleAvatarUpload} />
+            </label>
+            <h2 className="text-[24px] font-semibold text-white mt-4">{myName}</h2>
+            <p className="text-[14px] text-white/50">Tap picture to change</p>
+          </div>
+
           {done && (
             <p className="rounded-2xl bg-[#4C7A5B]/20 px-4 py-3 text-[13px] text-[#4C7A5B]">
               PIN changed. It applies to this device only.

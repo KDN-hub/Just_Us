@@ -35,6 +35,8 @@ export const viewport: Viewport = {
   interactiveWidget: "resizes-content",
 };
 
+import GlobalOverlay from "@/components/GlobalOverlay";
+
 export default function RootLayout({
   children,
 }: {
@@ -44,6 +46,7 @@ export default function RootLayout({
     <html lang="en">
       <body className="flex min-h-dvh flex-col font-sans antialiased overflow-x-hidden" style={{ background: "var(--gradient)" }}>
         {children}
+        <GlobalOverlay />
       </body>
     </html>
   );

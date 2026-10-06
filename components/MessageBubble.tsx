@@ -3,6 +3,7 @@ import { TransformWrapper, TransformComponent } from "react-zoom-pan-pinch";
 import { useState, useRef } from "react";
 import EmojiPicker, { Theme } from 'emoji-picker-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import Avatar from "@/components/Avatar";
 
 interface MessageBubbleProps {
   content: string;
@@ -16,9 +17,20 @@ interface MessageBubbleProps {
   reactions?: Record<string, string>;
   myReaction?: string;
   groupPosition?: "single" | "top" | "middle" | "bottom";
+  partnerInitial?: string;
+  partnerColor?: string;
+  myAvatarUrl?: string | null;
+  partnerAvatarUrl?: string | null;
 }
 
-const AudioPlayer = ({ url, isMine, timestamp, status, queued }: { url: string, isMine: boolean, timestamp: string, status?: string, queued?: boolean }) => {
+const MessageStatusTicks = ({ status, queued, className = "" }: { status?: string, queued?: boolean, className?: string }) => {
+  if (queued) return <Clock className={`h-[14px] w-[14px] text-white/60 ${className}`} strokeWidth={2} />;
+  if (status === "read") return <CheckCheck className={`h-[16px] w-[16px] text-[#F5C842] ${className}`} strokeWidth={2.5} />;
+  if (status === "delivered") return <CheckCheck className={`h-[16px] w-[16px] text-white/70 ${className}`} strokeWidth={2.5} />;
+  return <Check className={`h-[16px] w-[16px] text-white/70 ${className}`} strokeWidth={2.5} />;
+};
+
+const AudioPlayer = ({ url, isMine, timestamp, status, queued, myAvatarUrl, partnerAvatarUrl, partnerInitial, partnerColor }: { url: string, isMine: boolean, timestamp: string, status?: string, queued?: boolean, myAvatarUrl?: string | null, partnerAvatarUrl?: string | null, partnerInitial?: string, partnerColor?: string }) => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [progress, setProgress] = useState(0);
   const [duration, setDuration] = useState(0);
@@ -42,7 +54,7 @@ const AudioPlayer = ({ url, isMine, timestamp, status, queued }: { url: string, 
   const displayTime = isPlaying || progress > 0 ? progress : duration;
 
   return (
-    <div className={`relative w-[280px] p-2 flex items-center gap-3 ${isMine ? "rounded-[16px_16px_4px_16px] bg-[var(--wine)] shadow-[0_8px_16px_-6px_rgba(122,44,59,0.3)]" : "rounded-[16px_16px_16px_4px] bg-[var(--card)] shadow-sm"}`}>
+    <div className={`relative w-[280px] p-2 flex items-center gap-3 bg-[#18181A]/80 backdrop-blur-xl border border-white/10 shadow-lg rounded-[24px]`}>
       <audio 
         ref={audioRef} 
         src={url} 
@@ -54,11 +66,14 @@ const AudioPlayer = ({ url, isMine, timestamp, status, queued }: { url: string, 
 
       {/* Avatar with Mic overlay */}
       <div className="relative shrink-0">
-         <div className="h-12 w-12 rounded-full bg-white/20 flex items-center justify-center overflow-hidden">
-            <User className="h-8 w-8 text-white/50 mt-3" strokeWidth={1.5} />
-         </div>
+         <Avatar 
+           initial={isMine ? "USER" : (partnerInitial || "?")} 
+           color={isMine ? "var(--wine)" : partnerColor} 
+           size={48} 
+           imageUrl={isMine ? myAvatarUrl : partnerAvatarUrl} 
+         />
          {/* Little green mic overlay */}
-         <div className="absolute -bottom-1 -right-1 h-5 w-5 bg-[#4C7A5B] rounded-full flex items-center justify-center border-2 border-[var(--surface)]">
+         <div className="absolute -bottom-1 -right-1 h-5 w-5 bg-[#4C7A5B] rounded-full flex items-center justify-center border-2 border-[var(--surface)] z-10">
             <Mic className="h-3 w-3 text-[var(--cream)]" strokeWidth={2.5} /> 
          </div>
       </div>
@@ -98,24 +113,14 @@ const AudioPlayer = ({ url, isMine, timestamp, status, queued }: { url: string, 
 
         {/* Bottom row: Duration/Time & timestamp+ticks */}
         <div className="flex items-center justify-between mt-1">
-          <span className="text-[11px] text-[var(--cream)]/70 font-medium">
+          <span className="text-[12px] text-[var(--cream)]/70 font-medium">
              {Math.floor(displayTime / 60)}:{(Math.floor(displayTime % 60)).toString().padStart(2, '0')}
           </span>
           
           <div className="flex items-center gap-[4px]">
-            <span className="text-[10px] text-[var(--cream)]/70">{formatTimeLocal(timestamp)}</span>
+            <span className="text-[13px] text-[var(--cream)]/70">{formatTimeLocal(timestamp)}</span>
             {isMine && status && (
-              <>
-                {queued ? (
-                  <Clock className="h-[11px] w-[11px] text-white/80" strokeWidth={2} />
-                ) : status === "read" ? (
-                  <CheckCheck className="h-[12px] w-[12px] text-white" strokeWidth={2.5} />
-                ) : status === "delivered" ? (
-                  <CheckCheck className="h-[12px] w-[12px] text-white/80" strokeWidth={2.5} />
-                ) : (
-                  <Check className="h-[12px] w-[12px] text-white/80" strokeWidth={2.5} />
-                )}
-              </>
+              <MessageStatusTicks status={status} queued={queued} />
             )}
           </div>
         </div>
@@ -161,6 +166,10 @@ export default function MessageBubble({
   reactions,
   myReaction,
   groupPosition = "single",
+  partnerInitial = "?",
+  partnerColor = "var(--wine)",
+  myAvatarUrl,
+  partnerAvatarUrl,
 }: MessageBubbleProps) {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showReactionMenu, setShowReactionMenu] = useState(false);
@@ -262,7 +271,7 @@ export default function MessageBubble({
         initial={{ y: 20, opacity: 0, scale: 0.95 }}
         animate={{ y: 0, opacity: 1, scale: 1 }}
         transition={{ type: "spring", stiffness: 300, damping: 25 }}
-        className={`group relative flex w-full flex-col ${isMine ? "items-end" : "items-start"} ${showReactionMenu ? "z-[110] scale-[1.02] transition-transform shadow-2xl" : "z-0 transition-transform"}`}
+        className={`group relative flex w-full ${isMine ? "flex-col items-end" : "flex-row items-end gap-2"} ${showReactionMenu ? "z-[110] scale-[1.02] transition-transform shadow-2xl" : "z-0 transition-transform"}`}
         onTouchStart={startPress}
         onTouchEnd={cancelPress}
         onTouchMove={cancelPress}
@@ -275,71 +284,57 @@ export default function MessageBubble({
           if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(50);
         }}
       >
-        <div className="group relative max-w-[75%]">
+      {!isMine && (
+        <div className={`shrink-0 ${(groupPosition === "single" || groupPosition === "bottom") ? "opacity-100" : "opacity-0"}`}>
+          <Avatar initial={partnerInitial} color={partnerColor} size={28} imageUrl={partnerAvatarUrl} />
+        </div>
+      )}
+      
+      <div className={`flex flex-col ${isMine ? "items-end" : "items-start"} max-w-[75%]`}>
+
+
+        <div className="group relative w-full">
         {actualContent === "NUDGE_PING_💖" ? (
           <div className="py-1 text-[64px] leading-none animate-in zoom-in-50 duration-500 drop-shadow-xl" style={{ filter: 'drop-shadow(0 10px 15px rgba(255,50,100,0.4))' }}>
              💖
           </div>
         ) : actualType === "image" ? (
           <div className="relative inline-block group">
-            <img src={actualContent} alt="Image message" onClick={() => setIsFullscreen(true)} className="max-w-[240px] max-h-[300px] rounded-md object-cover cursor-pointer" />
-            <div className="bg-black/50 text-white px-1.5 py-0.5 rounded-full text-[10px] absolute bottom-2 right-2 flex items-center gap-1 z-10 pointer-events-none">
+            <img src={actualContent} alt="Image message" onClick={() => setIsFullscreen(true)} className="max-w-[240px] max-h-[300px] rounded-[20px] object-cover cursor-pointer border border-white/5" />
+            <div className="bg-black/50 backdrop-blur-md text-white px-2 py-1 rounded-full text-[13px] absolute bottom-2 right-2 flex items-center gap-1 z-10 pointer-events-none">
               <span>{formatTime(timestamp)}</span>
               {isMine && status && (
-                <>
-                  {queued ? (
-                    <Clock className="h-[10px] w-[10px] text-white/80" strokeWidth={2} />
-                  ) : status === "read" ? (
-                    <CheckCheck className="h-[11px] w-[11px] text-white" strokeWidth={2.5} />
-                  ) : status === "delivered" ? (
-                    <CheckCheck className="h-[11px] w-[11px] text-white/80" strokeWidth={2.5} />
-                  ) : (
-                    <Check className="h-[11px] w-[11px] text-white/80" strokeWidth={2.5} />
-                  )}
-                </>
+                <MessageStatusTicks status={status} queued={queued} />
               )}
             </div>
           </div>
         ) : actualType === "video" ? (
           <VideoPlayer url={actualContent} onClick={() => setIsFullscreen(true)}>
-            <div className="bg-black/50 text-white px-1.5 py-0.5 rounded-full text-[10px] absolute bottom-2 right-2 flex items-center gap-1 z-10 pointer-events-none">
+            <div className="bg-black/50 backdrop-blur-md text-white px-2 py-1 rounded-full text-[13px] absolute bottom-2 right-2 flex items-center gap-1 z-10 pointer-events-none">
               <span>{formatTime(timestamp)}</span>
               {isMine && status && (
-                <>
-                  {queued ? (
-                    <Clock className="h-[10px] w-[10px] text-white/80" strokeWidth={2} />
-                  ) : status === "read" ? (
-                    <CheckCheck className="h-[11px] w-[11px] text-white" strokeWidth={2.5} />
-                  ) : status === "delivered" ? (
-                    <CheckCheck className="h-[11px] w-[11px] text-white/80" strokeWidth={2.5} />
-                  ) : (
-                    <Check className="h-[11px] w-[11px] text-white/80" strokeWidth={2.5} />
-                  )}
-                </>
+                <MessageStatusTicks status={status} queued={queued} />
               )}
             </div>
           </VideoPlayer>
       ) : actualType === "audio" ? (
-        <AudioPlayer url={actualContent} isMine={isMine} timestamp={timestamp} status={status} queued={queued} />
+        <AudioPlayer url={actualContent} isMine={isMine} timestamp={timestamp} status={status} queued={queued} myAvatarUrl={myAvatarUrl} partnerAvatarUrl={partnerAvatarUrl} partnerInitial={partnerInitial} partnerColor={partnerColor} />
       ) : (
         <div
-          className={`px-4 py-2.5 text-base leading-relaxed text-[var(--cream)] shadow-sm break-words ${
+          className={`px-[18px] py-[10px] text-[17px] leading-relaxed text-white shadow-sm break-words rounded-[24px] border border-white/5 relative ${
             isMine
-              ? `bg-[var(--wine)] ${
-                  groupPosition === "top" ? "rounded-[16px_16px_4px_16px]" :
-                  groupPosition === "middle" ? "rounded-[16px_4px_4px_16px]" :
-                  groupPosition === "bottom" ? "rounded-[16px_4px_16px_16px]" :
-                  "rounded-[16px_16px_4px_16px]"
-                }`
-              : `bg-[var(--card)] ${
-                  groupPosition === "top" ? "rounded-[16px_16px_16px_4px]" :
-                  groupPosition === "middle" ? "rounded-[4px_16px_16px_4px]" :
-                  groupPosition === "bottom" ? "rounded-[4px_16px_16px_16px]" :
-                  "rounded-[16px_16px_16px_4px]"
-                }`
+              ? `bg-white/10 backdrop-blur-md`
+              : `bg-[#18181A]/80 backdrop-blur-md`
           }`}
         >
-          {actualContent}
+          <span className="whitespace-pre-wrap">{actualContent}</span>
+          <span className="inline-block w-[65px] h-4" aria-hidden="true" />
+          <span className="absolute bottom-[10px] right-[18px] flex items-center gap-1">
+             <span className={`text-[13px] font-medium ${isMine ? 'text-white/50' : 'text-[#5BD05F]'}`}>{formatTime(timestamp)}</span>
+             {isMine && status && (
+               <MessageStatusTicks status={status} queued={queued} />
+             )}
+          </span>
         </div>
       )}
 
@@ -350,12 +345,12 @@ export default function MessageBubble({
             initial={{ opacity: 0, scale: 0.8, y: 10 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.8, y: 10 }}
-            className={`absolute -top-12 ${isMine ? 'right-0' : 'left-0'} z-50 flex gap-1 bg-[var(--card)] p-1.5 rounded-full shadow-lg border border-[var(--border)]`}
+            className={`absolute -top-12 ${isMine ? 'right-0' : 'left-0'} z-50 flex gap-1 bg-[#18181A] p-1.5 rounded-full shadow-[0_10px_40px_rgba(0,0,0,0.5)] border border-white/10`}
           >
             {['❤️', '😂', '😮', '😢', '👍'].map(emoji => (
               <motion.button whileTap={{ scale: 1.3 }} key={emoji} onClick={() => { onReact?.(emoji === myReaction ? 'NONE' : emoji); setShowReactionMenu(false); }} className={`text-xl md:hover:scale-125 transition-transform px-1 ${emoji === myReaction ? 'bg-white/10 rounded-full' : ''}`}>{emoji}</motion.button>
             ))}
-            <motion.button whileTap={{ scale: 0.9 }} onClick={() => setShowFullPicker(true)} className="flex items-center justify-center w-8 h-8 rounded-full bg-[var(--surface)] text-[var(--muted)] active:text-[var(--cream)] md:hover:text-[var(--cream)] ml-1">
+            <motion.button whileTap={{ scale: 0.9 }} onClick={() => setShowFullPicker(true)} className="flex items-center justify-center w-8 h-8 rounded-full bg-white/5 text-white/70 active:text-white md:hover:text-white ml-1 transition-colors">
               <Plus className="h-5 w-5" strokeWidth={2} />
             </motion.button>
           </motion.div>
@@ -372,51 +367,18 @@ export default function MessageBubble({
                 setShowReactionMenu(true);
               }
             }}
-            className={`absolute -bottom-3 ${isMine ? 'right-4' : 'left-4'} flex items-center bg-[var(--surface)] border ${myReaction ? 'border-[var(--wine)] bg-[var(--wine)]/10' : 'border-[var(--border)]'} rounded-full px-1.5 py-0.5 shadow-sm z-20 cursor-pointer active:bg-white/5 md:hover:bg-white/5 transition-colors`}
+            className={`absolute -bottom-3 ${isMine ? 'right-4' : 'left-4'} flex items-center border ${myReaction ? 'border-white/20 bg-white/20' : 'bg-[#18181A] border-white/10'} rounded-full px-1.5 py-0.5 shadow-md z-20 cursor-pointer active:scale-95 transition-all`}
           >
             {Array.from(new Set(Object.values(reactions))).map((emoji, idx) => (
               <span key={idx} className="text-[12px]">{emoji}</span>
             ))}
             {Object.keys(reactions).length > 1 && (
-              <span className="text-[10px] text-[var(--muted)] ml-1 font-medium">{Object.keys(reactions).length}</span>
+              <span className="text-[10px] text-white/70 ml-1 font-medium">{Object.keys(reactions).length}</span>
             )}
           </div>
         )}
         </div>
-
-      {/* Timestamp + status tick row (only show outside for text/nudge) */}
-      {actualType !== "image" && actualType !== "video" && actualType !== "audio" && (
-        <div className={`mt-1 flex items-center gap-[4px] ${isMine ? "flex-row-reverse" : ""}`}>
-          <span className="text-[11px] text-[var(--muted)]">{formatTime(timestamp)}</span>
-
-          {/* Tick indicator — only for own messages */}
-          {isMine && status && (
-            <>
-              {queued ? (
-                <Clock className="h-[13px] w-[13px] text-[var(--muted)]" strokeWidth={2} aria-label="Queued" />
-              ) : status === "read" ? (
-                <CheckCheck
-                  className="h-[13px] w-[13px] text-white"
-                  strokeWidth={2.5}
-                  aria-label="Read"
-                />
-              ) : status === "delivered" ? (
-                <CheckCheck
-                  className="h-[13px] w-[13px] text-[var(--muted)]"
-                  strokeWidth={2.5}
-                  aria-label="Delivered"
-                />
-              ) : (
-                <Check
-                  className="h-[13px] w-[13px] text-[var(--muted)]"
-                  strokeWidth={2.5}
-                  aria-label="Sent"
-                />
-              )}
-            </>
-          )}
-        </div>
-      )}
+      </div>
       </motion.div>
     </>
   );

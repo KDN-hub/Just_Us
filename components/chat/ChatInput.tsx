@@ -1,6 +1,7 @@
 import { RefObject } from "react";
 import { Send, Heart, Paperclip, Mic, Square, X, Smile, Star } from "lucide-react";
 import EmojiPicker from 'emoji-picker-react';
+import TextareaAutosize from 'react-textarea-autosize';
 
 interface ChatInputProps {
   draft: string;
@@ -19,12 +20,11 @@ interface ChatInputProps {
   recordingTime: number;
   stopRecording: () => void;
   startRecording: () => void;
-  inputRef: RefObject<HTMLInputElement>;
+  inputRef: RefObject<HTMLTextAreaElement>;
   signalChRef: RefObject<any>;
   myId: string;
   typingTimeoutRef: RefObject<NodeJS.Timeout | null>;
   handleSend: () => void;
-  handleNudge: () => void;
   pendingMedia: { file: File | Blob, type: string, url: string } | null;
   setPendingMedia: React.Dispatch<React.SetStateAction<any>>;
   mediaCaption: string;
@@ -54,7 +54,6 @@ export default function ChatInput({
   myId,
   typingTimeoutRef,
   handleSend,
-  handleNudge,
   pendingMedia,
   setPendingMedia,
   mediaCaption,
@@ -63,22 +62,22 @@ export default function ChatInput({
 }: ChatInputProps) {
   return (
     <>
-      <div className="relative z-10 shrink-0 flex items-end gap-2 border-t border-[var(--border)] bg-[var(--surface)]/85 backdrop-blur-md px-5 pt-3 pb-[max(env(safe-area-inset-bottom),0.75rem)]">
+      <div className="relative z-10 shrink-0 flex items-center gap-2 bg-transparent px-5 pt-3 pb-[max(env(safe-area-inset-bottom),1.5rem)]">
         {showEmojiPicker && (
-          <div className="absolute bottom-[100%] left-5 mb-2 z-50 flex flex-col bg-[var(--card)]/90 backdrop-blur-xl rounded-lg overflow-hidden border border-white/5 shadow-2xl w-[320px] animate-in slide-in-from-bottom-2">
-            <div className="flex border-b border-white/5 bg-black/20">
-              <button onClick={() => setPickerTab('emoji')} className={`flex-1 py-2 text-[13px] font-medium transition-colors ${pickerTab === 'emoji' ? 'text-[var(--cream)] border-b-2 border-[var(--wine)]' : 'text-[var(--muted)]'}`}>Emojis</button>
-              <button onClick={() => setPickerTab('sticker')} className={`flex-1 py-2 text-[13px] font-medium transition-colors ${pickerTab === 'sticker' ? 'text-[var(--cream)] border-b-2 border-[var(--wine)]' : 'text-[var(--muted)]'}`}>Stickers</button>
-              <button onClick={() => setPickerTab('gif')} className={`flex-1 py-2 text-[13px] font-medium transition-colors ${pickerTab === 'gif' ? 'text-[var(--cream)] border-b-2 border-[var(--wine)]' : 'text-[var(--muted)]'}`}>GIFs</button>
-              <button onClick={() => setPickerTab('favorites')} className={`flex-1 py-2 text-[13px] font-medium transition-colors ${pickerTab === 'favorites' ? 'text-[var(--cream)] border-b-2 border-[var(--wine)]' : 'text-[var(--muted)]'}`}>Favs</button>
+          <div className="absolute bottom-[100%] left-5 mb-2 z-50 flex flex-col bg-[#18181A]/95 backdrop-blur-2xl rounded-[24px] overflow-hidden border border-white/10 shadow-2xl w-[320px] animate-in slide-in-from-bottom-2">
+            <div className="flex border-b border-white/10 bg-black/20">
+              <button onClick={() => setPickerTab('emoji')} className={`flex-1 py-2 text-[13px] font-medium transition-colors ${pickerTab === 'emoji' ? 'text-white border-b-2 border-white' : 'text-white/50 hover:text-white/80'}`}>Emojis</button>
+              <button onClick={() => setPickerTab('sticker')} className={`flex-1 py-2 text-[13px] font-medium transition-colors ${pickerTab === 'sticker' ? 'text-white border-b-2 border-white' : 'text-white/50 hover:text-white/80'}`}>Stickers</button>
+              <button onClick={() => setPickerTab('gif')} className={`flex-1 py-2 text-[13px] font-medium transition-colors ${pickerTab === 'gif' ? 'text-white border-b-2 border-white' : 'text-white/50 hover:text-white/80'}`}>GIFs</button>
+              <button onClick={() => setPickerTab('favorites')} className={`flex-1 py-2 text-[13px] font-medium transition-colors ${pickerTab === 'favorites' ? 'text-white border-b-2 border-white' : 'text-white/50 hover:text-white/80'}`}>Favs</button>
             </div>
-            <div className="h-[350px] overflow-y-auto relative bg-[var(--surface)]">
+            <div className="h-[350px] overflow-y-auto relative bg-transparent">
               {pickerTab === 'emoji' && (
                 <EmojiPicker theme={"dark" as any} width="100%" height={350} onEmojiClick={(e) => setDraft(prev => prev + e.emoji)} />
               )}
               {pickerTab === 'favorites' && (
                 <div className="grid grid-cols-3 gap-2 p-3">
-                  {favorites.length === 0 && <p className="col-span-3 text-center text-[var(--muted)] text-[13px] mt-10">No favorites yet</p>}
+                  {favorites.length === 0 && <p className="col-span-3 text-center text-white/40 text-[13px] mt-10">No favorites yet</p>}
                   {favorites.map((url, i) => (
                     <div key={i} className="relative group aspect-square">
                       <img src={url} alt="Favorite" className="w-full h-full object-contain cursor-pointer active:bg-white/10 md:hover:bg-white/10 rounded-lg p-1" onClick={() => handleSendDirectURL(url, 'image')} />
@@ -120,11 +119,11 @@ export default function ChatInput({
         <input type="file" ref={fileInputRef} accept="image/*,video/*,audio/*" className="hidden" onChange={handleFileUpload} />
         
         {/* Input Bubble Container */}
-        <div className="flex-1 flex items-end gap-1.5 rounded-[24px] bg-[var(--card)] px-1.5 py-1 min-h-[44px]">
+        <div className="flex-1 flex items-end gap-1.5 rounded-[24px] bg-white/5 border border-white/10 px-1.5 py-1 min-h-[46px]">
           <button
             type="button"
             onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-[var(--muted)] active:text-[var(--cream)] md:hover:text-[var(--cream)]"
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-white/50 hover:text-white transition-colors"
           >
             <Smile className="h-[22px] w-[22px]" strokeWidth={1.5} />
           </button>
@@ -132,15 +131,13 @@ export default function ChatInput({
           {isRecording ? (
             <div className="flex-1 flex items-center justify-center gap-2 py-2 animate-in slide-in-from-right-4 duration-300">
                <span className="h-3 w-3 rounded-full bg-red-500 animate-pulse" />
-               <span className="text-[15px] font-mono text-[var(--cream)]">
+               <span className="text-[15px] font-mono text-white">
                  {Math.floor(recordingTime / 60)}:{(recordingTime % 60).toString().padStart(2, '0')}
                </span>
             </div>
           ) : (
             <>
-              <input
-                ref={inputRef}
-                type="text"
+              <TextareaAutosize ref={inputRef}
                 value={draft}
                 onChange={(e) => {
                   setDraft(e.target.value);
@@ -157,10 +154,10 @@ export default function ChatInput({
                     typingTimeoutRef.current = null;
                   }, 2000);
                 }}
-                onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && handleSend()}
+                onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(); } }} maxRows={6} style={{ resize: "none" }}
                 placeholder="Message…"
                 autoComplete="off"
-                className="flex-1 bg-transparent py-2 text-[16px] text-[var(--cream)] outline-none placeholder:text-[var(--muted)] min-w-0"
+                className="flex-1 bg-transparent py-2.5 text-[16px] text-white outline-none placeholder:text-white/40 min-w-0"
               />
 
               <button
@@ -173,40 +170,29 @@ export default function ChatInput({
             </>
           )}
 
-          {!draft.trim() && (
-            <button
-              type="button"
-              onClick={isRecording ? stopRecording : startRecording}
-              disabled={!isOnline}
-              className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full transition-colors disabled:opacity-40 ${isRecording ? 'text-red-500 animate-pulse' : 'text-[var(--muted)] active:text-[var(--cream)] md:hover:text-[var(--cream)]'}`}
-            >
-              {isRecording ? <Square className="h-[18px] w-[18px]" strokeWidth={2} /> : <Mic className="h-[20px] w-[20px]" strokeWidth={1.5} />}
-            </button>
-          )}
-
         </div>
 
-        {/* Outside Circle Button (Send or Nudge) */}
-        <div className="shrink-0 mb-[2px]">
+        {/* Outside Circle Button (Send or Mic) */}
+        <div className="shrink-0">
           {draft.trim() ? (
             <button
               type="button"
               onClick={() => handleSend()}
               disabled={!isOnline}
               aria-label="Send"
-              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[var(--wine)] text-white transition-all active:scale-[0.97] active:brightness-110 md:hover:brightness-110 shadow-[0_8px_16px_-6px_rgba(122,44,59,0.5)] disabled:opacity-40"
+              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#18181A]/80 backdrop-blur-xl border border-white/10 text-white transition-all active:scale-[0.97] active:bg-white/10 md:hover:bg-white/10 shadow-lg disabled:opacity-40"
             >
               <Send className="h-[18px] w-[18px]" strokeWidth={2} />
             </button>
           ) : (
             <button
               type="button"
-              onClick={handleNudge}
+              onClick={isRecording ? stopRecording : startRecording}
               disabled={!isOnline}
-              aria-label="Nudge"
-              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[var(--wine)] text-[var(--cream)] transition-all active:scale-[0.97] active:brightness-110 md:hover:brightness-110 shadow-[0_8px_16px_-6px_rgba(122,44,59,0.5)] disabled:opacity-40"
+              aria-label={isRecording ? "Stop Recording" : "Record Voice Note"}
+              className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#18181A]/80 backdrop-blur-xl border border-white/10 transition-all active:scale-[0.97] active:bg-white/10 md:hover:bg-white/10 shadow-lg disabled:opacity-40 ${isRecording ? 'text-red-500 animate-pulse' : 'text-[var(--cream)]'}`}
             >
-              <Heart className="h-[22px] w-[22px] fill-current" />
+              {isRecording ? <Square className="h-[20px] w-[20px]" strokeWidth={2} /> : <Mic className="h-[20px] w-[20px]" strokeWidth={1.5} />}
             </button>
           )}
         </div>
@@ -235,4 +221,5 @@ export default function ChatInput({
     </>
   );
 }
+
 

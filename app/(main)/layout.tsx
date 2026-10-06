@@ -4,7 +4,7 @@ import { Calendar } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useState, useEffect, ReactNode } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 
 const SmileHomeIcon = ({ className, isActive }: { className?: string, isActive?: boolean }) => (
@@ -23,6 +23,7 @@ const ProfileIcon = ({ className, isActive }: { className?: string, isActive?: b
 
 export default function MainLayout({ children }: { children: ReactNode }) {
   const pathname = usePathname();
+  const router = useRouter();
   const [partnerName, setPartnerName] = useState("Home");
 
   useEffect(() => {
@@ -59,9 +60,48 @@ export default function MainLayout({ children }: { children: ReactNode }) {
     { name: "Profile", href: "/settings", icon: ProfileIcon },
   ];
 
+  const [touchStartXY, setTouchStartXY] = useState<{ x: number; y: number } | null>(null);
+  const [touchEndXY, setTouchEndXY] = useState<{ x: number; y: number } | null>(null);
+
+  const minSwipeDistance = 50;
+
+  const onTouchStart = (e: React.TouchEvent) => {
+    setTouchEndXY(null);
+    setTouchStartXY({ x: e.targetTouches[0].clientX, y: e.targetTouches[0].clientY });
+  };
+
+  const onTouchMove = (e: React.TouchEvent) => {
+    setTouchEndXY({ x: e.targetTouches[0].clientX, y: e.targetTouches[0].clientY });
+  };
+
+  const onTouchEnd = () => {
+    if (!touchStartXY || !touchEndXY) return;
+    const distanceX = touchStartXY.x - touchEndXY.x;
+    const distanceY = touchStartXY.y - touchEndXY.y;
+
+    // Mostly horizontal swipe
+    if (Math.abs(distanceX) > Math.abs(distanceY) && Math.abs(distanceX) > minSwipeDistance) {
+      const isLeftSwipe = distanceX > 0;
+      const isRightSwipe = distanceX < 0;
+      
+      const currentIndex = navItems.findIndex((item) => pathname.startsWith(item.href));
+      
+      if (isLeftSwipe && currentIndex >= 0 && currentIndex < navItems.length - 1) {
+        // Swipe left = go to next tab
+        router.push(navItems[currentIndex + 1].href);
+      } else if (isRightSwipe && currentIndex > 0) {
+        // Swipe right = go to prev tab
+        router.push(navItems[currentIndex - 1].href);
+      }
+    }
+  };
+
   return (
     <div 
       className="relative mx-auto flex h-dvh w-full max-w-md flex-col overflow-hidden font-sans"
+      onTouchStart={onTouchStart}
+      onTouchMove={onTouchMove}
+      onTouchEnd={onTouchEnd}
     >
       <div className="flex-1 overflow-y-auto">
         {children}

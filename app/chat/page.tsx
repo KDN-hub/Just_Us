@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { PhoneIncoming, PhoneOff } from "lucide-react";
+import { PhoneIncoming, PhoneOff, X, Video, ChevronLeft } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase";
@@ -18,7 +18,7 @@ const CONVERSATION_ID = "c0000000-0000-0000-0000-000000000003";
 export default function Chat() {
   const router = useRouter();
   const bottomRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
   const signalChRef = useRef<RealtimeChannel | null>(null);
   const prevCountRef = useRef(0);
 
@@ -34,9 +34,37 @@ export default function Chat() {
   const [now, setNow] = useState<number>(() => Date.now());
   const [wallpaper, setWallpaper] = useState<string>("default");
   
+  const [showWallpaperModal, setShowWallpaperModal] = useState(false);
+  const [showUsernameModal, setShowUsernameModal] = useState(false);
+  const [showMediaModal, setShowMediaModal] = useState(false);
+  const [showAvatarModal, setShowAvatarModal] = useState(false);
+  const [newUsername, setNewUsername] = useState("");
+
+  const [myAvatarUrl, setMyAvatarUrl] = useState<string | null>(() => typeof window !== 'undefined' ? localStorage.getItem('my_avatar') : null);
+  const [partnerAvatarUrl, setPartnerAvatarUrl] = useState<string | null>(() => typeof window !== 'undefined' ? localStorage.getItem('partner_avatar') : null);
+
   useEffect(() => {
     setWallpaper(localStorage.getItem('chat_wallpaper') || 'default');
+    const handleStorageChange = () => {
+      setMyAvatarUrl(localStorage.getItem('my_avatar'));
+      setPartnerAvatarUrl(localStorage.getItem('partner_avatar'));
+    };
+    window.addEventListener("storage", handleStorageChange);
+    return () => window.removeEventListener("storage", handleStorageChange);
   }, []);
+
+  const handlePartnerAvatarUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const dataUrl = event.target?.result as string;
+      setPartnerAvatarUrl(dataUrl);
+      localStorage.setItem('partner_avatar', dataUrl);
+      window.dispatchEvent(new Event("storage"));
+    };
+    reader.readAsDataURL(file);
+  };
 
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -444,7 +472,7 @@ export default function Chat() {
 
   const partnerDisplay = partner?.nickname ?? partner?.name ?? "…";
   const partnerInitial = partnerDisplay[0]?.toUpperCase() ?? "?";
-  const partnerColor   = partner?.avatar_color ?? "var(--wine)";
+  const partnerColor   = "var(--wine)";
 
   return (
     <motion.main 
@@ -507,6 +535,14 @@ export default function Chat() {
         reconnecting={reconnecting}
         partnerIsOnline={partner?.is_online ?? false}
         partnerLastSeenText={formatLastSeen(partner?.last_seen ?? null, now)}
+        onOpenWallpaper={() => setShowWallpaperModal(true)}
+        onOpenUsername={() => {
+          setNewUsername(partnerDisplay);
+          setShowUsernameModal(true);
+        }}
+        onOpenMedia={() => setShowMediaModal(true)}
+        partnerAvatarUrl={partnerAvatarUrl}
+        onOpenAvatarUpload={() => setShowAvatarModal(true)}
       />
 
       <MessageList
@@ -515,6 +551,10 @@ export default function Chat() {
         handleReaction={handleReaction}
         partnerTyping={partnerTyping}
         bottomRef={bottomRef}
+        partnerInitial={partnerInitial}
+        partnerColor={partnerColor}
+        myAvatarUrl={myAvatarUrl}
+        partnerAvatarUrl={partnerAvatarUrl}
       />
 
       <ChatInput
@@ -539,13 +579,122 @@ export default function Chat() {
         myId={myId}
         typingTimeoutRef={typingTimeoutRef}
         handleSend={handleSend}
-        handleNudge={handleNudge}
         pendingMedia={pendingMedia}
         setPendingMedia={setPendingMedia}
         mediaCaption={mediaCaption}
         setMediaCaption={setMediaCaption}
         uploadMedia={uploadMedia}
       />
+      <AnimatePresence>
+        {/* Wallpaper Modal */}
+        {showWallpaperModal && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[100] bg-black/80 flex items-center justify-center p-4">
+            <motion.div initial={{ scale: 0.95 }} animate={{ scale: 1 }} exit={{ scale: 0.95 }} className="bg-[#18181A] w-full max-w-sm rounded-[24px] overflow-hidden border border-white/10 shadow-2xl">
+              <div className="p-4 border-b border-white/10 flex justify-between items-center bg-white/5">
+                <h3 className="text-[17px] font-semibold text-white">Chat Wallpaper</h3>
+                <button onClick={() => setShowWallpaperModal(false)} className="h-8 w-8 rounded-full bg-white/10 flex items-center justify-center text-white/70 hover:text-white">
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+              <div className="p-4 grid grid-cols-2 gap-3 max-h-[60vh] overflow-y-auto">
+                <button onClick={() => { localStorage.setItem('chat_wallpaper', 'default'); setWallpaper('default'); setShowWallpaperModal(false); }} className={`h-32 rounded-xl border-2 ${wallpaper === 'default' ? 'border-[var(--gold)]' : 'border-transparent'} relative overflow-hidden`} style={{ background: 'var(--gradient)' }}>
+                  <span className="absolute bottom-2 left-2 text-[12px] text-white/80 bg-black/40 px-2 rounded-full">Default</span>
+                </button>
+                <button onClick={() => { localStorage.setItem('chat_wallpaper', 'black'); setWallpaper('black'); setShowWallpaperModal(false); }} className={`h-32 rounded-xl border-2 ${wallpaper === 'black' ? 'border-[var(--gold)]' : 'border-transparent'} relative overflow-hidden bg-black`}>
+                  <span className="absolute bottom-2 left-2 text-[12px] text-white/80 bg-white/20 px-2 rounded-full">Pure Black</span>
+                </button>
+                <button onClick={() => { localStorage.setItem('chat_wallpaper', 'https://images.unsplash.com/photo-1557682250-33bd709cbe85'); setWallpaper('https://images.unsplash.com/photo-1557682250-33bd709cbe85'); setShowWallpaperModal(false); }} className={`h-32 rounded-xl border-2 ${wallpaper === 'https://images.unsplash.com/photo-1557682250-33bd709cbe85' ? 'border-[var(--gold)]' : 'border-transparent'} relative overflow-hidden bg-cover bg-center`} style={{ backgroundImage: "url('https://images.unsplash.com/photo-1557682250-33bd709cbe85')" }}>
+                  <span className="absolute bottom-2 left-2 text-[12px] text-white/80 bg-black/40 px-2 rounded-full">Purple Dream</span>
+                </button>
+                <button onClick={() => { localStorage.setItem('chat_wallpaper', 'https://images.unsplash.com/photo-1519681393784-d120267933ba'); setWallpaper('https://images.unsplash.com/photo-1519681393784-d120267933ba'); setShowWallpaperModal(false); }} className={`h-32 rounded-xl border-2 ${wallpaper === 'https://images.unsplash.com/photo-1519681393784-d120267933ba' ? 'border-[var(--gold)]' : 'border-transparent'} relative overflow-hidden bg-cover bg-center`} style={{ backgroundImage: "url('https://images.unsplash.com/photo-1519681393784-d120267933ba')" }}>
+                  <span className="absolute bottom-2 left-2 text-[12px] text-white/80 bg-black/40 px-2 rounded-full">Mountains</span>
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+
+        {/* Username Modal */}
+        {showUsernameModal && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[100] bg-black/80 flex items-center justify-center p-4">
+            <motion.div initial={{ scale: 0.95 }} animate={{ scale: 1 }} exit={{ scale: 0.95 }} className="bg-[#18181A] w-full max-w-sm rounded-[24px] overflow-hidden border border-white/10 shadow-2xl p-5">
+              <h3 className="text-[18px] font-semibold text-white mb-2">Change Username</h3>
+              <p className="text-[14px] text-white/60 mb-4">Set a custom nickname for {partnerDisplay}.</p>
+              <input
+                type="text"
+                value={newUsername}
+                onChange={(e) => setNewUsername(e.target.value)}
+                placeholder="Nickname"
+                className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder:text-white/30 focus:outline-none focus:border-[var(--wine)] transition-colors mb-5"
+              />
+              <div className="flex gap-3">
+                <button onClick={() => setShowUsernameModal(false)} className="flex-1 py-3 rounded-xl bg-white/5 text-white/70 font-medium active:bg-white/10 transition-colors">Cancel</button>
+                <button onClick={() => {
+                  if (newUsername.trim()) {
+                    localStorage.setItem('partner_name', newUsername.trim());
+                    window.dispatchEvent(new Event("storage")); // Trigger layout update
+                  }
+                  setShowUsernameModal(false);
+                }} className="flex-1 py-3 rounded-xl bg-[var(--wine)] text-white font-medium active:brightness-110 transition-colors shadow-md">Save</button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+
+        {/* Media Modal */}
+        {showMediaModal && (
+          <motion.div initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }} transition={{ type: "spring", stiffness: 300, damping: 30 }} className="fixed inset-0 z-[100] bg-[#18181A] flex flex-col">
+            <div className="shrink-0 p-4 border-b border-white/10 flex items-center gap-4 bg-[#18181A] pt-[max(env(safe-area-inset-top),1rem)]">
+              <button onClick={() => setShowMediaModal(false)} className="h-10 w-10 shrink-0 flex items-center justify-center rounded-full bg-[#18181A]/80 backdrop-blur-xl border border-white/10 text-white shadow-lg active:scale-95 transition-transform">
+                <ChevronLeft className="h-6 w-6 mr-0.5" strokeWidth={3} />
+              </button>
+              <h3 className="text-[18px] font-semibold text-white">Media, Links & Docs</h3>
+            </div>
+            <div className="flex-1 overflow-y-auto p-2 bg-[#18181A]">
+              <div className="grid grid-cols-3 gap-1">
+                {timeline.filter(item => item.kind === 'message' && (item.data.type === 'image' || item.data.type === 'video')).map(item => (
+                  <div key={item.data.id} className="aspect-square bg-white/5 rounded-md overflow-hidden relative">
+                    {item.data.type === 'image' ? (
+                      <img src={item.data.content} alt="" className="w-full h-full object-cover" />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center bg-black/50 relative">
+                        <Video className="h-8 w-8 text-white/50" />
+                      </div>
+                    )}
+                  </div>
+                ))}
+                {timeline.filter(item => item.kind === 'message' && (item.data.type === 'image' || item.data.type === 'video')).length === 0 && (
+                  <div className="col-span-3 py-20 text-center text-white/40">
+                    No media shared yet.
+                  </div>
+                )}
+              </div>
+            </div>
+          </motion.div>
+        )}
+        {showAvatarModal && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+            <motion.div initial={{ scale: 0.95 }} animate={{ scale: 1 }} exit={{ scale: 0.95 }} className="bg-[#18181A] border border-white/10 rounded-3xl p-6 w-full max-w-[320px] shadow-2xl flex flex-col items-center">
+              <h3 className="text-[20px] font-semibold text-white mb-2 text-center">Change Profile Picture?</h3>
+              <p className="text-white/60 text-[14px] text-center mb-6">
+                Would you like to change {partnerDisplay}&apos;s profile picture?
+              </p>
+              <div className="w-full flex flex-col gap-3">
+                <label className="flex items-center justify-center w-full py-3 rounded-xl bg-[var(--wine)] text-white font-medium active:brightness-110 transition-colors shadow-md cursor-pointer">
+                  Choose Image
+                  <input type="file" accept="image/*" className="hidden" onChange={(e) => {
+                    handlePartnerAvatarUpload(e);
+                    setShowAvatarModal(false);
+                  }} />
+                </label>
+                <button onClick={() => setShowAvatarModal(false)} className="w-full py-3 rounded-xl bg-white/5 text-white/70 font-medium active:bg-white/10 transition-colors">
+                  Cancel
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </motion.main>
   );
 }

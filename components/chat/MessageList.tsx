@@ -10,6 +10,10 @@ interface MessageListProps {
   handleReaction: (messageId: string, emoji: string) => void;
   partnerTyping: boolean;
   bottomRef: RefObject<HTMLDivElement>;
+  partnerInitial: string;
+  partnerColor: string;
+  myAvatarUrl?: string | null;
+  partnerAvatarUrl?: string | null;
 }
 
 export default function MessageList({
@@ -18,6 +22,10 @@ export default function MessageList({
   handleReaction,
   partnerTyping,
   bottomRef,
+  partnerInitial,
+  partnerColor,
+  myAvatarUrl,
+  partnerAvatarUrl,
 }: MessageListProps) {
   return (
     <div className="relative z-10 flex flex-1 min-h-0 flex-col overflow-y-auto overflow-x-hidden px-4 pt-4 pb-6">
@@ -59,6 +67,10 @@ export default function MessageList({
                 myReaction={item.data.reactions?.[myId]}
                 onReact={(emoji) => handleReaction(item.data.id, emoji)}
                 groupPosition={groupPosition}
+                partnerInitial={partnerInitial}
+                partnerColor={partnerColor}
+                myAvatarUrl={myAvatarUrl}
+                partnerAvatarUrl={partnerAvatarUrl}
               />
             ) : (
               <CallBubble

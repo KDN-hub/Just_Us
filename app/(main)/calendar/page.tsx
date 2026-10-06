@@ -24,8 +24,11 @@ export default function CalendarPage() {
   
   // Add Event Full Page State
   const [isAddingEvent, setIsAddingEvent] = useState(false);
+  const [isMonthPickerOpen, setIsMonthPickerOpen] = useState(false);
+  const [pickerYear, setPickerYear] = useState(new Date().getFullYear());
   const [isSaving, setIsSaving] = useState(false);
   const dragControls = useDragControls();
+  const monthDragControls = useDragControls();
   const [newEventTitle, setNewEventTitle] = useState("");
   const [newEventDesc, setNewEventDesc] = useState("");
   const [newEventStart, setNewEventStart] = useState("");
@@ -152,7 +155,13 @@ export default function CalendarPage() {
             ${isSelected ? "bg-white/10 ring-1 ring-white ring-inset z-10" : "bg-[#18181A] hover:bg-white/5"}
           `}
         >
-          <div className={`flex h-[34px] w-[34px] items-center justify-center rounded-full ${isSelected ? "bg-[var(--wine)] text-white" : isToday ? "text-[var(--gold)]" : "text-white/90"}`}>
+          <div className={`flex h-[34px] w-[34px] items-center justify-center rounded-full ${
+            isToday 
+              ? "bg-[var(--wine)] text-white font-bold shadow-md" 
+              : isSelected 
+                ? "bg-white/20 text-white" 
+                : "text-white/90"
+          }`}>
             {d}
           </div>
           
@@ -198,21 +207,29 @@ export default function CalendarPage() {
       {/* Calendar Grid Container */}
       <div className="mt-0 shrink-0">
         <div className="mb-6 flex items-center justify-between px-2">
-          <h2 className="text-[28px] font-bold text-white flex items-center gap-2">
-            {monthNames[month]} {year} <span className="text-white/40 text-[16px]">▼</span>
-          </h2>
+          <button 
+            onClick={() => {
+              setPickerYear(year);
+              setIsMonthPickerOpen(true);
+            }}
+            className="text-[28px] font-bold text-white flex items-center gap-2 active:opacity-70 transition-opacity"
+          >
+            {monthNames[month]} {year} 
+            <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" fill="currentColor" viewBox="0 0 256 256" className="text-white/40 ml-1 mt-1">
+              <path d="M128,24A104,104,0,1,0,232,128,104.11,104.11,0,0,0,128,24Zm0,192a88,88,0,1,1,88-88A88.1,88.1,0,0,1,128,216Zm45.66-109.66a8,8,0,0,1,0,11.32l-40,40a8,8,0,0,1-11.32,0l-40-40a8,8,0,0,1,11.32-11.32L128,140.69l34.34-34.35A8,8,0,0,1,173.66,106.34Z"></path>
+            </svg>
+          </button>
           <div className="flex gap-4 items-center text-white/70">
-            <CalendarIcon className="h-5 w-5 opacity-60" />
             <div className="flex gap-2">
-              <button onClick={handlePrevMonth} className="hover:text-white transition-colors"><ChevronLeft className="h-6 w-6" /></button>
-              <button onClick={handleNextMonth} className="hover:text-white transition-colors"><ChevronRight className="h-6 w-6" /></button>
+              <button onClick={handlePrevMonth} className="hover:text-white transition-colors"><ChevronLeft className="h-8 w-8" /></button>
+              <button onClick={handleNextMonth} className="hover:text-white transition-colors"><ChevronRight className="h-8 w-8" /></button>
             </div>
           </div>
         </div>
         
         <div className="flex w-full justify-between px-2 mb-3">
           {['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'].map(day => (
-            <div key={day} className="w-full text-center text-[11px] font-bold text-white/40 uppercase tracking-widest">
+            <div key={day} className="w-full text-center text-[14px] font-bold text-white/40 uppercase tracking-widest">
               {day}
             </div>
           ))}
@@ -379,6 +396,75 @@ export default function CalendarPage() {
                   )}
                 </button>
 
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Month/Year Picker Slide-Up */}
+      <AnimatePresence>
+        {isMonthPickerOpen && (
+          <div className="fixed inset-0 z-[100] flex flex-col justify-end font-sans">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+              onClick={() => setIsMonthPickerOpen(false)}
+            />
+            
+            <motion.div
+              initial={{ y: "100%" }}
+              animate={{ y: 0 }}
+              exit={{ y: "100%" }}
+              transition={{ type: "spring", damping: 25, stiffness: 200 }}
+              drag="y"
+              dragConstraints={{ top: 0 }}
+              dragSnapToOrigin={true}
+              dragListener={false}
+              dragControls={monthDragControls}
+              onDragEnd={(e, info) => {
+                if (info.offset.y > 100 || info.velocity.y > 500) {
+                  setIsMonthPickerOpen(false);
+                }
+              }}
+              className="relative flex h-[65vh] w-full flex-col rounded-t-[36px] bg-[var(--card)] shadow-[0_-8px_30px_rgba(0,0,0,0.5)] border-t border-white/5"
+            >
+              {/* Drag Handle Area */}
+              <div 
+                className="w-full flex flex-col items-center touch-none cursor-grab active:cursor-grabbing"
+                onPointerDown={(e) => monthDragControls.start(e)}
+              >
+                <div className="mx-auto mt-4 h-1.5 w-12 rounded-full bg-white/20" />
+
+                <div className="mt-4 px-6 pb-4 w-full flex items-center justify-between">
+                  <button onClick={() => setPickerYear(y => y - 1)} className="p-2 text-white/70 hover:text-white transition-colors active:scale-95"><ChevronLeft className="h-7 w-7" /></button>
+                  <h3 className="text-[22px] font-bold text-white">{pickerYear}</h3>
+                  <button onClick={() => setPickerYear(y => y + 1)} className="p-2 text-white/70 hover:text-white transition-colors active:scale-95"><ChevronRight className="h-7 w-7" /></button>
+                </div>
+              </div>
+
+              <div className="flex-1 overflow-y-auto px-6 pb-32">
+                <div className="grid grid-cols-3 gap-3">
+                  {monthNames.map((m, i) => {
+                    const isCurrentMonth = i === month && pickerYear === year;
+                    return (
+                      <button
+                        key={m}
+                        onClick={() => {
+                          setCurrentDate(new Date(pickerYear, i, 1));
+                          setIsMonthPickerOpen(false);
+                        }}
+                        className={`flex items-center justify-center rounded-2xl py-4 text-[16px] font-semibold transition-all active:scale-95
+                          ${isCurrentMonth ? "bg-[var(--wine)] text-white shadow-md" : "bg-[#18181A] border border-white/5 text-white/80 hover:bg-white/10"}
+                        `}
+                      >
+                        {m.substring(0, 3)}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
             </motion.div>
           </div>

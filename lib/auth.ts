@@ -29,6 +29,14 @@ export interface AppProfile {
 
 // ─── Local PIN lock ───────────────────────────────────────────────────────────
 
+async function hashPin(pin: string): Promise<string> {
+  const encoder = new TextEncoder();
+  const data = encoder.encode(pin);
+  const hashBuffer = await crypto.subtle.digest("SHA-256", data);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return "sha256:" + hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+
 export const hasLocalPin = (): boolean =>
   typeof window !== "undefined" && !!localStorage.getItem(PIN_HASH_KEY);
 
@@ -38,18 +46,32 @@ export function clearLocalPin(): void {
 }
 
 export async function setLocalPin(pin: string): Promise<void> {
-  localStorage.setItem(PIN_HASH_KEY, await bcrypt.hash(pin, 10));
+  localStorage.setItem(PIN_HASH_KEY, await hashPin(pin));
   localStorage.removeItem(PIN_FAILS_KEY);
 }
 
-/** Checks the PIN and tracks failed attempts. */
+/** Checks the PIN and tracks failed attempts. Migrates legacy bcrypt hashes to SHA-256 on success. */
 export async function verifyLocalPin(
   pin: string,
 ): Promise<{ ok: boolean; attemptsLeft: number }> {
-  const hash = localStorage.getItem(PIN_HASH_KEY);
-  if (!hash) return { ok: false, attemptsLeft: 0 };
+  const storedHash = localStorage.getItem(PIN_HASH_KEY);
+  if (!storedHash) return { ok: false, attemptsLeft: 0 };
 
-  if (await bcrypt.compare(pin, hash)) {
+  let isMatch = false;
+
+  if (storedHash.startsWith("sha256:")) {
+    const currentHash = await hashPin(pin);
+    isMatch = currentHash === storedHash;
+  } else {
+    // Legacy bcrypt hash fallback
+    isMatch = await bcrypt.compare(pin, storedHash);
+    if (isMatch) {
+      // Migrate to fast hash immediately so subsequent logins are instant
+      localStorage.setItem(PIN_HASH_KEY, await hashPin(pin));
+    }
+  }
+
+  if (isMatch) {
     localStorage.removeItem(PIN_FAILS_KEY);
     return { ok: true, attemptsLeft: MAX_PIN_ATTEMPTS };
   }
