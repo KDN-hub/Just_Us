@@ -500,7 +500,7 @@ export default function Chat() {
       }}
     >
       {wallpaper !== 'default' && wallpaper !== 'black' && (
-        <div className="absolute inset-0 z-0 opacity-60 pointer-events-none bg-cover bg-center" style={{ backgroundImage: `url('${wallpaper}')` }} />
+        <div className="absolute inset-0 z-0 opacity-75 pointer-events-none bg-cover bg-center" style={{ backgroundImage: `url('${wallpaper}')` }} />
       )}
 
       {incomingCall && (
@@ -733,6 +733,7 @@ export default function Chat() {
     </motion.main>
   );
 }
+
 
 
 
