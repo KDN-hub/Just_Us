@@ -1,7 +1,8 @@
-import { RefObject } from "react";
-import { Send, Heart, Paperclip, Mic, Square, X, Smile, Star } from "lucide-react";
+import { RefObject, useState } from "react";
+import { Send, Heart, Paperclip, Mic, Square, X, Smile, Star, Plus, Camera, Image as ImageIcon, FileText, Music, MapPin } from "lucide-react";
 import EmojiPicker from 'emoji-picker-react';
 import TextareaAutosize from 'react-textarea-autosize';
+import { motion, AnimatePresence } from 'framer-motion';
 
 interface ChatInputProps {
   draft: string;
@@ -32,7 +33,10 @@ interface ChatInputProps {
   uploadMedia: (file: File | Blob, type: string, caption?: string) => void;
 }
 
+
+
 export default function ChatInput({
+
   draft,
   setDraft,
   isOnline,
@@ -60,6 +64,8 @@ export default function ChatInput({
   setMediaCaption,
   uploadMedia
 }: ChatInputProps) {
+  const [showAttachmentMenu, setShowAttachmentMenu] = useState(false);
+
   return (
     <>
       <div className="relative z-10 shrink-0 flex items-center gap-2 bg-transparent px-5 pt-3 pb-[max(env(safe-area-inset-bottom),1.5rem)]">
@@ -160,13 +166,46 @@ export default function ChatInput({
                 className="flex-1 bg-transparent py-2.5 text-[16px] text-white outline-none placeholder:text-white/40 min-w-0"
               />
 
-              <button
-                type="button"
-                onClick={() => fileInputRef.current?.click()}
-                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-[var(--muted)] active:text-[var(--cream)] md:hover:text-[var(--cream)] transform -rotate-45"
-              >
-                <Paperclip className="h-[20px] w-[20px]" strokeWidth={1.5} />
-              </button>
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => setShowAttachmentMenu(!showAttachmentMenu)}
+                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-white/50 active:text-white md:hover:text-white transition-colors"
+                >
+                  <Plus className={`h-[22px] w-[22px] transition-transform duration-300 ${showAttachmentMenu ? "rotate-45" : ""}`} strokeWidth={1.5} />
+                </button>
+                <AnimatePresence>
+                  {showAttachmentMenu && (
+                    <motion.div 
+                      initial={{ opacity: 0, scale: 0.9, y: 10 }}
+                      animate={{ opacity: 1, scale: 1, y: 0 }}
+                      exit={{ opacity: 0, scale: 0.9, y: 10 }}
+                      className="absolute bottom-12 right-0 md:-left-16 z-50 grid grid-cols-3 gap-2 p-3 w-[260px] bg-[#18181A]/95 backdrop-blur-2xl rounded-2xl border border-white/10 shadow-[0_10px_40px_rgba(0,0,0,0.5)] origin-bottom-right md:origin-bottom-left"
+                    >
+                      <button onClick={() => { fileInputRef.current?.setAttribute('accept', 'image/*,video/*'); fileInputRef.current?.click(); setShowAttachmentMenu(false); }} className="flex flex-col items-center gap-2 p-2 rounded-xl hover:bg-white/5 group">
+                        <div className="w-12 h-12 rounded-full bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-blue-400 group-hover:scale-110 group-active:scale-95 transition-transform"><ImageIcon className="w-5 h-5" /></div>
+                        <span className="text-[11px] text-white/70 font-medium">Gallery</span>
+                      </button>
+                      <button onClick={() => { fileInputRef.current?.setAttribute('accept', 'image/*,video/*'); fileInputRef.current?.setAttribute('capture', 'environment'); fileInputRef.current?.click(); setShowAttachmentMenu(false); }} className="flex flex-col items-center gap-2 p-2 rounded-xl hover:bg-white/5 group">
+                        <div className="w-12 h-12 rounded-full bg-pink-500/10 border border-pink-500/20 flex items-center justify-center text-pink-400 group-hover:scale-110 group-active:scale-95 transition-transform"><Camera className="w-5 h-5" /></div>
+                        <span className="text-[11px] text-white/70 font-medium">Camera</span>
+                      </button>
+                      <button onClick={() => { fileInputRef.current?.setAttribute('accept', '.pdf,.doc,.docx,.txt'); fileInputRef.current?.removeAttribute('capture'); fileInputRef.current?.click(); setShowAttachmentMenu(false); }} className="flex flex-col items-center gap-2 p-2 rounded-xl hover:bg-white/5 group">
+                        <div className="w-12 h-12 rounded-full bg-purple-500/10 border border-purple-500/20 flex items-center justify-center text-purple-400 group-hover:scale-110 group-active:scale-95 transition-transform"><FileText className="w-5 h-5" /></div>
+                        <span className="text-[11px] text-white/70 font-medium">Document</span>
+                      </button>
+                      <button onClick={() => { fileInputRef.current?.setAttribute('accept', 'audio/*'); fileInputRef.current?.removeAttribute('capture'); fileInputRef.current?.click(); setShowAttachmentMenu(false); }} className="flex flex-col items-center gap-2 p-2 rounded-xl hover:bg-white/5 group">
+                        <div className="w-12 h-12 rounded-full bg-orange-500/10 border border-orange-500/20 flex items-center justify-center text-orange-400 group-hover:scale-110 group-active:scale-95 transition-transform"><Music className="w-5 h-5" /></div>
+                        <span className="text-[11px] text-white/70 font-medium">Audio</span>
+                      </button>
+                      <button onClick={() => { alert('Location sharing coming soon!'); setShowAttachmentMenu(false); }} className="flex flex-col items-center gap-2 p-2 rounded-xl hover:bg-white/5 group">
+                        <div className="w-12 h-12 rounded-full bg-green-500/10 border border-green-500/20 flex items-center justify-center text-green-400 group-hover:scale-110 group-active:scale-95 transition-transform"><MapPin className="w-5 h-5" /></div>
+                        <span className="text-[11px] text-white/70 font-medium">Location</span>
+                      </button>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
             </>
           )}
 
@@ -221,5 +260,7 @@ export default function ChatInput({
     </>
   );
 }
+
+
 
 
