@@ -495,10 +495,10 @@ export default function Chat() {
       transition={{ type: "spring", stiffness: 300, damping: 30 }}
       className="mx-auto flex h-dvh w-full max-w-md flex-col font-sans relative overflow-x-hidden" 
       style={{ 
-        background: wallpaper === 'default' ? "var(--gradient)" : (wallpaper.startsWith('http') ? '#000' : wallpaper)
+        background: wallpaper === "default" ? "var(--gradient)" : "#000"
       }}
     >
-      {wallpaper.startsWith('http') && (
+      {wallpaper !== 'default' && wallpaper !== 'black' && (
         <div className="absolute inset-0 z-0 opacity-20 pointer-events-none bg-cover bg-center" style={{ backgroundImage: `url('${wallpaper}')` }} />
       )}
 
@@ -716,6 +716,7 @@ export default function Chat() {
     </motion.main>
   );
 }
+
 
 
 
