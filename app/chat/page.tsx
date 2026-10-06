@@ -35,7 +35,6 @@ export default function Chat() {
   const [wallpaper, setWallpaper] = useState<string>("default");
   
   const [showWallpaperModal, setShowWallpaperModal] = useState(false);
-    const [showCustomWallpaperPrompt, setShowCustomWallpaperPrompt] = useState(false);
   const [showCustomWallpaperPrompt, setShowCustomWallpaperPrompt] = useState(false);
   const [showUsernameModal, setShowUsernameModal] = useState(false);
   const [showMediaModal, setShowMediaModal] = useState(false);
@@ -734,6 +733,7 @@ export default function Chat() {
     </motion.main>
   );
 }
+
 
 
 
