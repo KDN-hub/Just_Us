@@ -325,7 +325,7 @@ export default function Settings() {
       <AnimatePresence>
         {showAvatarPrompt && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[100] bg-black/80 flex items-center justify-center p-4">
-            <motion.div initial={{ scale: 0.95 }} animate={{ scale: 1 }} exit={{ scale: 0.95 }} className="bg-[#18181A] w-full max-w-sm rounded-[24px] overflow-hidden border border-white/10 shadow-2xl p-5">
+            <motion.div initial={{ scale: 0.95 }} animate={{ scale: 1 }} exit={{ scale: 0.95 }} className="bg-[#18181A]/90 backdrop-blur-md w-full max-w-sm rounded-[24px] overflow-hidden border border-white/10 shadow-2xl p-5">
               <h3 className="text-[18px] font-semibold text-white mb-2">Change Profile Picture</h3>
               <p className="text-[14px] text-white/60 mb-6">Choose an image from your device to set as your profile picture.</p>
               <div className="flex gap-3">

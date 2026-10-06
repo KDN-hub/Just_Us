@@ -603,7 +603,7 @@ export default function Chat() {
         {/* Wallpaper Modal */}
         {showWallpaperModal && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[100] bg-black/80 flex items-center justify-center p-4">
-            <motion.div initial={{ scale: 0.95 }} animate={{ scale: 1 }} exit={{ scale: 0.95 }} className="bg-[#18181A] w-full max-w-sm rounded-[24px] overflow-hidden border border-white/10 shadow-2xl">
+            <motion.div initial={{ scale: 0.95 }} animate={{ scale: 1 }} exit={{ scale: 0.95 }} className="bg-[#18181A]/90 backdrop-blur-md w-full max-w-sm rounded-[24px] overflow-hidden border border-white/10 shadow-2xl">
               <div className="p-4 border-b border-white/10 flex justify-between items-center bg-white/5">
                 <h3 className="text-[17px] font-semibold text-white">Chat Wallpaper</h3>
                 <button onClick={() => setShowWallpaperModal(false)} className="h-8 w-8 rounded-full bg-white/10 flex items-center justify-center text-white/70 hover:text-white">
@@ -635,7 +635,7 @@ export default function Chat() {
         {/* Custom Wallpaper Prompt */}
         {showCustomWallpaperPrompt && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[100] bg-black/80 flex items-center justify-center p-4">
-            <motion.div initial={{ scale: 0.95 }} animate={{ scale: 1 }} exit={{ scale: 0.95 }} className="bg-[#18181A] w-full max-w-sm rounded-[24px] overflow-hidden border border-white/10 shadow-2xl p-5">
+            <motion.div initial={{ scale: 0.95 }} animate={{ scale: 1 }} exit={{ scale: 0.95 }} className="bg-[#18181A]/90 backdrop-blur-md w-full max-w-sm rounded-[24px] overflow-hidden border border-white/10 shadow-2xl p-5">
               <h3 className="text-[18px] font-semibold text-white mb-2">Custom Wallpaper</h3>
               <p className="text-[14px] text-white/60 mb-6">Choose an image from your device to set as your chat background.</p>
               <div className="flex gap-3">
@@ -652,7 +652,7 @@ export default function Chat() {
         {/* Username Modal */}
         {showUsernameModal && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[100] bg-black/80 flex items-center justify-center p-4">
-            <motion.div initial={{ scale: 0.95 }} animate={{ scale: 1 }} exit={{ scale: 0.95 }} className="bg-[#18181A] w-full max-w-sm rounded-[24px] overflow-hidden border border-white/10 shadow-2xl p-5">
+            <motion.div initial={{ scale: 0.95 }} animate={{ scale: 1 }} exit={{ scale: 0.95 }} className="bg-[#18181A]/90 backdrop-blur-md w-full max-w-sm rounded-[24px] overflow-hidden border border-white/10 shadow-2xl p-5">
               <h3 className="text-[18px] font-semibold text-white mb-2">Change Username</h3>
               <p className="text-[14px] text-white/60 mb-4">Set a custom nickname for {partnerDisplay}.</p>
               <input

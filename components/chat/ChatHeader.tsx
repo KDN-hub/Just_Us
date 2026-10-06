@@ -120,7 +120,7 @@ export default function ChatHeader({
           </button>
           
           {showMenu && (
-            <div className="absolute right-0 top-full mt-2 w-56 rounded-2xl bg-[#18181A]/95 backdrop-blur-xl border border-white/10 shadow-2xl overflow-hidden py-1 z-50 animate-in fade-in slide-in-from-top-2">
+            <div className="absolute right-0 top-full mt-2 w-56 rounded-2xl bg-[#18181A]/90 backdrop-blur-md border border-white/10 shadow-lg overflow-hidden py-1 z-50 animate-in fade-in slide-in-from-top-2">
               <button 
                 onClick={() => { setShowMenu(false); onOpenWallpaper?.(); }}
                 className="w-full px-4 py-3 flex items-center gap-3 text-left hover:bg-white/5 transition-colors text-white active:bg-white/10"
