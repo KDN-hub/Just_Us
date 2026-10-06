@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { PhoneIncoming, PhoneOff, X, Video, ChevronLeft } from "lucide-react";
+import { PhoneIncoming, PhoneOff, X, Video, ChevronLeft, ImagePlus } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase";
@@ -52,6 +52,19 @@ export default function Chat() {
     window.addEventListener("storage", handleStorageChange);
     return () => window.removeEventListener("storage", handleStorageChange);
   }, []);
+
+  const handleWallpaperUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const dataUrl = event.target?.result as string;
+      setWallpaper(dataUrl);
+      localStorage.setItem('chat_wallpaper', dataUrl);
+      setShowWallpaperModal(false);
+    };
+    reader.readAsDataURL(file);
+  };
 
   const handlePartnerAvatarUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -609,6 +622,11 @@ export default function Chat() {
                 <button onClick={() => { localStorage.setItem('chat_wallpaper', 'https://images.unsplash.com/photo-1519681393784-d120267933ba'); setWallpaper('https://images.unsplash.com/photo-1519681393784-d120267933ba'); setShowWallpaperModal(false); }} className={`h-32 rounded-xl border-2 ${wallpaper === 'https://images.unsplash.com/photo-1519681393784-d120267933ba' ? 'border-[var(--gold)]' : 'border-transparent'} relative overflow-hidden bg-cover bg-center`} style={{ backgroundImage: "url('https://images.unsplash.com/photo-1519681393784-d120267933ba')" }}>
                   <span className="absolute bottom-2 left-2 text-[12px] text-white/80 bg-black/40 px-2 rounded-full">Mountains</span>
                 </button>
+                <label className="h-32 rounded-xl border-2 border-transparent relative overflow-hidden bg-white/5 flex flex-col items-center justify-center cursor-pointer active:scale-95 transition-transform hover:bg-white/10">
+                  <ImagePlus className="h-8 w-8 text-white/50 mb-1" />
+                  <span className="text-[12px] text-white/80 font-medium">Custom</span>
+                  <input type="file" accept="image/*" className="hidden" onChange={handleWallpaperUpload} />
+                </label>
               </div>
             </motion.div>
           </motion.div>
@@ -698,3 +716,6 @@ export default function Chat() {
     </motion.main>
   );
 }
+
+
+
