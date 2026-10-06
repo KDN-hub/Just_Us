@@ -323,7 +323,7 @@ export default function MessageBubble({
         <div
           className={`px-[18px] py-[10px] text-[17px] leading-relaxed text-white shadow-sm break-words rounded-[24px] border border-white/5 relative ${
             isMine
-              ? `bg-white/10 backdrop-blur-md`
+              ? `bg-white/20 backdrop-blur-md`
               : `bg-[#18181A]/80 backdrop-blur-md`
           }`}
         >

@@ -119,7 +119,7 @@ export default function ChatInput({
         <input type="file" ref={fileInputRef} accept="image/*,video/*,audio/*" className="hidden" onChange={handleFileUpload} />
         
         {/* Input Bubble Container */}
-        <div className="flex-1 flex items-end gap-1.5 rounded-[24px] bg-white/5 border border-white/10 px-1.5 py-1 min-h-[46px]">
+        <div className="flex-1 flex items-end gap-1.5 rounded-[24px] bg-white/20 border border-white/10 px-1.5 py-1 min-h-[46px]">
           <button
             type="button"
             onClick={() => setShowEmojiPicker(!showEmojiPicker)}
