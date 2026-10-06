@@ -255,24 +255,24 @@ export default function MessageBubble({
           <div className="flex-1 flex items-center justify-center min-h-0 bg-black relative">
             {actualType === "image" || actualType === "image_group" ? (
               <div className="w-full h-full relative flex items-center justify-center">
-                {actualType === "image_group" && JSON.parse(actualContent).length > 1 && fullscreenIndex > 0 && (
+                {actualType === "image_group" && (function(){ try { return JSON.parse(actualContent); } catch { return []; } })().length > 1 && fullscreenIndex > 0 && (
                   <button onClick={(e) => { e.stopPropagation(); setFullscreenIndex(i => i - 1); }} className="absolute left-4 z-50 p-3 rounded-full bg-black/50 text-white hover:bg-black/80">
                     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
                   </button>
                 )}
-                {actualType === "image_group" && JSON.parse(actualContent).length > 1 && fullscreenIndex < JSON.parse(actualContent).length - 1 && (
+                {actualType === "image_group" && (function(){ try { return JSON.parse(actualContent); } catch { return []; } })().length > 1 && fullscreenIndex < (function(){ try { return JSON.parse(actualContent); } catch { return []; } })().length - 1 && (
                   <button onClick={(e) => { e.stopPropagation(); setFullscreenIndex(i => i + 1); }} className="absolute right-4 z-50 p-3 rounded-full bg-black/50 text-white hover:bg-black/80">
                     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
                   </button>
                 )}
                 <TransformWrapper initialScale={1} minScale={1} maxScale={5}>
                     <TransformComponent wrapperStyle={{ width: "100%", height: "100%" }} contentStyle={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                      <img src={actualType === "image_group" ? JSON.parse(actualContent)[fullscreenIndex] : actualContent} style={{ maxWidth: "100%", maxHeight: "100%", objectFit: "contain" }} />
+                      <img src={actualType === "image_group" ? (function(){ try { return JSON.parse(actualContent); } catch { return []; } })()[fullscreenIndex] : actualContent} style={{ maxWidth: "100%", maxHeight: "100%", objectFit: "contain" }} />
                     </TransformComponent>
                   </TransformWrapper>
               </div>
             ) : (
-              <video src={actualType === "image_group" ? JSON.parse(actualContent)[fullscreenIndex] : actualContent} controls autoPlay className="max-h-full max-w-full" />
+              <video src={actualType === "image_group" ? (function(){ try { return JSON.parse(actualContent); } catch { return []; } })()[fullscreenIndex] : actualContent} controls autoPlay className="max-h-full max-w-full" />
             )}
           </div>
         </div>
@@ -309,7 +309,7 @@ export default function MessageBubble({
         <div className="group relative w-full">
         {actualType === "image_group" ? (
           (() => {
-            const urls = JSON.parse(actualContent);
+            const urls = (function(){ try { return JSON.parse(actualContent); } catch { return []; } })();
             const displayCount = Math.min(urls.length, 3);
             const remainingCount = urls.length - 1;
             
@@ -441,6 +441,7 @@ export default function MessageBubble({
     </>
   );
 }
+
 
 
 
