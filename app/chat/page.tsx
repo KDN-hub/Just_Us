@@ -8,6 +8,7 @@ import type { RealtimeChannel } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase";
 import Avatar from "@/components/Avatar";
 import ChatHeader from "@/components/chat/ChatHeader";
+import ChatSearch from "@/components/chat/ChatSearch";
 import MessageList from "@/components/chat/MessageList";
 import ChatInput from "@/components/chat/ChatInput";
 import { useChatStore, generateUUID, formatLastSeen, TimelineItem, Message } from "@/hooks/useChatStore";
@@ -33,6 +34,7 @@ export default function Chat() {
   const [draft, setDraft] = useState("");
   const [editingMessage, setEditingMessage] = useState<string | null>(null);
   const [replyingTo, setReplyingTo] = useState<string | null>(null);
+  const [showSearch, setShowSearch] = useState(false);
   const [now, setNow] = useState<number>(() => Date.now());
   const [wallpaper, setWallpaper] = useState<string>("default");
   
@@ -440,6 +442,20 @@ export default function Chat() {
     setIncomingCall(null);
   }, [setIncomingCall]);
 
+  const handleSearchResultClick = (msgId: string) => {
+    setShowSearch(false);
+    setTimeout(() => {
+      const msgEl = document.getElementById(`msg-${msgId}`);
+      if (msgEl) {
+        msgEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        msgEl.classList.add('bg-white/20', 'transition-colors', 'duration-500');
+        setTimeout(() => msgEl.classList.remove('bg-white/20'), 2000);
+      } else {
+        alert("This message is older and not loaded in the current view.");
+      }
+    }, 100);
+  };
+
   const handleReply = (messageId: string) => {
     setReplyingTo(messageId);
     setEditingMessage(null);
@@ -651,6 +667,14 @@ export default function Chat() {
         </div>
       )}
 
+      {showSearch && (
+        <ChatSearch
+          onClose={() => setShowSearch(false)}
+          conversationId={CONVERSATION_ID}
+          onResultClick={handleSearchResultClick}
+          myId={myId}
+        />
+      )}
       <ChatHeader
         partnerInitial={partnerInitial}
         partnerColor={partnerColor}
@@ -862,6 +886,7 @@ export default function Chat() {
     </motion.main>
   );
 }
+
 
 
 

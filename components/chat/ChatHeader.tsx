@@ -18,6 +18,7 @@ interface ChatHeaderProps {
   onOpenMedia?: () => void;
   partnerAvatarUrl?: string | null;
   onOpenAvatarUpload?: () => void;
+  onSearchClick?: () => void;
 }
 
 export default function ChatHeader({

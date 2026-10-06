@@ -85,7 +85,7 @@ export default function MessageList({
         }
 
         return (
-          <motion.div key={item.data.id} layout initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ type: "spring", stiffness: 300, damping: 25 }} className={mb}>
+          <motion.div id={`msg-${item.data.id}`} key={item.data.id} layout initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ type: "spring", stiffness: 300, damping: 25 }} className={mb}>
             {item.kind === "message" ? (
               <MessageBubble
                 content={item.data.content}
@@ -131,4 +131,5 @@ export default function MessageList({
     </div>
   );
 }
+
 
