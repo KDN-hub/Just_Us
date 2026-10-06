@@ -228,8 +228,18 @@ export default function Chat() {
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    const type = file.type.startsWith('video') ? 'video' : 'image';
-    setPendingMedia({ file, type, url: URL.createObjectURL(file) });
+    
+    let type = 'file';
+    if (file.type.startsWith('image/')) type = 'image';
+    else if (file.type.startsWith('video/')) type = 'video';
+    else if (file.type.startsWith('audio/')) type = 'audio';
+
+    if (type === 'file' || type === 'audio') {
+      // Direct upload without preview for documents and audio files
+      uploadMedia(file, type);
+    } else {
+      setPendingMedia({ file, type, url: URL.createObjectURL(file) });
+    }
     e.target.value = '';
   };
 
