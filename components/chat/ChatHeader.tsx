@@ -49,7 +49,7 @@ export default function ChatHeader({
   }, [showMenu]);
 
   return (
-    <header className="relative z-[60] shrink-0 flex items-center gap-3 bg-[#18181A]/90 backdrop-blur-md border-b border-white/10 px-4 pb-4 pt-[max(env(safe-area-inset-top),4.5rem)] shadow-lg">
+    <header className="relative z-[60] shrink-0 flex items-center gap-3 bg-[#18181A]/95 backdrop-blur-2xl border-b border-white/10 px-4 pb-4 pt-[max(env(safe-area-inset-top),4.5rem)] shadow-lg">
       <Link
         href="/home"
         aria-label="Back"
