@@ -1,7 +1,7 @@
 "use client";
 import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
-import { ChevronLeft, Phone, Video, Image as ImageIcon, UserPen, Images, MoreVertical } from "lucide-react";
+import { ChevronLeft, Phone, Video, Image as ImageIcon, UserPen, Images, MoreVertical, Search } from "lucide-react";
 import Avatar from "@/components/Avatar";
 
 interface ChatHeaderProps {
@@ -34,7 +34,8 @@ export default function ChatHeader({
   onOpenUsername,
   onOpenMedia,
   partnerAvatarUrl,
-  onOpenAvatarUpload
+  onOpenAvatarUpload,
+  onSearchClick
 }: ChatHeaderProps) {
   const [showMenu, setShowMenu] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -134,7 +135,10 @@ export default function ChatHeader({
                 className="w-full px-4 py-3 flex items-center gap-3 text-left hover:bg-white/5 transition-colors text-white active:bg-white/10"
               >
                 <UserPen className="h-5 w-5 text-[var(--gold)]" strokeWidth={2} />
-                <span className="text-[15px]">Change Username</span>
+                <span className="text-[15px]">Change Username</span></button>
+              <button onClick={() => { setShowMenu(false); onSearchClick?.(); }} className="w-full px-4 py-3 flex items-center gap-3 text-left hover:bg-white/5 transition-colors text-white active:bg-white/10">
+                <Search className="h-5 w-5 text-gray-400" strokeWidth={2} />
+                <span className="text-[15px]">Search Chat</span>
               </button>
               <button 
                 onClick={() => { setShowMenu(false); onOpenMedia?.(); }}
@@ -150,3 +154,6 @@ export default function ChatHeader({
     </header>
   );
 }
+
+
+
