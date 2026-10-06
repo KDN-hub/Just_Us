@@ -8,6 +8,9 @@ interface MessageListProps {
   timeline: any[];
   myId: string;
   handleReaction: (messageId: string, emoji: string) => void;
+  onReply?: (messageId: string) => void;
+  onEdit?: (messageId: string) => void;
+  onDelete?: (messageId: string) => void;
   partnerTyping: boolean;
   bottomRef: RefObject<HTMLDivElement>;
   partnerInitial: string;
@@ -20,6 +23,9 @@ export default function MessageList({
   timeline,
   myId,
   handleReaction,
+  onReply,
+  onEdit,
+  onDelete,
   partnerTyping,
   bottomRef,
   partnerInitial,
@@ -91,6 +97,9 @@ export default function MessageList({
                 reactions={item.data.reactions}
                 myReaction={item.data.reactions?.[myId]}
                 onReact={(emoji) => handleReaction(item.data.id, emoji)}
+                onReply={() => onReply?.(item.data.id)}
+                onEdit={() => onEdit?.(item.data.id)}
+                onDelete={() => onDelete?.(item.data.id)}
                 groupPosition={groupPosition}
                 partnerInitial={partnerInitial}
                 partnerColor={partnerColor}

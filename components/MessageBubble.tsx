@@ -1,4 +1,4 @@
-import { Check, CheckCheck, Clock, Heart, Play, Pause, X, Download, Mic, User, Plus } from "lucide-react";
+import { Check, CheckCheck, Clock, Heart, Play, Pause, X, Download, Mic, User, Plus, Reply, Copy, Pencil, Trash2 } from "lucide-react";
 import { TransformWrapper, TransformComponent } from "react-zoom-pan-pinch";
 import { useState, useRef } from "react";
 import EmojiPicker, { Theme } from 'emoji-picker-react';
@@ -21,6 +21,11 @@ interface MessageBubbleProps {
   partnerColor?: string;
   myAvatarUrl?: string | null;
   partnerAvatarUrl?: string | null;
+  onReply?: () => void;
+  onEdit?: () => void;
+  onDelete?: () => void;
+  replyToText?: string;
+  isEdited?: boolean;
 }
 
 const MessageStatusTicks = ({ status, queued, className = "" }: { status?: string, queued?: boolean, className?: string }) => {
@@ -170,6 +175,11 @@ export default function MessageBubble({
   partnerColor = "var(--wine)",
   myAvatarUrl,
   partnerAvatarUrl,
+  onReply,
+  onEdit,
+  onDelete,
+  replyToText,
+  isEdited,
 }: MessageBubbleProps) {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [fullscreenIndex, setFullscreenIndex] = useState(0);

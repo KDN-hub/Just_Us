@@ -15,6 +15,9 @@ export interface Message {
   pending?: boolean;
   queued?: boolean;
   reactions?: Record<string, string>; // sender_id -> emoji
+  reply_to?: string;
+  reply_to_text?: string;
+  is_edited?: boolean;
 }
 
 export interface CallLogEntry {

@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { PhoneIncoming, PhoneOff, X, Video, ChevronLeft, ImagePlus } from "lucide-react";
+import { PhoneIncoming, PhoneOff, X, Video, ChevronLeft, ImagePlus, Pencil, Reply, Copy, Trash2 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase";
@@ -31,6 +31,8 @@ export default function Chat() {
   useChatRealtime(signalChRef);
 
   const [draft, setDraft] = useState("");
+  const [editingMessage, setEditingMessage] = useState<string | null>(null);
+  const [replyingTo, setReplyingTo] = useState<string | null>(null);
   const [now, setNow] = useState<number>(() => Date.now());
   const [wallpaper, setWallpaper] = useState<string>("default");
   
@@ -311,13 +313,22 @@ export default function Chat() {
   }, [isOnline, myId, messageList, addOrUpdateMessage]);
 
   const handleSend = useCallback(async (overrideText?: string | React.MouseEvent | React.KeyboardEvent) => {
-    const text = (typeof overrideText === 'string' ? overrideText : draft).trim();
-    if (!text) return;
+    const rawText = (typeof overrideText === 'string' ? overrideText : draft).trim();
+    if (!rawText) return;
 
     if (typeof overrideText !== 'string') setDraft('');
 
     const tempId = generateUUID();
     const offline = !navigator.onLine;
+    
+    let text = rawText;
+    if (editingMessage) {
+      text = `EDIT:${editingMessage}:${rawText}`;
+      setEditingMessage(null);
+    } else if (replyingTo) {
+      text = `REPLY:${replyingTo}:${rawText}`;
+      setReplyingTo(null);
+    }
 
     addOrUpdateMessage({
       id: tempId,
@@ -419,6 +430,65 @@ export default function Chat() {
     setIncomingCall(null);
   }, [setIncomingCall]);
 
+  const handleReply = (messageId: string) => {
+    setReplyingTo(messageId);
+    setEditingMessage(null);
+    inputRef.current?.focus();
+  };
+
+  const handleEdit = (messageId: string) => {
+    const msg = useChatStore.getState().messages[messageId];
+    if (msg && msg.type === 'text') {
+      let content = msg.content;
+      if (content.startsWith('REPLY:')) content = content.split(':').slice(2).join(':');
+      
+      const latestEdit = Object.values(useChatStore.getState().messages).filter(m => m.type === 'text' && m.content.startsWith('EDIT:' + messageId + ':')).pop();
+      if (latestEdit) {
+         content = latestEdit.content.split(':').slice(2).join(':');
+      }
+      
+      setDraft(content);
+      setEditingMessage(messageId);
+      setReplyingTo(null);
+      inputRef.current?.focus();
+    }
+  };
+
+  const handleDelete = async (messageId: string) => {
+    // Delete for me vs everyone - soft delete using empty content or hard delete
+    const offline = !navigator.onLine;
+    const tempId = generateUUID();
+    
+    // We send a DELETE instruction
+    addOrUpdateMessage({
+      id: tempId,
+      sender_id: myId,
+      content: `DELETE:${messageId}`,
+      type: 'text',
+      status: 'sent',
+      created_at: new Date().toISOString(),
+      pending: true,
+      queued: offline,
+    });
+    
+    const { data, error } = await supabase.from('messages').insert({
+      id: tempId,
+      conversation_id: CONVERSATION_ID,
+      sender_id: myId,
+      type: 'text',
+      content: `DELETE:${messageId}`,
+      status: 'sent',
+    }).select('created_at').single();
+    
+    if (error) {
+       const m = useChatStore.getState().messages[tempId];
+       if (m) addOrUpdateMessage({ ...m, queued: true });
+    } else if (data) {
+       const m = useChatStore.getState().messages[tempId];
+       if (m) addOrUpdateMessage({ ...m, created_at: data.created_at, pending: false });
+    }
+  };
+
   const handleReaction = async (messageId: string, emoji: string) => {
     const tempId = generateUUID();
     const dbContent = `REACTION:${messageId}:${emoji}`;
@@ -447,8 +517,10 @@ export default function Chat() {
     });
   };
 
-  const realMessages: Message[] = [];
+  let realMessages: Message[] = [];
   const reactionsMap: Record<string, Record<string, string>> = {};
+  const editsMap: Record<string, string> = {};
+  const repliesMap: Record<string, string> = {}; // newMsgId -> originalMsgId
 
   for (const m of messageList) {
     if (m.type === 'text' && m.content.startsWith('REACTION:')) {
@@ -457,20 +529,49 @@ export default function Chat() {
         const targetId = parts[1];
         const emoji = parts.slice(2).join(':'); 
         if (!reactionsMap[targetId]) reactionsMap[targetId] = {};
-        if (emoji === 'NONE') {
-          delete reactionsMap[targetId][m.sender_id];
-        } else {
-          reactionsMap[targetId][m.sender_id] = emoji;
-        }
+        if (emoji === 'NONE') delete reactionsMap[targetId][m.sender_id];
+        else reactionsMap[targetId][m.sender_id] = emoji;
       }
-    } else {
-      realMessages.push(m);
+      continue;
     }
+    
+        if (m.type === 'text' && m.content.startsWith('DELETE:')) {
+      const targetId = m.content.split(':')[1];
+      if (targetId) editsMap[targetId] = 'This message was deleted';
+      continue;
+    }
+    if (m.type === 'text' && m.content.startsWith('EDIT:')) {
+      const parts = m.content.split(':');
+      if (parts.length >= 3) {
+        const targetId = parts[1];
+        const newText = parts.slice(2).join(':');
+        editsMap[targetId] = newText;
+      }
+      continue;
+    }
+    
+    if (m.type === 'text' && m.content.startsWith('REPLY:')) {
+      const parts = m.content.split(':');
+      if (parts.length >= 3) {
+        const targetId = parts[1];
+        repliesMap[m.id] = targetId;
+        m.content = parts.slice(2).join(':');
+      }
+    }
+    
+    realMessages.push(m);
   }
 
-  for (const m of realMessages) {
-    m.reactions = reactionsMap[m.id] || {};
-  }
+  realMessages = realMessages.map(m => {
+    return {
+       ...m,
+       reactions: reactionsMap[m.id] || {},
+       content: editsMap[m.id] || m.content,
+       is_edited: !!editsMap[m.id],
+       reply_to: repliesMap[m.id],
+       reply_to_text: repliesMap[m.id] ? realMessages.find(om => om.id === repliesMap[m.id])?.content : undefined
+    };
+  });
 
   const timeline: TimelineItem[] = [
     ...realMessages.map((m) => ({ kind: "message" as const, data: m, time: m.created_at })),
@@ -571,6 +672,24 @@ export default function Chat() {
         partnerAvatarUrl={partnerAvatarUrl}
       />
 
+      {editingMessage && (
+        <div className="flex items-center justify-between bg-[#18181A]/95 backdrop-blur-2xl px-4 py-2 border-t border-white/10 text-white text-[13px]">
+          <div className="flex flex-col">
+            <span className="font-semibold text-white/70 mb-0.5 flex items-center gap-1.5"><Pencil className="w-3.5 h-3.5" /> Editing Message</span>
+            <span className="line-clamp-1 opacity-50">{realMessages.find(m => m.id === editingMessage)?.content}</span>
+          </div>
+          <button onClick={() => { setEditingMessage(null); setDraft(""); }} className="p-2 hover:bg-white/10 rounded-full"><X className="w-4 h-4 text-white/50" /></button>
+        </div>
+      )}
+      {replyingTo && (
+        <div className="flex items-center justify-between bg-[#18181A]/95 backdrop-blur-2xl px-4 py-2 border-t border-white/10 text-white text-[13px]">
+          <div className="flex flex-col">
+            <span className="font-semibold text-white/70 mb-0.5 flex items-center gap-1.5"><Reply className="w-3.5 h-3.5" /> Replying to {realMessages.find(m => m.id === replyingTo)?.sender_id === myId ? "Yourself" : (partner?.nickname || partner?.name || "Partner")}</span>
+            <span className="line-clamp-1 opacity-50">{realMessages.find(m => m.id === replyingTo)?.content}</span>
+          </div>
+          <button onClick={() => setReplyingTo(null)} className="p-2 hover:bg-white/10 rounded-full"><X className="w-4 h-4 text-white/50" /></button>
+        </div>
+      )}
       <ChatInput
         draft={draft}
         setDraft={setDraft}
@@ -733,6 +852,10 @@ export default function Chat() {
     </motion.main>
   );
 }
+
+
+
+
 
 
 
