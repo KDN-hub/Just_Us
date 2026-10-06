@@ -49,11 +49,11 @@ export default function ChatHeader({
   }, [showMenu]);
 
   return (
-    <header className="relative z-[60] shrink-0 flex items-center gap-3 bg-[#18181A]/80 backdrop-blur-xl border-b border-white/10 px-4 pb-4 pt-[max(env(safe-area-inset-top),4.5rem)] shadow-lg">
+    <header className="relative z-[60] shrink-0 flex items-center gap-3 bg-[#18181A]/90 backdrop-blur-md border-b border-white/10 px-4 pb-4 pt-[max(env(safe-area-inset-top),4.5rem)] shadow-lg">
       <Link
         href="/home"
         aria-label="Back"
-        className="flex h-[42px] w-[42px] shrink-0 items-center justify-center rounded-full bg-[#18181A]/80 backdrop-blur-xl border border-white/10 text-white shadow-lg transition-transform active:scale-95"
+        className="flex h-[42px] w-[42px] shrink-0 items-center justify-center rounded-full bg-white/5 border border-white/10 text-white shadow-sm transition-transform active:scale-95"
       >
         <ChevronLeft className="h-7 w-7 mr-0.5" strokeWidth={3} />
       </Link>
