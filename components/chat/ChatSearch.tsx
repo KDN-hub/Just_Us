@@ -1,4 +1,4 @@
-﻿import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Search, X, Loader2 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { Message } from '@/hooks/useChatStore';
@@ -73,7 +73,7 @@ export default function ChatSearch({ onClose, conversationId, onResultClick, myI
         )}
         {!loading && query && results.length === 0 && (
           <div className="text-center text-white/50 py-10 text-[15px]">
-            No messages found for "{query}"
+            No messages found for &quot;{query}&quot;
           </div>
         )}
         {!loading && results.map(msg => (
@@ -95,3 +95,4 @@ export default function ChatSearch({ onClose, conversationId, onResultClick, myI
     </div>
   );
 }
+

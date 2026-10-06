@@ -378,7 +378,7 @@ export default function Chat() {
       const m = useChatStore.getState().messages[tempId];
       if (m) addOrUpdateMessage({ ...m, created_at: data.created_at, pending: false });
     }
-  }, [draft, myId, addOrUpdateMessage]);
+  }, [draft, myId, addOrUpdateMessage, editingMessage, replyingTo]);
 
   const handleNudge = async () => {
     if (!isOnline) return;
@@ -947,6 +947,7 @@ export default function Chat() {
     </motion.main>
   );
 }
+
 
 
 
