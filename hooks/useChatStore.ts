@@ -17,8 +17,10 @@ export interface Message {
   reactions?: Record<string, string>; // sender_id -> emoji
   reply_to?: string;
   reply_to_text?: string;
+  reply_to_sender_id?: string;
   is_pinned?: boolean;
   is_edited?: boolean;
+  is_deleted?: boolean;
 }
 
 export interface CallLogEntry {

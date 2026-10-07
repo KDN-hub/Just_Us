@@ -1,7 +1,7 @@
 "use client";
 import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
-import { ChevronLeft, Phone, Video, Image as ImageIcon, UserPen, Images, MoreVertical, Search } from "lucide-react";
+import { ChevronLeft, Phone, Video, Image as ImageIcon, UserPen, Images, MoreVertical, Search, X, Copy, Share2, Trash2, Pin } from "lucide-react";
 import Avatar from "@/components/Avatar";
 
 interface ChatHeaderProps {
@@ -19,6 +19,14 @@ interface ChatHeaderProps {
   partnerAvatarUrl?: string | null;
   onOpenAvatarUpload?: () => void;
   onSearchClick?: () => void;
+  onOpenPinned?: () => void;
+  pinnedCount?: number;
+  selectionMode?: boolean;
+  selectedCount?: number;
+  onCancelSelection?: () => void;
+  onCopySelected?: () => void;
+  onShareSelected?: () => void;
+  onDeleteSelected?: () => void;
 }
 
 export default function ChatHeader({
@@ -35,7 +43,15 @@ export default function ChatHeader({
   onOpenMedia,
   partnerAvatarUrl,
   onOpenAvatarUpload,
-  onSearchClick
+  onSearchClick,
+  onOpenPinned,
+  pinnedCount = 0,
+  selectionMode = false,
+  selectedCount = 0,
+  onCancelSelection,
+  onCopySelected,
+  onShareSelected,
+  onDeleteSelected,
 }: ChatHeaderProps) {
   const [showMenu, setShowMenu] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -49,6 +65,51 @@ export default function ChatHeader({
     if (showMenu) document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [showMenu]);
+
+  if (selectionMode) {
+    return (
+      <header className="relative z-[60] shrink-0 flex items-center justify-between bg-[#18181A]/95 backdrop-blur-2xl border-b border-white/10 px-4 pb-4 pt-[max(env(safe-area-inset-top),4.5rem)] shadow-lg animate-in fade-in duration-200">
+        <div className="flex items-center gap-3">
+          <button
+            onClick={onCancelSelection}
+            aria-label="Cancel selection"
+            className="flex h-[42px] w-[42px] shrink-0 items-center justify-center rounded-full bg-white/5 border border-white/10 text-white shadow-sm transition-transform active:scale-95"
+          >
+            <X className="h-6 w-6" strokeWidth={2.5} />
+          </button>
+          <span className="text-[18px] font-bold text-white">
+            {selectedCount} selected
+          </span>
+        </div>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={onCopySelected}
+            disabled={selectedCount === 0}
+            aria-label="Copy selected"
+            className="flex h-[42px] w-[42px] items-center justify-center rounded-full bg-white/5 border border-white/10 text-white/80 hover:bg-white/10 disabled:opacity-40 transition-colors"
+          >
+            <Copy className="h-5 w-5" strokeWidth={2} />
+          </button>
+          <button
+            onClick={onShareSelected}
+            disabled={selectedCount === 0}
+            aria-label="Forward or Share selected"
+            className="flex h-[42px] w-[42px] items-center justify-center rounded-full bg-white/5 border border-white/10 text-white/80 hover:bg-white/10 disabled:opacity-40 transition-colors"
+          >
+            <Share2 className="h-5 w-5" strokeWidth={2} />
+          </button>
+          <button
+            onClick={onDeleteSelected}
+            disabled={selectedCount === 0}
+            aria-label="Delete selected"
+            className="flex h-[42px] w-[42px] items-center justify-center rounded-full bg-red-500/10 border border-red-500/20 text-red-400 hover:bg-red-500/20 disabled:opacity-40 transition-colors"
+          >
+            <Trash2 className="h-5 w-5" strokeWidth={2} />
+          </button>
+        </div>
+      </header>
+    );
+  }
 
   return (
     <header className="relative z-[60] shrink-0 flex items-center gap-3 bg-[#18181A]/95 backdrop-blur-2xl border-b border-white/10 px-4 pb-4 pt-[max(env(safe-area-inset-top),4.5rem)] shadow-lg">
@@ -122,7 +183,14 @@ export default function ChatHeader({
           </button>
           
           {showMenu && (
-            <div className="absolute right-0 top-full mt-2 w-56 rounded-2xl bg-[#18181A]/90 backdrop-blur-md border border-white/10 shadow-lg overflow-hidden py-1 z-50 animate-in fade-in slide-in-from-top-2">
+            <div className="absolute right-0 top-full mt-2 w-56 rounded-2xl bg-[#18181A]/95 backdrop-blur-xl border border-white/10 shadow-2xl overflow-hidden py-1 z-50 animate-in fade-in slide-in-from-top-2">
+              <button 
+                onClick={() => { setShowMenu(false); onOpenPinned?.(); }}
+                className="w-full px-4 py-3 flex items-center gap-3 text-left hover:bg-white/5 transition-colors text-white active:bg-white/10"
+              >
+                <Pin className="h-5 w-5 text-[var(--gold)]" strokeWidth={2} />
+                <span className="text-[15px]">Pinned Messages {pinnedCount > 0 ? `(${pinnedCount})` : ''}</span>
+              </button>
               <button 
                 onClick={() => { setShowMenu(false); onOpenWallpaper?.(); }}
                 className="w-full px-4 py-3 flex items-center gap-3 text-left hover:bg-white/5 transition-colors text-white active:bg-white/10"
@@ -135,8 +203,12 @@ export default function ChatHeader({
                 className="w-full px-4 py-3 flex items-center gap-3 text-left hover:bg-white/5 transition-colors text-white active:bg-white/10"
               >
                 <UserPen className="h-5 w-5 text-[var(--gold)]" strokeWidth={2} />
-                <span className="text-[15px]">Change Username</span></button>
-              <button onClick={() => { setShowMenu(false); onSearchClick?.(); }} className="w-full px-4 py-3 flex items-center gap-3 text-left hover:bg-white/5 transition-colors text-white active:bg-white/10">
+                <span className="text-[15px]">Change Username</span>
+              </button>
+              <button 
+                onClick={() => { setShowMenu(false); onSearchClick?.(); }} 
+                className="w-full px-4 py-3 flex items-center gap-3 text-left hover:bg-white/5 transition-colors text-white active:bg-white/10"
+              >
                 <Search className="h-5 w-5 text-gray-400" strokeWidth={2} />
                 <span className="text-[15px]">Search Chat</span>
               </button>
@@ -154,6 +226,3 @@ export default function ChatHeader({
     </header>
   );
 }
-
-
-

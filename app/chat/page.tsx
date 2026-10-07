@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { PhoneIncoming, PhoneOff, X, Video, ChevronLeft, ImagePlus, Pencil, Reply, Copy, Trash2 } from "lucide-react";
+import { PhoneIncoming, PhoneOff, X, Video, ChevronLeft, ImagePlus, Pencil, Reply, Copy, Trash2, Pin } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase";
@@ -11,6 +11,10 @@ import ChatHeader from "@/components/chat/ChatHeader";
 import ChatSearch from "@/components/chat/ChatSearch";
 import MessageList from "@/components/chat/MessageList";
 import ChatInput from "@/components/chat/ChatInput";
+import Toast, { ToastMessage } from "@/components/chat/Toast";
+import DeleteMessageModal from "@/components/chat/DeleteMessageModal";
+import PinnedMessagesModal from "@/components/chat/PinnedMessagesModal";
+import MessageInfoModal from "@/components/chat/MessageInfoModal";
 import { useChatStore, generateUUID, formatLastSeen, TimelineItem, Message } from "@/hooks/useChatStore";
 import { useChatRealtime } from "@/hooks/useChatRealtime";
 
@@ -36,6 +40,45 @@ export default function Chat() {
   const [replyingTo, setReplyingTo] = useState<string | null>(null);
   const [showSearch, setShowSearch] = useState(false);
   const [infoMessageId, setInfoMessageId] = useState<string | null>(null);
+  const [showPinnedModal, setShowPinnedModal] = useState(false);
+  const [toasts, setToasts] = useState<ToastMessage[]>([]);
+  const [selectionMode, setSelectionMode] = useState(false);
+  const [selectedMessageIds, setSelectedMessageIds] = useState<string[]>([]);
+  const [deletedForMe, setDeletedForMe] = useState<string[]>(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const uid = localStorage.getItem("user_id") || "";
+        return JSON.parse(localStorage.getItem(`deleted_for_me_${uid}`) || "[]");
+      } catch {}
+    }
+    return [];
+  });
+  const [deleteModalState, setDeleteModalState] = useState<{
+    isOpen: boolean;
+    messageId: string | null;
+    isMultiple?: boolean;
+    canDeleteForEveryone: boolean;
+    count?: number;
+  }>({
+    isOpen: false,
+    messageId: null,
+    isMultiple: false,
+    canDeleteForEveryone: false,
+    count: 1,
+  });
+
+  const showToast = useCallback((text: string, type: "success" | "error" | "info" = "success") => {
+    const id = generateUUID();
+    setToasts((prev) => [...prev, { id, text, type }]);
+    setTimeout(() => {
+      setToasts((prev) => prev.filter((t) => t.id !== id));
+    }, 2800);
+  }, []);
+
+  const removeToast = useCallback((id: string) => {
+    setToasts((prev) => prev.filter((t) => t.id !== id));
+  }, []);
+
   const [now, setNow] = useState<number>(() => Date.now());
   const [wallpaper, setWallpaper] = useState<string>("default");
   
@@ -443,29 +486,68 @@ export default function Chat() {
     setIncomingCall(null);
   }, [setIncomingCall]);
 
-  const handleSearchResultClick = (msgId: string) => {
+  const scrollToAndHighlightMessage = (msgId: string) => {
     setShowSearch(false);
     setTimeout(() => {
       const msgEl = document.getElementById(`msg-${msgId}`);
       if (msgEl) {
         msgEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        msgEl.classList.add('bg-white/20', 'transition-colors', 'duration-500');
-        setTimeout(() => msgEl.classList.remove('bg-white/20'), 2000);
+        msgEl.classList.add('ring-2', 'ring-[var(--gold)]', 'bg-white/20', 'transition-all', 'duration-500');
+        setTimeout(() => msgEl.classList.remove('ring-2', 'ring-[var(--gold)]', 'bg-white/20'), 2500);
       } else {
-        alert("This message is older and not loaded in the current view.");
+        showToast("Original message is older and not loaded in current view", "info");
       }
     }, 100);
+  };
+
+  const handleSearchResultClick = (msgId: string) => {
+    scrollToAndHighlightMessage(msgId);
   };
 
   const handlePin = async (messageId: string, isCurrentlyPinned: boolean) => {
     const tempId = generateUUID();
     const action = isCurrentlyPinned ? 'UNPIN' : 'PIN';
-    addOrUpdateMessage({ id: tempId, sender_id: myId, content: `${action}:${messageId}`, type: 'text', status: 'sent', created_at: new Date().toISOString(), pending: true });
-    await supabase.from('messages').insert({ id: tempId, conversation_id: CONVERSATION_ID, sender_id: myId, type: 'text', content: `${action}:${messageId}`, status: 'sent' });
+    addOrUpdateMessage({ 
+      id: tempId, 
+      sender_id: myId, 
+      content: `${action}:${messageId}`, 
+      type: 'text', 
+      status: 'sent', 
+      created_at: new Date().toISOString(), 
+      pending: true 
+    });
+    showToast(isCurrentlyPinned ? "Message unpinned" : "Message pinned 📌", "success");
+
+    if (!navigator.onLine) return;
+    const { error } = await supabase.from('messages').insert({ 
+      id: tempId, 
+      conversation_id: CONVERSATION_ID, 
+      sender_id: myId, 
+      type: 'text', 
+      content: `${action}:${messageId}`, 
+      status: 'sent' 
+    });
+    if (error) {
+      showToast("Couldn't update pin. Try again.", "error");
+    }
   };
-  const handleForward = () => {
-    alert("This conversation is currently private to you two.");
+
+  const handleForward = (content: string) => {
+    if (navigator.share) {
+      navigator.share({ text: content, title: "Shared from Just Us" }).catch(() => {});
+    } else {
+      navigator.clipboard.writeText(content)
+        .then(() => showToast("✓ Message copied to share", "success"))
+        .catch(() => showToast("Couldn't share message", "error"));
+    }
   };
+
+  const handleCopy = (content: string) => {
+    navigator.clipboard.writeText(content)
+      .then(() => showToast("✓ Message copied", "success"))
+      .catch(() => showToast("Couldn't copy message", "error"));
+  };
+
   const handleInfo = (messageId: string) => {
     setInfoMessageId(messageId);
   };
@@ -494,39 +576,82 @@ export default function Chat() {
     }
   };
 
-  const handleDelete = async (messageId: string) => {
-    // Delete for me vs everyone - soft delete using empty content or hard delete
+  const handleDeleteClick = (messageId: string) => {
+    const msg = useChatStore.getState().messages[messageId];
+    const isMine = msg?.sender_id === myId;
+    setDeleteModalState({
+      isOpen: true,
+      messageId,
+      isMultiple: false,
+      canDeleteForEveryone: isMine,
+      count: 1,
+    });
+  };
+
+  const handleDeleteForMe = (ids: string[]) => {
+    setDeletedForMe(prev => {
+      const next = Array.from(new Set([...prev, ...ids]));
+      if (typeof window !== "undefined") {
+        localStorage.setItem(`deleted_for_me_${myId}`, JSON.stringify(next));
+      }
+      return next;
+    });
+    showToast(ids.length > 1 ? `${ids.length} messages deleted for you` : "Message deleted for you", "info");
+  };
+
+  const handleDeleteForEveryone = async (messageId: string) => {
     const offline = !navigator.onLine;
     const tempId = generateUUID();
-    
-    // We send a DELETE instruction
+    const dbContent = `DELETE:${messageId}`;
+
     addOrUpdateMessage({
       id: tempId,
       sender_id: myId,
-      content: `DELETE:${messageId}`,
+      content: dbContent,
       type: 'text',
       status: 'sent',
       created_at: new Date().toISOString(),
       pending: true,
       queued: offline,
     });
-    
-    const { data, error } = await supabase.from('messages').insert({
+
+    showToast("Message deleted for everyone", "success");
+
+    if (offline) return;
+
+    const { error } = await supabase.from('messages').insert({
       id: tempId,
       conversation_id: CONVERSATION_ID,
       sender_id: myId,
       type: 'text',
-      content: `DELETE:${messageId}`,
+      content: dbContent,
       status: 'sent',
-    }).select('created_at').single();
-    
+    });
+
     if (error) {
-       const m = useChatStore.getState().messages[tempId];
-       if (m) addOrUpdateMessage({ ...m, queued: true });
-    } else if (data) {
-       const m = useChatStore.getState().messages[tempId];
-       if (m) addOrUpdateMessage({ ...m, created_at: data.created_at, pending: false });
+      showToast("Couldn't delete message. Try again.", "error");
     }
+  };
+
+  const handleSelectMessage = (id: string) => {
+    setSelectionMode(true);
+    setSelectedMessageIds([id]);
+  };
+
+  const handleToggleSelect = (id: string) => {
+    setSelectedMessageIds(prev => {
+      if (prev.includes(id)) {
+        const next = prev.filter(x => x !== id);
+        if (next.length === 0) setSelectionMode(false);
+        return next;
+      }
+      return [...prev, id];
+    });
+  };
+
+  const handleCancelSelection = () => {
+    setSelectionMode(false);
+    setSelectedMessageIds([]);
   };
 
   const handleReaction = async (messageId: string, emoji: string) => {
@@ -547,7 +672,7 @@ export default function Chat() {
 
     if (offline) return;
 
-    await supabase.from('messages').insert({
+    const { error } = await supabase.from('messages').insert({
       id: tempId,
       conversation_id: CONVERSATION_ID,
       sender_id: myId,
@@ -555,6 +680,10 @@ export default function Chat() {
       content: dbContent,
       status: 'sent',
     });
+
+    if (error) {
+      showToast("Couldn't add reaction. Try again.", "error");
+    }
   };
 
   let realMessages: Message[] = [];
@@ -562,6 +691,9 @@ export default function Chat() {
   const editsMap: Record<string, string> = {};
   const repliesMap: Record<string, string> = {}; // newMsgId -> originalMsgId
   const pinsMap: Record<string, boolean> = {};
+  const deletedEveryoneIds = new Set<string>();
+
+  const msgMap = new Map(messageList.map(m => [m.id, m]));
 
   for (const m of messageList) {
     if (m.type === 'text' && m.content.startsWith('REACTION:')) {
@@ -576,9 +708,9 @@ export default function Chat() {
       continue;
     }
     
-        if (m.type === 'text' && m.content.startsWith('DELETE:')) {
+    if (m.type === 'text' && m.content.startsWith('DELETE:')) {
       const targetId = m.content.split(':')[1];
-      if (targetId) editsMap[targetId] = 'This message was deleted';
+      if (targetId) deletedEveryoneIds.add(targetId);
       continue;
     }
     
@@ -590,6 +722,7 @@ export default function Chat() {
       }
       continue;
     }
+
     if (m.type === 'text' && m.content.startsWith('EDIT:')) {
       const parts = m.content.split(':');
       if (parts.length >= 3) {
@@ -609,20 +742,91 @@ export default function Chat() {
       }
     }
     
+    // Filter out messages deleted for me
+    if (deletedForMe.includes(m.id)) {
+      continue;
+    }
+
     realMessages.push(m);
   }
 
   realMessages = realMessages.map(m => {
+    const isDeleted = deletedEveryoneIds.has(m.id);
+    const replyTargetId = repliesMap[m.id];
+    const originalMsg = replyTargetId ? msgMap.get(replyTargetId) : undefined;
+
     return {
        ...m,
        reactions: reactionsMap[m.id] || {},
-       content: editsMap[m.id] || m.content,
-       is_edited: !!editsMap[m.id],
-       reply_to: repliesMap[m.id],
-       reply_to_text: repliesMap[m.id] ? realMessages.find(om => om.id === repliesMap[m.id])?.content : undefined,
-       is_pinned: pinsMap[m.id] || false
+       content: isDeleted ? 'This message was deleted' : (editsMap[m.id] || m.content),
+       is_edited: !isDeleted && !!editsMap[m.id],
+       is_deleted: isDeleted,
+       reply_to: replyTargetId,
+       reply_to_text: originalMsg ? (originalMsg.type === 'image' ? '📷 Photo' : originalMsg.type === 'audio' ? '🎵 Voice note' : originalMsg.type === 'video' ? '🎥 Video' : originalMsg.content) : undefined,
+       reply_to_sender_id: originalMsg?.sender_id,
+       is_pinned: !isDeleted && (pinsMap[m.id] || false)
     };
   });
+
+  const pinnedMessages = realMessages.filter(m => m.is_pinned && !m.is_deleted);
+
+  const handleCopySelected = () => {
+    const selectedMsgs = realMessages
+      .filter(m => selectedMessageIds.includes(m.id))
+      .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+    
+    const text = selectedMsgs.map(m => m.type === 'image' ? '[Photo]' : m.type === 'audio' ? '[Voice note]' : m.type === 'video' ? '[Video]' : m.content).join("\n\n");
+    navigator.clipboard.writeText(text)
+      .then(() => showToast(`✓ ${selectedMessageIds.length} messages copied`, "success"))
+      .catch(() => showToast("Couldn't copy messages", "error"));
+    handleCancelSelection();
+  };
+
+  const handleShareSelected = () => {
+    const selectedMsgs = realMessages
+      .filter(m => selectedMessageIds.includes(m.id))
+      .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+    
+    const text = selectedMsgs.map(m => m.type === 'image' ? '[Photo]' : m.type === 'audio' ? '[Voice note]' : m.type === 'video' ? '[Video]' : m.content).join("\n\n");
+    if (navigator.share) {
+      navigator.share({ text, title: "Shared from Just Us" }).catch(() => {});
+    } else {
+      navigator.clipboard.writeText(text)
+        .then(() => showToast(`✓ Messages copied to share`, "success"))
+        .catch(() => showToast("Couldn't share messages", "error"));
+    }
+    handleCancelSelection();
+  };
+
+  const handleDeleteSelected = () => {
+    const selectedMsgs = realMessages.filter(m => selectedMessageIds.includes(m.id));
+    const allMine = selectedMsgs.length > 0 && selectedMsgs.every(m => m.sender_id === myId);
+    setDeleteModalState({
+      isOpen: true,
+      messageId: null,
+      isMultiple: true,
+      canDeleteForEveryone: allMine,
+      count: selectedMessageIds.length,
+    });
+  };
+
+  const confirmDeleteForMe = () => {
+    if (deleteModalState.isMultiple) {
+      handleDeleteForMe(selectedMessageIds);
+      handleCancelSelection();
+    } else if (deleteModalState.messageId) {
+      handleDeleteForMe([deleteModalState.messageId]);
+    }
+  };
+
+  const confirmDeleteForEveryone = () => {
+    if (deleteModalState.isMultiple) {
+      selectedMessageIds.forEach(id => handleDeleteForEveryone(id));
+      handleCancelSelection();
+    } else if (deleteModalState.messageId) {
+      handleDeleteForEveryone(deleteModalState.messageId);
+    }
+  };
 
   const timeline: TimelineItem[] = [
     ...realMessages.map((m) => ({ kind: "message" as const, data: m, time: m.created_at })),
@@ -692,36 +896,35 @@ export default function Chat() {
         </div>
       )}
 
-      {infoMessageId && (
-        <div className="fixed inset-0 z-[120] bg-black/60 flex items-center justify-center p-4 animate-in fade-in duration-200" onClick={() => setInfoMessageId(null)}>
-           <div className="bg-[#18181A] rounded-2xl p-5 w-full max-w-sm shadow-2xl border border-white/10" onClick={e => e.stopPropagation()}>
-              <h3 className="text-lg font-semibold text-white mb-4">Message info</h3>
-              {(() => {
-                 const m = realMessages.find(msg => msg.id === infoMessageId);
-                 if (!m) return <p className="text-white/50">Message not found</p>;
-                 return (
-                   <div className="space-y-4">
-                     <div className="flex justify-between items-center border-b border-white/5 pb-2">
-                       <span className="text-white/60 text-sm">Sent</span>
-                       <span className="text-white text-sm">{new Date(m.created_at).toLocaleString([], { weekday: 'short', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
-                     </div>
-                     <div className="flex justify-between items-center border-b border-white/5 pb-2">
-                       <span className="text-white/60 text-sm">Delivered</span>
-                       <span className="text-white text-sm">{new Date(m.created_at).toLocaleString([], { weekday: 'short', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
-                     </div>
-                     {m.status === 'read' && (
-                       <div className="flex justify-between items-center border-b border-white/5 pb-2">
-                         <span className="text-white/60 text-sm">Read</span>
-                         <span className="text-white text-sm">{new Date(m.created_at).toLocaleString([], { weekday: 'short', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
-                       </div>
-                     )}
-                   </div>
-                 );
-              })()}
-              <button onClick={() => setInfoMessageId(null)} className="w-full mt-6 py-2.5 rounded-xl bg-white/10 text-white font-medium hover:bg-white/15 active:bg-white/20 transition-colors">Close</button>
-           </div>
-        </div>
-      )}
+      <Toast toasts={toasts} onDismiss={removeToast} />
+
+      <DeleteMessageModal
+        isOpen={deleteModalState.isOpen}
+        onClose={() => setDeleteModalState(prev => ({ ...prev, isOpen: false }))}
+        canDeleteForEveryone={deleteModalState.canDeleteForEveryone}
+        onDeleteForMe={confirmDeleteForMe}
+        onDeleteForEveryone={confirmDeleteForEveryone}
+        count={deleteModalState.count}
+      />
+
+      <PinnedMessagesModal
+        isOpen={showPinnedModal}
+        onClose={() => setShowPinnedModal(false)}
+        pinnedMessages={pinnedMessages}
+        myId={myId}
+        partnerName={partnerDisplay}
+        onNavigateToMessage={scrollToAndHighlightMessage}
+        onUnpin={(id) => handlePin(id, true)}
+      />
+
+      <MessageInfoModal
+        isOpen={!!infoMessageId}
+        onClose={() => setInfoMessageId(null)}
+        message={realMessages.find(m => m.id === infoMessageId) || null}
+        myId={myId}
+        partnerName={partnerDisplay}
+      />
+
       {showSearch && (
         <ChatSearch
           onClose={() => setShowSearch(false)}
@@ -730,6 +933,7 @@ export default function Chat() {
           myId={myId}
         />
       )}
+
       <ChatHeader
         partnerInitial={partnerInitial}
         partnerColor={partnerColor}
@@ -747,18 +951,63 @@ export default function Chat() {
         onOpenMedia={() => setShowMediaModal(true)}
         partnerAvatarUrl={partnerAvatarUrl}
         onOpenAvatarUpload={() => setShowAvatarModal(true)}
+        onSearchClick={() => setShowSearch(true)}
+        onOpenPinned={() => setShowPinnedModal(true)}
+        pinnedCount={pinnedMessages.length}
+        selectionMode={selectionMode}
+        selectedCount={selectedMessageIds.length}
+        onCancelSelection={handleCancelSelection}
+        onCopySelected={handleCopySelected}
+        onShareSelected={handleShareSelected}
+        onDeleteSelected={handleDeleteSelected}
       />
+
+      {pinnedMessages.length > 0 && !selectionMode && (
+        <div 
+          onClick={() => {
+            const latestPinned = pinnedMessages[pinnedMessages.length - 1];
+            if (latestPinned) scrollToAndHighlightMessage(latestPinned.id);
+          }}
+          className="mx-4 mt-2 px-3.5 py-2 bg-[#18181A]/90 border border-[var(--gold)]/30 rounded-2xl flex items-center justify-between gap-2 cursor-pointer hover:bg-white/5 transition-colors shadow-lg z-20 shrink-0"
+        >
+          <div className="flex items-center gap-2.5 min-w-0">
+            <Pin className="w-4 h-4 text-[var(--gold)] shrink-0" />
+            <div className="flex flex-col min-w-0">
+              <span className="text-[11px] font-semibold text-[var(--gold)]">Pinned Message</span>
+              <span className="text-[13px] text-white/90 truncate">
+                {pinnedMessages[pinnedMessages.length - 1].type === 'image' ? '📷 Photo' : pinnedMessages[pinnedMessages.length - 1].type === 'audio' ? '🎵 Voice note' : pinnedMessages[pinnedMessages.length - 1].type === 'video' ? '🎥 Video' : pinnedMessages[pinnedMessages.length - 1].content}
+              </span>
+            </div>
+          </div>
+          <button 
+            onClick={(e) => {
+              e.stopPropagation();
+              setShowPinnedModal(true);
+            }}
+            className="text-[11px] font-medium text-white/50 hover:text-white shrink-0 px-2.5 py-1 rounded-full bg-white/5 border border-white/10"
+          >
+            {pinnedMessages.length > 1 ? `All (${pinnedMessages.length})` : "View"}
+          </button>
+        </div>
+      )}
 
       <MessageList
         timeline={timeline}
         myId={myId}
+        partnerName={partnerDisplay}
         handleReaction={handleReaction}
         onReply={handleReply}
         onEdit={handleEdit}
-        onDelete={handleDelete}
+        onDelete={handleDeleteClick}
+        onCopy={handleCopy}
+        onQuoteClick={scrollToAndHighlightMessage}
         onPin={(id) => handlePin(id, !!pinsMap[id])}
         onForward={handleForward}
         onInfo={handleInfo}
+        onSelect={handleSelectMessage}
+        selectionMode={selectionMode}
+        selectedMessageIds={selectedMessageIds}
+        onToggleSelect={handleToggleSelect}
         partnerTyping={partnerTyping}
         bottomRef={bottomRef}
         partnerInitial={partnerInitial}

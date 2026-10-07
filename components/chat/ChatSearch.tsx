@@ -39,7 +39,13 @@ export default function ChatSearch({ onClose, conversationId, onResultClick, myI
       setLoading(false);
       if (!error && data) {
          // Filter out edits/reactions/metadata just in case, though they usually start with uppercase keywords
-         const filtered = data.filter((m: any) => !m.content.startsWith('REACTION:') && !m.content.startsWith('EDIT:') && !m.content.startsWith('DELETE:'));
+         const filtered = data.filter((m: any) => 
+           !m.content.startsWith('REACTION:') && 
+           !m.content.startsWith('EDIT:') && 
+           !m.content.startsWith('DELETE:') &&
+           !m.content.startsWith('PIN:') &&
+           !m.content.startsWith('UNPIN:')
+         );
          setResults(filtered);
       }
     }, 500);

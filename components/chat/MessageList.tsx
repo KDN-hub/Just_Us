@@ -1,3 +1,5 @@
+"use client";
+
 import { RefObject } from "react";
 import MessageBubble from "@/components/MessageBubble";
 import CallBubble from "@/components/CallBubble";
@@ -7,10 +9,13 @@ import { motion, AnimatePresence } from "framer-motion";
 interface MessageListProps {
   timeline: any[];
   myId: string;
+  partnerName?: string;
   handleReaction: (messageId: string, emoji: string) => void;
   onReply?: (messageId: string) => void;
   onEdit?: (messageId: string) => void;
   onDelete?: (messageId: string) => void;
+  onCopy?: (content: string) => void;
+  onQuoteClick?: (targetId: string) => void;
   partnerTyping: boolean;
   bottomRef: RefObject<HTMLDivElement>;
   partnerInitial: string;
@@ -20,15 +25,22 @@ interface MessageListProps {
   onPin?: (id: string) => void;
   onForward?: (id: string) => void;
   onInfo?: (id: string) => void;
+  onSelect?: (id: string) => void;
+  selectionMode?: boolean;
+  selectedMessageIds?: string[];
+  onToggleSelect?: (id: string) => void;
 }
 
 export default function MessageList({
   timeline,
   myId,
+  partnerName = "Partner",
   handleReaction,
   onReply,
   onEdit,
   onDelete,
+  onCopy,
+  onQuoteClick,
   partnerTyping,
   bottomRef,
   partnerInitial,
@@ -38,6 +50,10 @@ export default function MessageList({
   onPin,
   onForward,
   onInfo,
+  onSelect,
+  selectionMode = false,
+  selectedMessageIds = [],
+  onToggleSelect,
 }: MessageListProps) {
   return (
     <div className="relative z-10 flex flex-1 min-h-0 flex-col overflow-y-auto overflow-x-hidden px-4 pt-4 pb-6">
@@ -91,9 +107,18 @@ export default function MessageList({
         }
 
         return (
-          <motion.div id={`msg-${item.data.id}`} key={item.data.id} layout initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ type: "spring", stiffness: 300, damping: 25 }} className={mb}>
+          <motion.div 
+            id={`msg-${item.data.id}`} 
+            key={item.data.id} 
+            layout 
+            initial={{ opacity: 0, y: 20 }} 
+            animate={{ opacity: 1, y: 0 }} 
+            transition={{ type: "spring", stiffness: 300, damping: 25 }} 
+            className={`transition-all duration-300 rounded-2xl ${mb}`}
+          >
             {item.kind === "message" ? (
               <MessageBubble
+                id={item.data.id}
                 content={item.data.content}
                 isMine={item.data.sender_id === myId}
                 timestamp={item.data.created_at}
@@ -106,6 +131,21 @@ export default function MessageList({
                 onReply={() => onReply?.(item.data.id)}
                 onEdit={() => onEdit?.(item.data.id)}
                 onDelete={() => onDelete?.(item.data.id)}
+                onCopy={() => onCopy?.(item.data.content)}
+                replyToId={item.data.reply_to}
+                replyToText={item.data.reply_to_text}
+                replyToSenderName={item.data.reply_to_sender_id === myId ? "You" : partnerName}
+                onQuoteClick={onQuoteClick}
+                isEdited={item.data.is_edited}
+                isPinned={item.data.is_pinned}
+                isDeleted={item.data.is_deleted}
+                onPin={() => onPin?.(item.data.id)}
+                onForward={() => onForward?.(item.data.id)}
+                onInfo={() => onInfo?.(item.data.id)}
+                onSelect={() => onSelect?.(item.data.id)}
+                selectionMode={selectionMode}
+                isSelected={selectedMessageIds.includes(item.data.id)}
+                onToggleSelect={() => onToggleSelect?.(item.data.id)}
                 groupPosition={groupPosition}
                 partnerInitial={partnerInitial}
                 partnerColor={partnerColor}
@@ -137,5 +177,3 @@ export default function MessageList({
     </div>
   );
 }
-
-
