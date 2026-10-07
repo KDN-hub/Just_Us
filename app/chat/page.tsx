@@ -690,10 +690,35 @@ export default function Chat() {
   const reactionsMap: Record<string, Record<string, string>> = {};
   const editsMap: Record<string, string> = {};
   const repliesMap: Record<string, string> = {}; // newMsgId -> originalMsgId
+  const replyTextsMap: Record<string, string> = {}; // newMsgId -> cleanReplyContent
   const pinsMap: Record<string, boolean> = {};
   const deletedEveryoneIds = new Set<string>();
 
   const msgMap = new Map(messageList.map(m => [m.id, m]));
+
+  const getMessageSnippet = (msg?: Message): string | undefined => {
+    if (!msg) return undefined;
+    if (msg.is_deleted || deletedEveryoneIds.has(msg.id)) return 'This message was deleted';
+    if (msg.type === 'image_group') return '📷 Photos';
+    if (msg.type === 'image') return '📷 Photo';
+    if (msg.type === 'video') return '🎥 Video';
+    if (msg.type === 'text') {
+      if (msg.content.startsWith('AUDIO_URL:')) return '🎵 Voice note';
+      if (msg.content.startsWith('VIDEO_URL:')) return '🎥 Video';
+      if (msg.content.startsWith('FILE_URL:')) {
+        const parts = msg.content.replace('FILE_URL:', '').split('|');
+        return `📄 ${parts[1] || 'Document'}`;
+      }
+      if (msg.content === 'NUDGE_PING_💖') return '💖 Nudge';
+      if (msg.content.startsWith('REPLY:')) {
+        const parts = msg.content.split(':');
+        return parts.slice(2).join(':');
+      }
+      if (editsMap[msg.id]) return editsMap[msg.id];
+      return msg.content;
+    }
+    return msg.content;
+  };
 
   for (const m of messageList) {
     if (m.type === 'text' && m.content.startsWith('REACTION:')) {
@@ -738,7 +763,7 @@ export default function Chat() {
       if (parts.length >= 3) {
         const targetId = parts[1];
         repliesMap[m.id] = targetId;
-        m.content = parts.slice(2).join(':');
+        replyTextsMap[m.id] = parts.slice(2).join(':');
       }
     }
     
@@ -752,17 +777,18 @@ export default function Chat() {
 
   realMessages = realMessages.map(m => {
     const isDeleted = deletedEveryoneIds.has(m.id);
-    const replyTargetId = repliesMap[m.id];
+    const replyTargetId = repliesMap[m.id] || m.reply_to;
     const originalMsg = replyTargetId ? msgMap.get(replyTargetId) : undefined;
+    const baseContent = replyTextsMap[m.id] || m.content;
 
     return {
        ...m,
        reactions: reactionsMap[m.id] || {},
-       content: isDeleted ? 'This message was deleted' : (editsMap[m.id] || m.content),
+       content: isDeleted ? 'This message was deleted' : (editsMap[m.id] || baseContent),
        is_edited: !isDeleted && !!editsMap[m.id],
        is_deleted: isDeleted,
        reply_to: replyTargetId,
-       reply_to_text: originalMsg ? (originalMsg.type === 'image' ? '📷 Photo' : originalMsg.type === 'audio' ? '🎵 Voice note' : originalMsg.type === 'video' ? '🎥 Video' : originalMsg.content) : undefined,
+       reply_to_text: originalMsg ? getMessageSnippet(originalMsg) : undefined,
        reply_to_sender_id: originalMsg?.sender_id,
        is_pinned: !isDeleted && (pinsMap[m.id] || false)
     };
@@ -1029,7 +1055,7 @@ export default function Chat() {
         <div className="flex items-center justify-between bg-[#18181A]/95 backdrop-blur-2xl px-4 py-2 border-t border-white/10 text-white text-[13px]">
           <div className="flex flex-col">
             <span className="font-semibold text-white/70 mb-0.5 flex items-center gap-1.5"><Reply className="w-3.5 h-3.5" /> Replying to {realMessages.find(m => m.id === replyingTo)?.sender_id === myId ? "Yourself" : (partner?.nickname || partner?.name || "Partner")}</span>
-            <span className="line-clamp-1 opacity-50">{realMessages.find(m => m.id === replyingTo)?.content}</span>
+            <span className="line-clamp-1 opacity-50">{getMessageSnippet(realMessages.find(m => m.id === replyingTo)) || "Message"}</span>
           </div>
           <button onClick={() => setReplyingTo(null)} className="p-2 hover:bg-white/10 rounded-full"><X className="w-4 h-4 text-white/50" /></button>
         </div>
