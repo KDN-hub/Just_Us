@@ -51,8 +51,8 @@ export default function CallBubble({
   return (
     <div className="mx-auto flex w-fit max-w-[85%] items-center gap-2.5 rounded-[12px] bg-[var(--card)] px-4 py-2.5">
       <Icon className={`h-[18px] w-[18px] shrink-0 ${colorClass}`} strokeWidth={2} />
-      <span className={`text-[13px] ${colorClass}`}>{label}</span>
-      <span className="text-[11px] text-[var(--muted)]">· {formatTime(timestamp)}</span>
+      <span className={`text-[14px] ${colorClass}`}>{label}</span>
+      <span className="text-[12px] text-[var(--muted)]">· {formatTime(timestamp)}</span>
     </div>
   );
 }

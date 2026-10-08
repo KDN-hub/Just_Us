@@ -296,6 +296,8 @@ export function useChatRealtime(signalChRef: React.MutableRefObject<ReturnType<t
   useEffect(() => {
     if (!myId) return;
 
+    let partnerTypingTimer: NodeJS.Timeout | null = null;
+
     const ch = supabase
       .channel(SIGNAL_CHANNEL, { config: { broadcast: { self: false }, private: true } })
       .on("broadcast", { event: "offer" }, ({ payload }) => {
@@ -312,7 +314,13 @@ export function useChatRealtime(signalChRef: React.MutableRefObject<ReturnType<t
       })
       .on("broadcast", { event: "typing" }, ({ payload }) => {
         if (payload.userId !== myId) {
+          if (partnerTypingTimer) clearTimeout(partnerTypingTimer);
           setPartnerTyping(payload.isTyping);
+          if (payload.isTyping) {
+            partnerTypingTimer = setTimeout(() => {
+              setPartnerTyping(false);
+            }, 3500);
+          }
         }
       })
       .on("broadcast", { event: "nudge" }, ({ payload }) => {
@@ -335,6 +343,9 @@ export function useChatRealtime(signalChRef: React.MutableRefObject<ReturnType<t
 
     signalChRef.current = ch;
 
-    return () => { supabase.removeChannel(ch); };
+    return () => { 
+      if (partnerTypingTimer) clearTimeout(partnerTypingTimer);
+      supabase.removeChannel(ch); 
+    };
   }, [myId, setIncomingCall, setPartnerTyping, signalChRef]);
 }

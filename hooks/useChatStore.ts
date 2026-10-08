@@ -128,6 +128,7 @@ interface ChatState {
   
   addOrUpdateMessage: (msg: Message) => void;
   addOrUpdateMessages: (msgs: Message[]) => void;
+  removeMessage: (id: string) => void;
   addOrUpdateCallLog: (call: CallLogEntry) => void;
   addOrUpdateCallLogs: (calls: CallLogEntry[]) => void;
   
@@ -223,6 +224,12 @@ export const useChatStore = create<ChatState>((set, get) => ({
     }
     saveMsgCache(newMessages);
     return { messages: newMessages };
+  }),
+  
+  removeMessage: (id) => set((state) => {
+    const { [id]: _, ...remaining } = state.messages;
+    saveMsgCache(remaining);
+    return { messages: remaining };
   }),
   
   addOrUpdateCallLog: (call) => set((state) => ({

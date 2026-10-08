@@ -9,7 +9,7 @@ import { supabase } from "@/lib/supabase";
 import Avatar from "@/components/Avatar";
 import ChatHeader from "@/components/chat/ChatHeader";
 import ChatSearch from "@/components/chat/ChatSearch";
-import MessageList from "@/components/chat/MessageList";
+import MessageList, { formatDateSeparator } from "@/components/chat/MessageList";
 import ChatInput from "@/components/chat/ChatInput";
 import Toast, { ToastMessage } from "@/components/chat/Toast";
 import DeleteMessageModal from "@/components/chat/DeleteMessageModal";
@@ -17,15 +17,23 @@ import PinnedMessagesModal from "@/components/chat/PinnedMessagesModal";
 import MessageInfoModal from "@/components/chat/MessageInfoModal";
 import { useChatStore, generateUUID, formatLastSeen, TimelineItem, Message } from "@/hooks/useChatStore";
 import { useChatRealtime } from "@/hooks/useChatRealtime";
+import { toggleFavoriteSticker, fetchFavoriteStickers } from "@/lib/stickers";
 
 const CONVERSATION_ID = "c0000000-0000-0000-0000-000000000003";
 
 export default function Chat() {
   const router = useRouter();
   const bottomRef = useRef<HTMLDivElement>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const signalChRef = useRef<RealtimeChannel | null>(null);
   const prevCountRef = useRef(0);
+  const isAtBottomRef = useRef(true);
+  const [unreadNewCount, setUnreadNewCount] = useState(0);
+  const [showFloatingDate, setShowFloatingDate] = useState(false);
+  const [floatingDateText, setFloatingDateText] = useState("");
+  const floatingDateTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const rafIdRef = useRef<number | null>(null);
 
   const {
     myId, partner, messages, callLog, reconnecting,
@@ -147,6 +155,22 @@ export default function Chat() {
     }
     return [];
   });
+  const [favoriteStickerUrls, setFavoriteStickerUrls] = useState<string[]>([]);
+
+  useEffect(() => {
+    if (!myId) return;
+    fetchFavoriteStickers(myId).then((favs) => {
+      setFavoriteStickerUrls(favs.map((f) => f.url));
+    });
+  }, [myId]);
+
+  const handleToggleFavoriteSticker = async (url: string) => {
+    const isNowFav = await toggleFavoriteSticker(myId, { id: "", url });
+    setFavoriteStickerUrls((prev) =>
+      isNowFav ? [url, ...prev.filter((u) => u !== url)] : prev.filter((u) => u !== url)
+    );
+    showToast(isNowFav ? "Added sticker to favorites ⭐" : "Removed sticker from favorites", "info");
+  };
 
   const toggleFavorite = (url: string, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -175,18 +199,42 @@ export default function Chat() {
       setShowEmojiPicker(false);
       
       if (!offline) {
-        const { data: insertData, error: insertError } = await supabase
+        let insertType = type;
+        let insertContent = url;
+
+        let { data: insertData, error: insertError } = await supabase
           .from('messages')
           .insert({
             id: tempId,
             conversation_id: CONVERSATION_ID,
             sender_id: myId,
-            type: type,
-            content: url,
+            type: insertType,
+            content: insertContent,
             status: 'sent',
           })
           .select('created_at')
           .single();
+          
+        if (insertError && type === 'sticker') {
+          // Graceful fallback if Postgres constraint messages_type_check is not yet altered
+          const fallbackRes = await supabase
+            .from('messages')
+            .insert({
+              id: tempId,
+              conversation_id: CONVERSATION_ID,
+              sender_id: myId,
+              type: 'text',
+              content: `STICKER:${url}`,
+              status: 'sent',
+            })
+            .select('created_at')
+            .single();
+            
+          if (!fallbackRes.error) {
+            insertError = null;
+            insertData = fallbackRes.data;
+          }
+        }
           
         if (insertError) {
           const m = useChatStore.getState().messages[tempId];
@@ -203,7 +251,25 @@ export default function Chat() {
 
   const uploadMedia = async (file: File | Blob, type: string, caption?: string) => {
     try {
-      const ext = (file as File).name ? (file as File).name.split('.').pop() : 'webm';
+      let ext = 'bin';
+      const fileNameProp = (file as File).name;
+      if (fileNameProp && fileNameProp.includes('.')) {
+        ext = fileNameProp.split('.').pop()?.toLowerCase() || 'bin';
+      } else if (file.type) {
+        if (file.type.includes('jpeg') || file.type.includes('jpg')) ext = 'jpg';
+        else if (file.type.includes('png')) ext = 'png';
+        else if (file.type.includes('webp')) ext = 'webp';
+        else if (file.type.includes('gif')) ext = 'gif';
+        else if (file.type.includes('mp4')) ext = 'mp4';
+        else if (file.type.includes('quicktime')) ext = 'mov';
+        else if (file.type.includes('webm')) {
+          ext = type === 'audio' ? 'webm' : type === 'image' ? 'jpg' : 'webm';
+        }
+      } else {
+        if (type === 'image') ext = 'jpg';
+        else if (type === 'video') ext = 'mp4';
+        else if (type === 'audio') ext = 'webm';
+      }
       const fileName = `${generateUUID()}.${ext}`;
       
       const { data, error } = await supabase.storage.from('chat_media').upload(fileName, file);
@@ -224,6 +290,16 @@ export default function Chat() {
       let dbContent = url;
       if (type === 'audio') dbContent = `AUDIO_URL:${url}`;
       if (type === 'video') dbContent = `VIDEO_URL:${url}`;
+      if (type === 'file') {
+        const origName = (file as File).name || 'Document';
+        const origSize = (file as File).size || 0;
+        dbContent = `FILE_URL:${url}|${origName}|${origSize}`;
+      }
+      if (caption && caption.trim()) {
+        if (type === 'image' || type === 'video') {
+          dbContent = `${dbContent}|CAPTION:${caption.trim()}`;
+        }
+      }
       
       const tempId = generateUUID();
       const offline = !navigator.onLine;
@@ -261,30 +337,91 @@ export default function Chat() {
           if (m) addOrUpdateMessage({ ...m, created_at: insertData.created_at, pending: false });
         }
       }
-
-      if (caption) {
-        handleSend(caption);
-      }
     } catch (err) {
       console.error(err);
       alert('An error occurred during upload.');
     }
   };
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    
-    let type = 'file';
-    if (file.type.startsWith('image/')) type = 'image';
-    else if (file.type.startsWith('video/')) type = 'video';
-    else if (file.type.startsWith('audio/')) type = 'audio';
+  const handleEditMedia = async (rawUrl: string, rawType: string) => {
+    try {
+      showToast("Opening media editor...", "info");
+      let cleanUrl = rawUrl;
+      let existingCaption = "";
+      if (cleanUrl.includes("|CAPTION:")) {
+        const parts = cleanUrl.split("|CAPTION:");
+        cleanUrl = parts[0];
+        existingCaption = parts.slice(1).join("|CAPTION:");
+      }
+      cleanUrl = cleanUrl.replace("VIDEO_URL:", "").replace("AUDIO_URL:", "");
 
-    if (type === 'file' || type === 'audio') {
-      // Direct upload without preview for documents and audio files
-      uploadMedia(file, type);
+      const isVid = rawType === "video" || cleanUrl.endsWith(".mp4") || cleanUrl.endsWith(".webm");
+      const targetType = isVid ? "video" : "image";
+      const ext = cleanUrl.split('.').pop()?.split('?')[0] || (isVid ? 'mp4' : 'jpeg');
+
+      let file: File | null = null;
+      let objectUrl = cleanUrl;
+
+      try {
+        const response = await fetch(cleanUrl);
+        if (response.ok) {
+          const blob = await response.blob();
+          file = new File([blob], `edit-media-${Date.now()}.${ext}`, {
+            type: blob.type || (isVid ? 'video/mp4' : 'image/jpeg'),
+          });
+          objectUrl = URL.createObjectURL(file);
+        }
+      } catch (fetchErr) {
+        console.warn("Direct blob fetch failed (possibly CORS), using direct URL fallback:", fetchErr);
+      }
+
+      if (!file) {
+        file = new File([], `edit-media-${Date.now()}.${ext}`, {
+          type: isVid ? 'video/mp4' : 'image/jpeg',
+        });
+      }
+
+      setMediaCaption(existingCaption);
+      setPendingMedia({
+        file,
+        type: targetType,
+        url: objectUrl,
+      });
+    } catch (err) {
+      console.error("Failed to load media for editing", err);
+      showToast("Couldn't open media in editor", "error");
+    }
+  };
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const fileList = e.target.files;
+    if (!fileList || fileList.length === 0) return;
+    
+    if (fileList.length === 1) {
+      const file = fileList[0];
+      let type = 'file';
+      if (file.type.startsWith('image/')) type = 'image';
+      else if (file.type.startsWith('video/')) type = 'video';
+      else if (file.type.startsWith('audio/')) type = 'audio';
+
+      if (type === 'file' || type === 'audio') {
+        uploadMedia(file, type);
+      } else {
+        setPendingMedia({ file, type, url: URL.createObjectURL(file) });
+      }
     } else {
-      setPendingMedia({ file, type, url: URL.createObjectURL(file) });
+      // Multiple items selected -> Upload each item sequentially so they form a media deck in chat
+      showToast(`Sending ${fileList.length} items as a deck...`, "info");
+      const filesArr = Array.from(fileList);
+      filesArr.forEach((file, idx) => {
+        let type = 'file';
+        if (file.type.startsWith('image/')) type = 'image';
+        else if (file.type.startsWith('video/')) type = 'video';
+        else if (file.type.startsWith('audio/')) type = 'audio';
+        setTimeout(() => {
+          uploadMedia(file, type);
+        }, idx * 300);
+      });
     }
     e.target.value = '';
   };
@@ -335,33 +472,148 @@ export default function Chat() {
   const messageList = getMessageList();
   const callLogList = getCallLogList();
 
+  const updateVisibleDate = useCallback(() => {
+    const el = scrollContainerRef.current;
+    if (!el) return;
+
+    const containerRect = el.getBoundingClientRect();
+    const targetY = containerRect.top + 35;
+
+    const msgElements = el.querySelectorAll<HTMLElement>("[data-msg-time]");
+    let activeTime: string | null = null;
+
+    for (let i = 0; i < msgElements.length; i++) {
+      const msgEl = msgElements[i];
+      const rect = msgEl.getBoundingClientRect();
+      if (rect.bottom >= targetY) {
+        activeTime = msgEl.getAttribute("data-msg-time");
+        break;
+      }
+    }
+
+    if (!activeTime && msgElements.length > 0) {
+      activeTime = msgElements[msgElements.length - 1].getAttribute("data-msg-time");
+    }
+
+    if (activeTime) {
+      const formatted = formatDateSeparator(activeTime);
+      setFloatingDateText(formatted);
+    }
+  }, []);
+
+  const handleScrollContainer = useCallback(async () => {
+    const el = scrollContainerRef.current;
+    if (!el) return;
+
+    const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
+    const atBottom = distanceFromBottom < 100;
+    isAtBottomRef.current = atBottom;
+    if (atBottom) {
+      setUnreadNewCount(0);
+    }
+
+    // Trigger WhatsApp-style floating date indicator on scroll
+    setShowFloatingDate(true);
+    if (floatingDateTimerRef.current) {
+      clearTimeout(floatingDateTimerRef.current);
+    }
+    floatingDateTimerRef.current = setTimeout(() => {
+      setShowFloatingDate(false);
+    }, 1800);
+
+    if (rafIdRef.current) cancelAnimationFrame(rafIdRef.current);
+    rafIdRef.current = requestAnimationFrame(() => {
+      updateVisibleDate();
+    });
+
+    if (el.scrollTop < 60) {
+      const state = useChatStore.getState();
+      if (state.hasMoreMessages && !state.isLoadingOlder) {
+        const prevScrollHeight = el.scrollHeight;
+        const prevScrollTop = el.scrollTop;
+        await state.loadOlderMessages();
+        requestAnimationFrame(() => {
+          if (scrollContainerRef.current) {
+            const newScrollHeight = scrollContainerRef.current.scrollHeight;
+            scrollContainerRef.current.scrollTop = prevScrollTop + (newScrollHeight - prevScrollHeight);
+            updateVisibleDate();
+          }
+        });
+      }
+    }
+  }, [updateVisibleDate]);
+
+  const scrollToBottom = useCallback(() => {
+    bottomRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+    setUnreadNewCount(0);
+    isAtBottomRef.current = true;
+  }, []);
+
   useEffect(() => {
     const count = messageList.length + callLogList.length;
     if (count === 0 && !partnerTyping) return;
-    bottomRef.current?.scrollIntoView({
-      behavior: prevCountRef.current === 0 ? "auto" : "smooth",
-      block: "end",
-    });
+
+    const isInitial = prevCountRef.current === 0;
+    const latestMsg = messageList[messageList.length - 1];
+    const isMine = latestMsg?.sender_id === myId;
+
+    if (isInitial || isMine || isAtBottomRef.current) {
+      bottomRef.current?.scrollIntoView({
+        behavior: isInitial ? "auto" : "smooth",
+        block: "end",
+      });
+      setUnreadNewCount(0);
+    } else if (count > prevCountRef.current && !isMine) {
+      setUnreadNewCount(prev => prev + 1);
+    }
     prevCountRef.current = count;
-  }, [messageList.length, callLogList.length, partnerTyping]);
+  }, [messageList.length, callLogList.length, partnerTyping, myId]);
+
+  useEffect(() => {
+    return () => {
+      if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+      if (floatingDateTimerRef.current) clearTimeout(floatingDateTimerRef.current);
+      if (rafIdRef.current) cancelAnimationFrame(rafIdRef.current);
+      signalChRef.current?.send({ type: "broadcast", event: "typing", payload: { userId: myId, isTyping: false } });
+    };
+  }, [myId]);
 
   useEffect(() => {
     if (!isOnline) return;
     const queued = messageList.filter((m) => m.queued && m.sender_id === myId);
     if (queued.length === 0) return;
     queued.forEach(async (msg) => {
-      const { error } = await supabase
+      let insertType = msg.type || 'text';
+      let insertContent = msg.content;
+      let { error } = await supabase
         .from('messages')
         .insert({
           id: msg.id,
           conversation_id: CONVERSATION_ID,
           sender_id: myId,
-          type: 'text',
-          content: msg.content,
+          type: insertType,
+          content: insertContent,
           status: 'sent',
         })
         .select('id')
         .single();
+
+      if (error && msg.type === 'sticker') {
+        const fallbackRes = await supabase
+          .from('messages')
+          .insert({
+            id: msg.id,
+            conversation_id: CONVERSATION_ID,
+            sender_id: myId,
+            type: 'text',
+            content: `STICKER:${msg.content}`,
+            status: 'sent',
+          })
+          .select('id')
+          .single();
+        if (!fallbackRes.error) error = null;
+      }
+
       if (!error) {
         addOrUpdateMessage({ ...msg, queued: false, pending: true });
       }
@@ -397,6 +649,13 @@ export default function Chat() {
       queued: offline,
     });
     inputRef.current?.focus();
+
+    if (typingTimeoutRef.current) {
+      clearTimeout(typingTimeoutRef.current);
+      // @ts-ignore
+      typingTimeoutRef.current = null;
+    }
+    signalChRef.current?.send({ type: "broadcast", event: "typing", payload: { userId: myId, isTyping: false } });
 
     if (offline) return;
 
@@ -528,6 +787,7 @@ export default function Chat() {
       status: 'sent' 
     });
     if (error) {
+      useChatStore.getState().removeMessage(tempId);
       showToast("Couldn't update pin. Try again.", "error");
     }
   };
@@ -629,6 +889,7 @@ export default function Chat() {
     });
 
     if (error) {
+      useChatStore.getState().removeMessage(tempId);
       showToast("Couldn't delete message. Try again.", "error");
     }
   };
@@ -682,6 +943,7 @@ export default function Chat() {
     });
 
     if (error) {
+      useChatStore.getState().removeMessage(tempId);
       showToast("Couldn't add reaction. Try again.", "error");
     }
   };
@@ -699,12 +961,24 @@ export default function Chat() {
   const getMessageSnippet = (msg?: Message): string | undefined => {
     if (!msg) return undefined;
     if (msg.is_deleted || deletedEveryoneIds.has(msg.id)) return 'This message was deleted';
+    if (msg.type === 'sticker') return '👾 Sticker';
     if (msg.type === 'image_group') return '📷 Photos';
-    if (msg.type === 'image') return '📷 Photo';
+    if (msg.type === 'image') {
+      if (msg.content.includes('|CAPTION:')) {
+        return `📷 ${msg.content.split('|CAPTION:')[1]}`;
+      }
+      return '📷 Photo';
+    }
     if (msg.type === 'video') return '🎥 Video';
     if (msg.type === 'text') {
+      if (msg.content.startsWith('STICKER:')) return '👾 Sticker';
       if (msg.content.startsWith('AUDIO_URL:')) return '🎵 Voice note';
-      if (msg.content.startsWith('VIDEO_URL:')) return '🎥 Video';
+      if (msg.content.startsWith('VIDEO_URL:')) {
+        if (msg.content.includes('|CAPTION:')) {
+          return `🎥 ${msg.content.split('|CAPTION:')[1]}`;
+        }
+        return '🎥 Video';
+      }
       if (msg.content.startsWith('FILE_URL:')) {
         const parts = msg.content.replace('FILE_URL:', '').split('|');
         return `📄 ${parts[1] || 'Document'}`;
@@ -801,7 +1075,7 @@ export default function Chat() {
       .filter(m => selectedMessageIds.includes(m.id))
       .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
     
-    const text = selectedMsgs.map(m => m.type === 'image' ? '[Photo]' : m.type === 'audio' ? '[Voice note]' : m.type === 'video' ? '[Video]' : m.content).join("\n\n");
+    const text = selectedMsgs.map(m => (m.type === 'sticker' || (typeof m.content === 'string' && m.content.startsWith('STICKER:'))) ? '[Sticker]' : m.type === 'image' ? '[Photo]' : m.type === 'audio' ? '[Voice note]' : m.type === 'video' ? '[Video]' : m.content).join("\n\n");
     navigator.clipboard.writeText(text)
       .then(() => showToast(`✓ ${selectedMessageIds.length} messages copied`, "success"))
       .catch(() => showToast("Couldn't copy messages", "error"));
@@ -813,7 +1087,7 @@ export default function Chat() {
       .filter(m => selectedMessageIds.includes(m.id))
       .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
     
-    const text = selectedMsgs.map(m => m.type === 'image' ? '[Photo]' : m.type === 'audio' ? '[Voice note]' : m.type === 'video' ? '[Video]' : m.content).join("\n\n");
+    const text = selectedMsgs.map(m => (m.type === 'sticker' || (typeof m.content === 'string' && m.content.startsWith('STICKER:'))) ? '[Sticker]' : m.type === 'image' ? '[Photo]' : m.type === 'audio' ? '[Voice note]' : m.type === 'video' ? '[Video]' : m.content).join("\n\n");
     if (navigator.share) {
       navigator.share({ text, title: "Shared from Just Us" }).catch(() => {});
     } else {
@@ -1017,30 +1291,71 @@ export default function Chat() {
         </div>
       )}
 
-      <MessageList
-        timeline={timeline}
-        myId={myId}
-        partnerName={partnerDisplay}
-        handleReaction={handleReaction}
-        onReply={handleReply}
-        onEdit={handleEdit}
-        onDelete={handleDeleteClick}
-        onCopy={handleCopy}
-        onQuoteClick={scrollToAndHighlightMessage}
-        onPin={(id) => handlePin(id, !!pinsMap[id])}
-        onForward={handleForward}
-        onInfo={handleInfo}
-        onSelect={handleSelectMessage}
-        selectionMode={selectionMode}
-        selectedMessageIds={selectedMessageIds}
-        onToggleSelect={handleToggleSelect}
-        partnerTyping={partnerTyping}
-        bottomRef={bottomRef}
-        partnerInitial={partnerInitial}
-        partnerColor={partnerColor}
-        myAvatarUrl={myAvatarUrl}
-        partnerAvatarUrl={partnerAvatarUrl}
-      />
+      <div className="relative flex-1 min-h-0 flex flex-col">
+        {/* WhatsApp-Style Floating Date Indicator */}
+        <AnimatePresence>
+          {showFloatingDate && floatingDateText && (
+            <motion.div
+              initial={{ opacity: 0, y: -6, scale: 0.95 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: -6, scale: 0.95 }}
+              transition={{ duration: 0.2, ease: "easeOut" }}
+              className="absolute top-2 inset-x-0 z-30 flex justify-center pointer-events-none select-none"
+            >
+              <motion.span 
+                key={floatingDateText}
+                initial={{ opacity: 0.7 }}
+                animate={{ opacity: 1 }}
+                transition={{ duration: 0.15 }}
+                className="bg-[#18181A]/90 backdrop-blur-md border border-white/10 text-white/85 text-[11px] font-semibold px-3 py-1 rounded-full uppercase tracking-wider shadow-lg"
+              >
+                {floatingDateText}
+              </motion.span>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        <MessageList
+          timeline={timeline}
+          myId={myId}
+          partnerName={partnerDisplay}
+          handleReaction={handleReaction}
+          onReply={handleReply}
+          onEdit={handleEdit}
+          onDelete={handleDeleteClick}
+          onCopy={handleCopy}
+          onQuoteClick={scrollToAndHighlightMessage}
+          onPin={(id) => handlePin(id, !!pinsMap[id])}
+          onForward={handleForward}
+          onInfo={handleInfo}
+          onSelect={handleSelectMessage}
+          selectionMode={selectionMode}
+          selectedMessageIds={selectedMessageIds}
+          onToggleSelect={handleToggleSelect}
+          partnerTyping={partnerTyping}
+          bottomRef={bottomRef}
+          partnerInitial={partnerInitial}
+          partnerColor={partnerColor}
+          myAvatarUrl={myAvatarUrl}
+          partnerAvatarUrl={partnerAvatarUrl}
+          scrollContainerRef={scrollContainerRef}
+          onScrollContainer={handleScrollContainer}
+          onEditMedia={handleEditMedia}
+          onToggleFavoriteSticker={handleToggleFavoriteSticker}
+          favoriteStickers={favoriteStickerUrls}
+        />
+      </div>
+
+      {unreadNewCount > 0 && (
+        <div className="absolute bottom-20 left-1/2 -translate-x-1/2 z-40">
+          <button
+            onClick={scrollToBottom}
+            className="flex items-center gap-1.5 px-4 py-1.5 rounded-full bg-[var(--wine)]/90 text-white font-medium text-[13px] shadow-xl border border-white/20 backdrop-blur-md active:scale-95 transition-transform"
+          >
+            <span>↓ {unreadNewCount} new {unreadNewCount === 1 ? 'message' : 'messages'}</span>
+          </button>
+        </div>
+      )}
 
       {editingMessage && (
         <div className="flex items-center justify-between bg-[#18181A]/95 backdrop-blur-2xl px-4 py-2 border-t border-white/10 text-white text-[13px]">

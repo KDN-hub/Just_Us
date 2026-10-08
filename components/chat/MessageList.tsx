@@ -1,10 +1,9 @@
-"use client";
-
 import { RefObject } from "react";
 import MessageBubble from "@/components/MessageBubble";
 import CallBubble from "@/components/CallBubble";
 import TypingBubble from "@/components/TypingBubble";
 import { motion, AnimatePresence } from "framer-motion";
+import { Heart } from "lucide-react";
 
 interface MessageListProps {
   timeline: any[];
@@ -29,6 +28,28 @@ interface MessageListProps {
   selectionMode?: boolean;
   selectedMessageIds?: string[];
   onToggleSelect?: (id: string) => void;
+  scrollContainerRef?: RefObject<HTMLDivElement>;
+  onScrollContainer?: (e: React.UIEvent<HTMLDivElement>) => void;
+  onEditMedia?: (url: string, type: string) => void;
+  onToggleFavoriteSticker?: (url: string) => void;
+  favoriteStickers?: string[];
+}
+
+export function formatDateSeparator(dateStr: string): string {
+  const date = new Date(dateStr);
+  const now = new Date();
+  
+  if (date.toDateString() === now.toDateString()) return "TODAY";
+  
+  const yesterday = new Date(now);
+  yesterday.setDate(yesterday.getDate() - 1);
+  if (date.toDateString() === yesterday.toDateString()) return "YESTERDAY";
+
+  const day = date.getDate();
+  const month = date.toLocaleDateString("en-US", { month: "long" }).toUpperCase();
+  const year = date.getFullYear();
+
+  return `${day} ${month} ${year}`;
 }
 
 export default function MessageList({
@@ -54,30 +75,95 @@ export default function MessageList({
   selectionMode = false,
   selectedMessageIds = [],
   onToggleSelect,
+  scrollContainerRef,
+  onScrollContainer,
+  onEditMedia,
+  onToggleFavoriteSticker,
+  favoriteStickers = [],
 }: MessageListProps) {
   return (
-    <div className="relative z-10 flex flex-1 min-h-0 flex-col overflow-y-auto overflow-x-hidden px-4 pt-4 pb-6">
+    <div 
+      ref={scrollContainerRef}
+      onScroll={onScrollContainer}
+      className="relative z-10 flex flex-1 min-h-0 flex-col overflow-y-auto overflow-x-hidden px-3 sm:px-4 pt-3 pb-6"
+    >
       {timeline.length === 0 && (
-        <p className="mx-auto mt-10 text-[16px] text-white/60">Say something 💬</p>
+        <div className="flex-1 flex flex-col items-center justify-center my-auto p-6 text-center select-none animate-in fade-in zoom-in-95 duration-500">
+          <div className="w-16 h-16 rounded-full bg-[var(--wine)]/20 border border-[var(--wine)]/30 flex items-center justify-center text-[var(--gold)] mb-4 shadow-xl">
+            <Heart className="w-8 h-8 fill-[var(--wine)] text-[var(--gold)]" />
+          </div>
+          <h3 className="text-[19px] font-bold text-white mb-1">Just you two ❤️</h3>
+          <p className="text-[14px] text-white/50 max-w-[240px]">
+            This is your private space. Say hello or send a nudge to begin!
+          </p>
+        </div>
       )}
 
       {(() => {
+        const getMediaItem = (item: any) => {
+          if (!item || item.kind !== "message" || !item.data || item.data.is_deleted) return null;
+          const d = item.data;
+          let rawContent: string = d.content || "";
+          let caption: string | undefined = undefined;
+
+          if (rawContent.includes("|CAPTION:")) {
+            const parts = rawContent.split("|CAPTION:");
+            rawContent = parts[0];
+            caption = parts.slice(1).join("|CAPTION:");
+          }
+
+          if (d.type === "image") {
+            return { isMedia: true, url: rawContent, type: "image" as const, caption };
+          }
+          if (d.type === "video") {
+            return { isMedia: true, url: rawContent, type: "video" as const, caption };
+          }
+          if (d.type === "text" && rawContent.startsWith("VIDEO_URL:")) {
+            return { isMedia: true, url: rawContent.replace("VIDEO_URL:", ""), type: "video" as const, caption };
+          }
+          return null;
+        };
+
         const clustered = [];
         let i = 0;
         while (i < timeline.length) {
           const item = timeline[i];
-          if (item.kind === "message" && item.data.type === "image") {
+          const media = getMediaItem(item);
+          if (media) {
             const group = [item];
             let j = i + 1;
-            while (j < timeline.length && timeline[j].kind === "message" && timeline[j].data.type === "image" && timeline[j].data.sender_id === item.data.sender_id) {
+            while (
+              j < timeline.length &&
+              timeline[j].kind === "message" &&
+              timeline[j].data.sender_id === item.data.sender_id
+            ) {
+              const nextMedia = getMediaItem(timeline[j]);
+              if (!nextMedia) break;
               const timeA = new Date(group[group.length - 1].data.created_at).getTime();
               const timeB = new Date(timeline[j].data.created_at).getTime();
-              if (timeB - timeA > 60 * 1000) break;
+              if (timeB - timeA > 90 * 1000) break; // within 90 seconds
               group.push(timeline[j]);
               j++;
             }
             if (group.length > 1) {
-              clustered.push({ kind: "message", data: { ...item.data, type: "image_group", content: JSON.stringify(group.map(g => g.data.content)), originalMessages: group } });
+              const deckItems = group.map((g) => {
+                const m = getMediaItem(g);
+                return {
+                  id: g.data.id,
+                  url: m?.url || g.data.content,
+                  type: m?.type || "image",
+                  caption: m?.caption,
+                };
+              });
+              clustered.push({
+                kind: "message",
+                data: {
+                  ...item.data,
+                  type: "image_group",
+                  content: JSON.stringify(deckItems),
+                  originalMessages: group,
+                },
+              });
               i = j;
               continue;
             }
@@ -90,12 +176,14 @@ export default function MessageList({
         let groupPosition: "single" | "top" | "middle" | "bottom" = "single";
         let mb = "mb-4";
 
-        if (item.kind === "message") {
-          const prev = arr[i - 1];
-          const next = arr[i + 1];
+        const prev = arr[i - 1];
+        const isNewDay = !prev || new Date(item.time).toDateString() !== new Date(prev.time).toDateString();
 
-          const isSameAsPrev = prev?.kind === "message" && prev.data.sender_id === item.data.sender_id;
-          const isSameAsNext = next?.kind === "message" && next.data.sender_id === item.data.sender_id;
+        if (item.kind === "message") {
+          const next = arr[i + 1];
+          const isSameAsPrev = prev?.kind === "message" && prev.data.sender_id === item.data.sender_id && !isNewDay;
+          const isNextNewDay = next && new Date(next.time).toDateString() !== new Date(item.time).toDateString();
+          const isSameAsNext = next?.kind === "message" && next.data.sender_id === item.data.sender_id && !isNextNewDay;
 
           if (isSameAsPrev && isSameAsNext) groupPosition = "middle";
           else if (isSameAsPrev) groupPosition = "bottom";
@@ -107,15 +195,24 @@ export default function MessageList({
         }
 
         return (
-          <motion.div 
-            id={`msg-${item.data.id}`} 
-            key={item.data.id} 
-            layout 
-            initial={{ opacity: 0, y: 20 }} 
-            animate={{ opacity: 1, y: 0 }} 
-            transition={{ type: "spring", stiffness: 300, damping: 25 }} 
-            className={`transition-all duration-300 rounded-2xl ${mb}`}
-          >
+          <div key={`wrapper-${item.data.id}`}>
+            {isNewDay && (
+              <div className="flex items-center justify-center my-4 select-none">
+                <span className="bg-[#18181A]/80 backdrop-blur-md border border-white/10 text-white/70 text-[11px] font-semibold px-3 py-1 rounded-full uppercase tracking-wider shadow-sm">
+                  {formatDateSeparator(item.time)}
+                </span>
+              </div>
+            )}
+            <motion.div 
+              id={`msg-${item.data.id}`} 
+              data-msg-time={item.time}
+              key={item.data.id} 
+              layout 
+              initial={{ opacity: 0, y: 20 }} 
+              animate={{ opacity: 1, y: 0 }} 
+              transition={{ type: "spring", stiffness: 300, damping: 25 }} 
+              className={`transition-all duration-300 rounded-2xl ${mb}`}
+            >
             {item.kind === "message" ? (
               <MessageBubble
                 id={item.data.id}
@@ -149,8 +246,12 @@ export default function MessageList({
                 groupPosition={groupPosition}
                 partnerInitial={partnerInitial}
                 partnerColor={partnerColor}
+                partnerName={partnerName}
                 myAvatarUrl={myAvatarUrl}
                 partnerAvatarUrl={partnerAvatarUrl}
+                onEditMedia={onEditMedia}
+                onToggleFavoriteSticker={onToggleFavoriteSticker}
+                isFavoriteSticker={favoriteStickers.includes(typeof item.data.content === 'string' ? item.data.content.replace(/^STICKER:/, '') : '')}
               />
             ) : (
               <CallBubble
@@ -162,6 +263,7 @@ export default function MessageList({
               />
             )}
           </motion.div>
+          </div>
         );
       })}
 
