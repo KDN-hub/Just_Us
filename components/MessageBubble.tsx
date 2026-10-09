@@ -1,8 +1,10 @@
 "use client";
 
 import { Check, CheckCheck, Clock, Play, Pause, X, Download, Mic, Plus, Reply, Copy, Pencil, Trash2, Share2, Pin, Info, CheckSquare, Ban, MessageSquare, Crop, ArrowLeft, Star } from "lucide-react";
-import { useState, useRef, useEffect } from "react";
-import EmojiPicker, { Theme } from 'emoji-picker-react';
+import { useState, useRef, useEffect, memo } from "react";
+import dynamic from "next/dynamic";
+const EmojiPicker = dynamic(() => import('emoji-picker-react'), { ssr: false });
+import { Theme } from 'emoji-picker-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Avatar from "@/components/Avatar";
 import MediaViewer, { MediaViewerItem } from "@/components/chat/MediaViewer";
@@ -203,7 +205,7 @@ function formatTime(iso: string): string {
   });
 }
 
-export default function MessageBubble({
+const MessageBubble = memo(function MessageBubble({
   id,
   content,
   isMine,
@@ -883,4 +885,6 @@ export default function MessageBubble({
       </motion.div>
     </>
   );
-}
+});
+
+export default MessageBubble;

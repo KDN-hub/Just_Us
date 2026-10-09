@@ -1,10 +1,11 @@
 import { RefObject, useState } from "react";
 import { Send, Heart, Paperclip, Mic, Square, X, Smile, Star, Plus, Camera, Image as ImageIcon, FileText, Music } from "lucide-react";
-import EmojiPicker from 'emoji-picker-react';
+import dynamic from 'next/dynamic';
+const EmojiPicker = dynamic(() => import('emoji-picker-react'), { ssr: false });
 import TextareaAutosize from 'react-textarea-autosize';
 import { motion, AnimatePresence } from 'framer-motion';
 import MediaComposer from "@/components/chat/MediaComposer";
-import StickerPicker from "@/components/chat/StickerPicker";
+const StickerPicker = dynamic(() => import('@/components/chat/StickerPicker'), { ssr: false });
 import StickerImportModal from "@/components/chat/StickerImportModal";
 
 interface ChatInputProps {

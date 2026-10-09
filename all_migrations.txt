@@ -1,0 +1,552 @@
+-- ============================================================
+--  Just Us – Initial Schema
+--  Migration: 001_initial_schema.sql
+-- ============================================================
+
+-- ────────────────────────────────────────────────────────────
+--  USERS
+--  One row per person in the couple.
+-- ────────────────────────────────────────────────────────────
+CREATE TABLE users (
+  id           uuid        PRIMARY KEY DEFAULT gen_random_uuid(),
+  name         text        NOT NULL,
+  nickname     text,
+  pin_hash     text,                  -- bcrypt hash of the user's 4-digit PIN; NULL until set on first login
+  avatar_color text        DEFAULT '#7A2C3B',
+  last_seen    timestamptz,
+  is_online    boolean     DEFAULT false,
+  created_at   timestamptz DEFAULT now()
+);
+
+ALTER TABLE users ENABLE ROW LEVEL SECURITY;
+
+-- ────────────────────────────────────────────────────────────
+--  CONVERSATION
+--  Singleton — exactly one row links the two partners.
+-- ────────────────────────────────────────────────────────────
+CREATE TABLE conversation (
+  id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_a_id     uuid REFERENCES users(id),
+  user_b_id     uuid REFERENCES users(id),
+  together_since date,
+  created_at    timestamptz DEFAULT now()
+);
+
+ALTER TABLE conversation ENABLE ROW LEVEL SECURITY;
+
+-- ────────────────────────────────────────────────────────────
+--  MESSAGES
+-- ────────────────────────────────────────────────────────────
+CREATE TABLE messages (
+  id              uuid        PRIMARY KEY DEFAULT gen_random_uuid(),
+  conversation_id uuid        REFERENCES conversation(id),
+  sender_id       uuid        REFERENCES users(id),
+  type            text        DEFAULT 'text'
+                              CHECK (type IN ('text', 'image', 'ping')),
+  content         text,
+  status          text        DEFAULT 'sent'
+                              CHECK (status IN ('sent', 'delivered', 'read')),
+  created_at      timestamptz DEFAULT now()
+);
+
+ALTER TABLE messages ENABLE ROW LEVEL SECURITY;
+
+-- ────────────────────────────────────────────────────────────
+--  REACTIONS
+-- ────────────────────────────────────────────────────────────
+CREATE TABLE reactions (
+  id         uuid        PRIMARY KEY DEFAULT gen_random_uuid(),
+  message_id uuid        REFERENCES messages(id) ON DELETE CASCADE,
+  user_id    uuid        REFERENCES users(id),
+  emoji      text        NOT NULL,
+  created_at timestamptz DEFAULT now()
+);
+
+ALTER TABLE reactions ENABLE ROW LEVEL SECURITY;
+
+-- ────────────────────────────────────────────────────────────
+--  CALL LOG
+-- ────────────────────────────────────────────────────────────
+CREATE TABLE call_log (
+  id               uuid        PRIMARY KEY DEFAULT gen_random_uuid(),
+  conversation_id  uuid        REFERENCES conversation(id),
+  caller_id        uuid        REFERENCES users(id),
+  type             text        CHECK (type IN ('voice', 'video')),
+  status           text        CHECK (status IN ('missed', 'answered', 'declined')),
+  started_at       timestamptz,
+  ended_at         timestamptz,
+  duration_seconds integer
+);
+
+ALTER TABLE call_log ENABLE ROW LEVEL SECURITY;
+-- ============================================================
+--  Just Us — RLS Policies
+--  Migration: 002_rls_policies.sql
+--
+--  Strategy: open anon read/write on all tables.
+--  This is correct for a private 2-person app with a hidden
+--  URL — the anon key is the only access vector and both
+--  users share it. Tighten if Supabase Auth is added later.
+-- ============================================================
+
+-- ── USERS ───────────────────────────────────────────────────
+CREATE POLICY "anon_select_users"
+  ON users FOR SELECT TO anon USING (true);
+
+CREATE POLICY "anon_update_users"
+  ON users FOR UPDATE TO anon USING (true);
+
+-- ── CONVERSATION ─────────────────────────────────────────────
+CREATE POLICY "anon_select_conversation"
+  ON conversation FOR SELECT TO anon USING (true);
+
+CREATE POLICY "anon_update_conversation"
+  ON conversation FOR UPDATE TO anon USING (true);
+
+-- ── MESSAGES ─────────────────────────────────────────────────
+CREATE POLICY "anon_select_messages"
+  ON messages FOR SELECT TO anon USING (true);
+
+CREATE POLICY "anon_insert_messages"
+  ON messages FOR INSERT TO anon WITH CHECK (true);
+
+CREATE POLICY "anon_update_messages"
+  ON messages FOR UPDATE TO anon USING (true);
+
+-- ── REACTIONS ────────────────────────────────────────────────
+CREATE POLICY "anon_select_reactions"
+  ON reactions FOR SELECT TO anon USING (true);
+
+CREATE POLICY "anon_insert_reactions"
+  ON reactions FOR INSERT TO anon WITH CHECK (true);
+
+CREATE POLICY "anon_delete_reactions"
+  ON reactions FOR DELETE TO anon USING (true);
+
+-- ── CALL LOG ─────────────────────────────────────────────────
+CREATE POLICY "anon_select_call_log"
+  ON call_log FOR SELECT TO anon USING (true);
+
+CREATE POLICY "anon_insert_call_log"
+  ON call_log FOR INSERT TO anon WITH CHECK (true);
+
+CREATE POLICY "anon_update_call_log"
+  ON call_log FOR UPDATE TO anon USING (true);
+-- ============================================================
+--  Just Us — Realtime publication
+--  Migration: 003_realtime.sql
+--
+--  postgres_changes events are only emitted for tables that are
+--  members of the `supabase_realtime` publication. Without this
+--  the chat page subscribes successfully but never receives
+--  anything. Idempotent: safe to run if a table is already added.
+--
+--  Presence writes (users UPDATE) and read receipts (messages
+--  UPDATE) are already allowed by the anon policies in
+--  002_rls_policies.sql. No auth.uid()-based policy is added
+--  because this app has no Supabase Auth session (auth.uid() is
+--  always NULL for the anon role), which would block all writes.
+-- ============================================================
+
+DO $$
+DECLARE
+  t text;
+BEGIN
+  FOREACH t IN ARRAY ARRAY['messages', 'users', 'call_log']
+  LOOP
+    IF NOT EXISTS (
+      SELECT 1
+      FROM pg_publication_tables
+      WHERE pubname = 'supabase_realtime'
+        AND schemaname = 'public'
+        AND tablename = t
+    ) THEN
+      EXECUTE format('ALTER PUBLICATION supabase_realtime ADD TABLE public.%I', t);
+    END IF;
+  END LOOP;
+END $$;
+-- ============================================================
+--  Just Us — Server-side timestamps
+--  Migration: 004_server_timestamps.sql
+--
+--  The chat timeline interleaves messages and call-log entries
+--  by timestamp. If timestamps come from each device's own clock,
+--  a phone and a laptop that disagree by a few seconds produce
+--  out-of-order conversations. Let the database stamp them.
+--
+--  messages.created_at already defaults to now(); call_log.started_at
+--  did not, so the client used to supply it.
+-- ============================================================
+
+ALTER TABLE call_log ALTER COLUMN started_at SET DEFAULT now();
+-- ============================================================
+--  Just Us — Real authentication (step 1 of 2, ADDITIVE / SAFE)
+--  Migration: 005_auth.sql
+--
+--  Adds everything needed for Supabase-Auth-based access control
+--  WITHOUT removing the old anon policies, so the currently
+--  deployed app keeps working while you migrate.
+--  Run 006_lockdown.sql last — see supabase/AUTH_SETUP.md.
+-- ============================================================
+
+-- ── Link each app user to a Supabase Auth account ───────────
+ALTER TABLE public.users
+  ADD COLUMN IF NOT EXISTS auth_id uuid UNIQUE REFERENCES auth.users(id) ON DELETE SET NULL;
+
+-- ── Helpers (SECURITY DEFINER so policies can look up users/conversation
+--    without recursing into their own RLS) ────────────────────
+CREATE OR REPLACE FUNCTION public.current_app_user()
+RETURNS uuid
+LANGUAGE sql STABLE SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT id FROM public.users WHERE auth_id = auth.uid() LIMIT 1
+$$;
+
+CREATE OR REPLACE FUNCTION public.is_conversation_member(conv uuid)
+RETURNS boolean
+LANGUAGE sql STABLE SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM public.conversation c
+    WHERE c.id = conv
+      AND public.current_app_user() IN (c.user_a_id, c.user_b_id)
+  )
+$$;
+
+REVOKE ALL ON FUNCTION public.current_app_user()          FROM PUBLIC, anon;
+REVOKE ALL ON FUNCTION public.is_conversation_member(uuid) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.current_app_user()          TO authenticated;
+GRANT EXECUTE ON FUNCTION public.is_conversation_member(uuid) TO authenticated;
+
+-- ── USERS: both partners are visible; you may only edit your own row ──
+CREATE POLICY "auth_select_users" ON public.users
+  FOR SELECT TO authenticated
+  USING (public.current_app_user() IS NOT NULL);
+
+CREATE POLICY "auth_update_own_user" ON public.users
+  FOR UPDATE TO authenticated
+  USING (id = public.current_app_user())
+  WITH CHECK (id = public.current_app_user());
+
+REVOKE UPDATE ON public.users FROM authenticated;
+GRANT  UPDATE (nickname, avatar_color, is_online, last_seen) ON public.users TO authenticated;
+
+-- ── CONVERSATION ────────────────────────────────────────────
+CREATE POLICY "auth_select_conversation" ON public.conversation
+  FOR SELECT TO authenticated
+  USING (public.current_app_user() IN (user_a_id, user_b_id));
+
+CREATE POLICY "auth_update_conversation" ON public.conversation
+  FOR UPDATE TO authenticated
+  USING      (public.current_app_user() IN (user_a_id, user_b_id))
+  WITH CHECK (public.current_app_user() IN (user_a_id, user_b_id));
+
+REVOKE UPDATE ON public.conversation FROM authenticated;
+GRANT  UPDATE (together_since) ON public.conversation TO authenticated;
+
+-- ── MESSAGES ────────────────────────────────────────────────
+CREATE POLICY "auth_select_messages" ON public.messages
+  FOR SELECT TO authenticated
+  USING (public.is_conversation_member(conversation_id));
+
+-- You can only send as yourself, into your own conversation
+CREATE POLICY "auth_insert_messages" ON public.messages
+  FOR INSERT TO authenticated
+  WITH CHECK (
+    sender_id = public.current_app_user()
+    AND public.is_conversation_member(conversation_id)
+  );
+
+-- Only the RECEIVER updates a message (delivered / read), and only its status
+CREATE POLICY "auth_update_messages" ON public.messages
+  FOR UPDATE TO authenticated
+  USING (
+    public.is_conversation_member(conversation_id)
+    AND sender_id <> public.current_app_user()
+  )
+  WITH CHECK (
+    public.is_conversation_member(conversation_id)
+    AND sender_id <> public.current_app_user()
+  );
+
+REVOKE UPDATE ON public.messages FROM authenticated;
+GRANT  UPDATE (status) ON public.messages TO authenticated;
+
+-- ── REACTIONS ───────────────────────────────────────────────
+CREATE POLICY "auth_select_reactions" ON public.reactions
+  FOR SELECT TO authenticated
+  USING (EXISTS (
+    SELECT 1 FROM public.messages m
+    WHERE m.id = reactions.message_id
+      AND public.is_conversation_member(m.conversation_id)
+  ));
+
+CREATE POLICY "auth_insert_reactions" ON public.reactions
+  FOR INSERT TO authenticated
+  WITH CHECK (
+    user_id = public.current_app_user()
+    AND EXISTS (
+      SELECT 1 FROM public.messages m
+      WHERE m.id = reactions.message_id
+        AND public.is_conversation_member(m.conversation_id)
+    )
+  );
+
+CREATE POLICY "auth_delete_reactions" ON public.reactions
+  FOR DELETE TO authenticated
+  USING (user_id = public.current_app_user());
+
+-- ── CALL LOG ────────────────────────────────────────────────
+CREATE POLICY "auth_select_call_log" ON public.call_log
+  FOR SELECT TO authenticated
+  USING (public.is_conversation_member(conversation_id));
+
+CREATE POLICY "auth_insert_call_log" ON public.call_log
+  FOR INSERT TO authenticated
+  WITH CHECK (
+    caller_id = public.current_app_user()
+    AND public.is_conversation_member(conversation_id)
+  );
+
+-- The caller finalises the log entry
+CREATE POLICY "auth_update_call_log" ON public.call_log
+  FOR UPDATE TO authenticated
+  USING      (caller_id = public.current_app_user())
+  WITH CHECK (caller_id = public.current_app_user());
+
+REVOKE UPDATE ON public.call_log FROM authenticated;
+GRANT  UPDATE (status, ended_at, duration_seconds) ON public.call_log TO authenticated;
+
+-- ── REALTIME: private call-signalling channel ───────────────
+--  The client joins the broadcast channel with { private: true }; only signed-in
+--  members may receive or send on it. (The chat's postgres_changes stream is
+--  already protected by the table policies above.)
+CREATE POLICY "members receive call signalling" ON realtime.messages
+  FOR SELECT TO authenticated
+  USING (
+    realtime.topic() = 'call-signal-c0000000-0000-0000-0000-000000000003'
+    AND realtime.messages.extension IN ('broadcast')
+    AND public.current_app_user() IS NOT NULL
+  );
+
+CREATE POLICY "members send call signalling" ON realtime.messages
+  FOR INSERT TO authenticated
+  WITH CHECK (
+    realtime.topic() = 'call-signal-c0000000-0000-0000-0000-000000000003'
+    AND realtime.messages.extension IN ('broadcast')
+    AND public.current_app_user() IS NOT NULL
+  );
+-- ============================================================
+--  Just Us — Lockdown (step 2 of 2, RUN LAST)
+--  Migration: 006_lockdown.sql
+--
+--  ⚠️  Run ONLY after:
+--      1. 005_auth.sql has been applied,
+--      2. both Auth accounts exist and users.auth_id is filled in,
+--      3. the new app version is deployed and BOTH of you have signed in on
+--         your devices (see supabase/AUTH_SETUP.md).
+--
+--  After this, the anon key (which is public, it's in the JS bundle) can no
+--  longer read or write anything, and the old PIN hashes are gone.
+--  The previous app version will stop working.
+-- ============================================================
+
+-- ── Remove every open anon policy from 002_rls_policies.sql ─
+DROP POLICY IF EXISTS "anon_select_users"        ON public.users;
+DROP POLICY IF EXISTS "anon_update_users"        ON public.users;
+DROP POLICY IF EXISTS "anon_select_conversation" ON public.conversation;
+DROP POLICY IF EXISTS "anon_update_conversation" ON public.conversation;
+DROP POLICY IF EXISTS "anon_select_messages"     ON public.messages;
+DROP POLICY IF EXISTS "anon_insert_messages"     ON public.messages;
+DROP POLICY IF EXISTS "anon_update_messages"     ON public.messages;
+DROP POLICY IF EXISTS "anon_select_reactions"    ON public.reactions;
+DROP POLICY IF EXISTS "anon_insert_reactions"    ON public.reactions;
+DROP POLICY IF EXISTS "anon_delete_reactions"    ON public.reactions;
+DROP POLICY IF EXISTS "anon_select_call_log"     ON public.call_log;
+DROP POLICY IF EXISTS "anon_insert_call_log"     ON public.call_log;
+DROP POLICY IF EXISTS "anon_update_call_log"     ON public.call_log;
+
+-- ── Belt and braces: anon gets no table privileges at all ───
+REVOKE ALL ON ALL TABLES    IN SCHEMA public FROM anon;
+REVOKE ALL ON ALL SEQUENCES IN SCHEMA public FROM anon;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public REVOKE ALL ON TABLES FROM anon;
+
+-- ── The server no longer stores PINs (they live only on each device) ──
+ALTER TABLE public.users DROP COLUMN IF EXISTS pin_hash;
+CREATE TABLE calendar_events (
+    id          uuid        PRIMARY KEY DEFAULT gen_random_uuid(),
+    date_str    text        NOT NULL,
+    title       text        NOT NULL,
+    description text,
+    created_at  timestamptz DEFAULT now()
+);
+
+-- Note: RLS policies (adjust to your auth schema as needed)
+ALTER TABLE calendar_events ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Allow all operations for authenticated users" 
+ON calendar_events FOR ALL 
+USING (auth.role() = 'authenticated');
+ALTER TABLE calendar_events 
+ADD COLUMN start_time text,
+ADD COLUMN end_time text;
+INSERT INTO calendar_events (date_str, title, description) VALUES
+  ('2024-07-23', 'The day our hearts got locked together??', 'Anniversary'),
+  ('2025-07-23', 'The day our hearts got locked together??', 'Anniversary'),
+  ('2026-07-23', 'The day our hearts got locked together??', 'Anniversary'),
+  ('2027-07-23', 'The day our hearts got locked together??', 'Anniversary'),
+  ('2028-07-23', 'The day our hearts got locked together??', 'Anniversary'),
+  ('2029-07-23', 'The day our hearts got locked together??', 'Anniversary'),
+  ('2030-07-23', 'The day our hearts got locked together??', 'Anniversary'),
+  
+  ('2024-11-07', 'The day our forever journey began??', 'Anniversary'),
+  ('2025-11-07', 'The day our forever journey began??', 'Anniversary'),
+  ('2026-11-07', 'The day our forever journey began??', 'Anniversary'),
+  ('2027-11-07', 'The day our forever journey began??', 'Anniversary'),
+  ('2028-11-07', 'The day our forever journey began??', 'Anniversary'),
+  ('2029-11-07', 'The day our forever journey began??', 'Anniversary'),
+  ('2030-11-07', 'The day our forever journey began??', 'Anniversary');
+-- ============================================================
+--  Just Us — Chat Page Sticker System
+--  Migration: 010_sticker_system.sql
+-- ============================================================
+
+-- ── 1. Update messages type check constraint to include 'sticker' ──
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM pg_constraint WHERE conname = 'messages_type_check'
+  ) THEN
+    ALTER TABLE public.messages DROP CONSTRAINT messages_type_check;
+  END IF;
+END $$;
+
+ALTER TABLE public.messages
+  ADD CONSTRAINT messages_type_check
+  CHECK (type IN ('text', 'image', 'ping', 'sticker'));
+
+-- ── 2. Create sticker_packs table ──────────────────────────────
+CREATE TABLE IF NOT EXISTS public.sticker_packs (
+  id          uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  name        text NOT NULL,
+  creator_id  uuid REFERENCES public.users(id) ON DELETE SET NULL,
+  cover_url   text,
+  created_at  timestamptz DEFAULT now(),
+  updated_at  timestamptz DEFAULT now()
+);
+
+ALTER TABLE public.sticker_packs ENABLE ROW LEVEL SECURITY;
+
+-- ── 3. Create stickers table ───────────────────────────────────
+CREATE TABLE IF NOT EXISTS public.stickers (
+  id           uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  pack_id      uuid REFERENCES public.sticker_packs(id) ON DELETE CASCADE,
+  owner_id     uuid REFERENCES public.users(id) ON DELETE SET NULL,
+  storage_path text NOT NULL,
+  url          text NOT NULL,
+  mime_type    text DEFAULT 'image/webp',
+  width        integer,
+  height       integer,
+  created_at   timestamptz DEFAULT now(),
+  updated_at   timestamptz DEFAULT now()
+);
+
+ALTER TABLE public.stickers ENABLE ROW LEVEL SECURITY;
+
+-- ── 4. Create recent_stickers table ────────────────────────────
+CREATE TABLE IF NOT EXISTS public.recent_stickers (
+  id         uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id    uuid REFERENCES public.users(id) ON DELETE CASCADE,
+  sticker_id uuid REFERENCES public.stickers(id) ON DELETE CASCADE,
+  used_at    timestamptz DEFAULT now(),
+  CONSTRAINT recent_stickers_user_sticker_key UNIQUE (user_id, sticker_id)
+);
+
+ALTER TABLE public.recent_stickers ENABLE ROW LEVEL SECURITY;
+
+-- ── 5. Create favorite_stickers table ──────────────────────────
+CREATE TABLE IF NOT EXISTS public.favorite_stickers (
+  id         uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id    uuid REFERENCES public.users(id) ON DELETE CASCADE,
+  sticker_id uuid REFERENCES public.stickers(id) ON DELETE CASCADE,
+  created_at timestamptz DEFAULT now(),
+  CONSTRAINT favorite_stickers_user_sticker_key UNIQUE (user_id, sticker_id)
+);
+
+ALTER TABLE public.favorite_stickers ENABLE ROW LEVEL SECURITY;
+
+-- ── 6. RLS Policies for Sticker Tables ─────────────────────────
+-- For sticker_packs: Both authenticated partners can view and manage
+CREATE POLICY "allow_authenticated_select_packs" ON public.sticker_packs
+  FOR SELECT TO authenticated USING (true);
+
+CREATE POLICY "allow_authenticated_insert_packs" ON public.sticker_packs
+  FOR INSERT TO authenticated WITH CHECK (true);
+
+CREATE POLICY "allow_authenticated_update_packs" ON public.sticker_packs
+  FOR UPDATE TO authenticated USING (true) WITH CHECK (true);
+
+CREATE POLICY "allow_authenticated_delete_packs" ON public.sticker_packs
+  FOR DELETE TO authenticated USING (true);
+
+-- For stickers: Both authenticated partners can view and manage
+CREATE POLICY "allow_authenticated_select_stickers" ON public.stickers
+  FOR SELECT TO authenticated USING (true);
+
+CREATE POLICY "allow_authenticated_insert_stickers" ON public.stickers
+  FOR INSERT TO authenticated WITH CHECK (true);
+
+CREATE POLICY "allow_authenticated_update_stickers" ON public.stickers
+  FOR UPDATE TO authenticated USING (true) WITH CHECK (true);
+
+CREATE POLICY "allow_authenticated_delete_stickers" ON public.stickers
+  FOR DELETE TO authenticated USING (true);
+
+-- For recent_stickers: Users can manage their own recents
+CREATE POLICY "allow_authenticated_select_recents" ON public.recent_stickers
+  FOR SELECT TO authenticated USING (true);
+
+CREATE POLICY "allow_authenticated_insert_recents" ON public.recent_stickers
+  FOR INSERT TO authenticated WITH CHECK (true);
+
+CREATE POLICY "allow_authenticated_update_recents" ON public.recent_stickers
+  FOR UPDATE TO authenticated USING (true) WITH CHECK (true);
+
+CREATE POLICY "allow_authenticated_delete_recents" ON public.recent_stickers
+  FOR DELETE TO authenticated USING (true);
+
+-- For favorite_stickers: Users can manage their favorites
+CREATE POLICY "allow_authenticated_select_favorites" ON public.favorite_stickers
+  FOR SELECT TO authenticated USING (true);
+
+CREATE POLICY "allow_authenticated_insert_favorites" ON public.favorite_stickers
+  FOR INSERT TO authenticated WITH CHECK (true);
+
+CREATE POLICY "allow_authenticated_delete_favorites" ON public.favorite_stickers
+  FOR DELETE TO authenticated USING (true);
+
+-- ── 7. Storage Policies for existing 'stickers' Bucket ─────────
+-- Allow authenticated users to view, upload, update and delete objects in the stickers bucket
+CREATE POLICY "allow_authenticated_select_stickers_storage" ON storage.objects
+  FOR SELECT TO authenticated
+  USING (bucket_id = 'stickers');
+
+CREATE POLICY "allow_authenticated_insert_stickers_storage" ON storage.objects
+  FOR INSERT TO authenticated
+  WITH CHECK (bucket_id = 'stickers');
+
+CREATE POLICY "allow_authenticated_update_stickers_storage" ON storage.objects
+  FOR UPDATE TO authenticated
+  USING (bucket_id = 'stickers')
+  WITH CHECK (bucket_id = 'stickers');
+
+CREATE POLICY "allow_authenticated_delete_stickers_storage" ON storage.objects
+  FOR DELETE TO authenticated
+  USING (bucket_id = 'stickers');
+
+-- Fallback for public bucket reads if configured as public
+CREATE POLICY "allow_public_select_stickers_storage" ON storage.objects
+  FOR SELECT TO public
+  USING (bucket_id = 'stickers');

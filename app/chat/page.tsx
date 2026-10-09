@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useEffect, useRef, useState, useCallback, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { PhoneIncoming, PhoneOff, X, Video, ChevronLeft, ImagePlus, Pencil, Reply, Copy, Trash2, Pin } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -469,8 +469,13 @@ export default function Chat() {
     return () => clearInterval(id);
   }, []);
 
-  const messageList = getMessageList();
-  const callLogList = getCallLogList();
+  const messageList = useMemo(() => {
+    return Object.values(messages).sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+  }, [messages]);
+
+  const callLogList = useMemo(() => {
+    return Object.values(callLog).sort((a, b) => new Date(a.started_at).getTime() - new Date(b.started_at).getTime());
+  }, [callLog]);
 
   const updateVisibleDate = useCallback(() => {
     const el = scrollContainerRef.current;
@@ -948,7 +953,8 @@ export default function Chat() {
     }
   };
 
-  let realMessages: Message[] = [];
+  const { realMessages, pinnedMessages, timeline } = useMemo(() => {
+  let _realMessages: Message[] = [];
   const reactionsMap: Record<string, Record<string, string>> = {};
   const editsMap: Record<string, string> = {};
   const repliesMap: Record<string, string> = {}; // newMsgId -> originalMsgId
@@ -1046,10 +1052,10 @@ export default function Chat() {
       continue;
     }
 
-    realMessages.push(m);
+    _realMessages.push(m);
   }
 
-  realMessages = realMessages.map(m => {
+  __realMessages = _realMessages.map(m => {
     const isDeleted = deletedEveryoneIds.has(m.id);
     const replyTargetId = repliesMap[m.id] || m.reply_to;
     const originalMsg = replyTargetId ? msgMap.get(replyTargetId) : undefined;
@@ -1068,10 +1074,10 @@ export default function Chat() {
     };
   });
 
-  const pinnedMessages = realMessages.filter(m => m.is_pinned && !m.is_deleted);
+  const _pinnedMessages = _realMessages.filter(m => m.is_pinned && !m.is_deleted);
 
   const handleCopySelected = () => {
-    const selectedMsgs = realMessages
+    const selectedMsgs = _realMessages
       .filter(m => selectedMessageIds.includes(m.id))
       .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
     
@@ -1083,7 +1089,7 @@ export default function Chat() {
   };
 
   const handleShareSelected = () => {
-    const selectedMsgs = realMessages
+    const selectedMsgs = _realMessages
       .filter(m => selectedMessageIds.includes(m.id))
       .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
     
@@ -1099,7 +1105,7 @@ export default function Chat() {
   };
 
   const handleDeleteSelected = () => {
-    const selectedMsgs = realMessages.filter(m => selectedMessageIds.includes(m.id));
+    const selectedMsgs = _realMessages.filter(m => selectedMessageIds.includes(m.id));
     const allMine = selectedMsgs.length > 0 && selectedMsgs.every(m => m.sender_id === myId);
     setDeleteModalState({
       isOpen: true,
@@ -1128,8 +1134,8 @@ export default function Chat() {
     }
   };
 
-  const timeline: TimelineItem[] = [
-    ...realMessages.map((m) => ({ kind: "message" as const, data: m, time: m.created_at })),
+  const _timeline: TimelineItem[] = [
+    ..._realMessages.map((m) => ({ kind: "message" as const, data: m, time: m.created_at })),
     ...callLogList
       .filter((c) => c.status !== null)
       .map((c) => ({ kind: "call" as const, data: c, time: c.started_at })),
@@ -1139,6 +1145,9 @@ export default function Chat() {
     if (pa !== pb) return pa - pb;
     return new Date(a.time).getTime() - new Date(b.time).getTime();
   });
+
+    return { realMessages: _realMessages, pinnedMessages: _pinnedMessages, timeline: _timeline };
+  }, [messageList, deletedForMe, callLogList]);
 
   const partnerDisplay = partner?.nickname ?? partner?.name ?? "…";
   const partnerInitial = partnerDisplay[0]?.toUpperCase() ?? "?";
@@ -1242,7 +1251,7 @@ export default function Chat() {
         isOnline={isOnline}
         reconnecting={reconnecting}
         partnerIsOnline={partner?.is_online ?? false}
-        partnerLastSeenText={formatLastSeen(partner?.last_seen ?? null, now)}
+        partnerLastSeen={partner?.last_seen ?? null}
         onOpenWallpaper={() => setShowWallpaperModal(true)}
         onOpenUsername={() => {
           setNewUsername(partnerDisplay);

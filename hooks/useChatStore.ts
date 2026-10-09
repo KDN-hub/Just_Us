@@ -74,11 +74,16 @@ function loadMsgCache(): Record<string, Message> {
   return {};
 }
 
+let saveCacheTimeout: NodeJS.Timeout | null = null;
 function saveMsgCache(messages: Record<string, Message>) {
   try {
-    const arr = Object.values(messages).sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
-    const toSave = arr.filter(m => !m.pending && !m.queued).slice(-MSG_CACHE_LIMIT);
-    localStorage.setItem(MSG_CACHE_KEY, JSON.stringify(toSave));
+    if (saveCacheTimeout) clearTimeout(saveCacheTimeout);
+    saveCacheTimeout = setTimeout(() => {
+      if (typeof window === "undefined") return;
+      const arr = Object.values(messages).sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+      const toSave = arr.filter(m => !m.pending && !m.queued).slice(-MSG_CACHE_LIMIT);
+      localStorage.setItem(MSG_CACHE_KEY, JSON.stringify(toSave));
+    }, 500);
   } catch {}
 }
 

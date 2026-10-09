@@ -1,4 +1,4 @@
-import { RefObject } from "react";
+import { RefObject, useMemo, memo } from "react";
 import MessageBubble from "@/components/MessageBubble";
 import CallBubble from "@/components/CallBubble";
 import TypingBubble from "@/components/TypingBubble";
@@ -52,7 +52,7 @@ export function formatDateSeparator(dateStr: string): string {
   return `${day} ${month} ${year}`;
 }
 
-export default function MessageList({
+const MessageList = memo(function MessageList({
   timeline,
   myId,
   partnerName = "Partner",
@@ -81,6 +81,82 @@ export default function MessageList({
   onToggleFavoriteSticker,
   favoriteStickers = [],
 }: MessageListProps) {
+  
+  const clusteredTimeline = useMemo(() => {
+    const getMediaItem = (item: any) => {
+      if (!item || item.kind !== "message" || !item.data || item.data.is_deleted) return null;
+      const d = item.data;
+      let rawContent: string = d.content || "";
+      let caption: string | undefined = undefined;
+
+      if (rawContent.includes("|CAPTION:")) {
+        const parts = rawContent.split("|CAPTION:");
+        rawContent = parts[0];
+        caption = parts.slice(1).join("|CAPTION:");
+      }
+
+      if (d.type === "image") {
+        return { isMedia: true, url: rawContent, type: "image" as const, caption };
+      }
+      if (d.type === "video") {
+        return { isMedia: true, url: rawContent, type: "video" as const, caption };
+      }
+      if (d.type === "text" && rawContent.startsWith("VIDEO_URL:")) {
+        return { isMedia: true, url: rawContent.replace("VIDEO_URL:", ""), type: "video" as const, caption };
+      }
+      return null;
+    };
+
+    const clustered = [];
+    let i = 0;
+    while (i < timeline.length) {
+      const item = timeline[i];
+      const media = getMediaItem(item);
+      if (media) {
+        const group = [item];
+        let j = i + 1;
+        while (
+          j < timeline.length &&
+          timeline[j].kind === "message" &&
+          timeline[j].data.sender_id === item.data.sender_id
+        ) {
+          const nextMedia = getMediaItem(timeline[j]);
+          if (!nextMedia) break;
+          const timeA = new Date(group[group.length - 1].data.created_at).getTime();
+          const timeB = new Date(timeline[j].data.created_at).getTime();
+          if (timeB - timeA > 90 * 1000) break; // within 90 seconds
+          group.push(timeline[j]);
+          j++;
+        }
+        if (group.length > 1) {
+          const deckItems = group.map((g) => {
+            const m = getMediaItem(g);
+            return {
+              id: g.data.id,
+              url: m?.url || g.data.content,
+              type: m?.type || "image",
+              caption: m?.caption,
+            };
+          });
+          clustered.push({
+            kind: "message",
+            data: {
+              ...item.data,
+              type: "image_group",
+              content: JSON.stringify(deckItems),
+              originalMessages: group,
+            },
+          });
+          i = j;
+          continue;
+        }
+      }
+      clustered.push(item);
+      i++;
+    }
+    return clustered;
+  }, [timeline]);
+
   return (
     <div 
       ref={scrollContainerRef}
@@ -99,80 +175,7 @@ export default function MessageList({
         </div>
       )}
 
-      {(() => {
-        const getMediaItem = (item: any) => {
-          if (!item || item.kind !== "message" || !item.data || item.data.is_deleted) return null;
-          const d = item.data;
-          let rawContent: string = d.content || "";
-          let caption: string | undefined = undefined;
-
-          if (rawContent.includes("|CAPTION:")) {
-            const parts = rawContent.split("|CAPTION:");
-            rawContent = parts[0];
-            caption = parts.slice(1).join("|CAPTION:");
-          }
-
-          if (d.type === "image") {
-            return { isMedia: true, url: rawContent, type: "image" as const, caption };
-          }
-          if (d.type === "video") {
-            return { isMedia: true, url: rawContent, type: "video" as const, caption };
-          }
-          if (d.type === "text" && rawContent.startsWith("VIDEO_URL:")) {
-            return { isMedia: true, url: rawContent.replace("VIDEO_URL:", ""), type: "video" as const, caption };
-          }
-          return null;
-        };
-
-        const clustered = [];
-        let i = 0;
-        while (i < timeline.length) {
-          const item = timeline[i];
-          const media = getMediaItem(item);
-          if (media) {
-            const group = [item];
-            let j = i + 1;
-            while (
-              j < timeline.length &&
-              timeline[j].kind === "message" &&
-              timeline[j].data.sender_id === item.data.sender_id
-            ) {
-              const nextMedia = getMediaItem(timeline[j]);
-              if (!nextMedia) break;
-              const timeA = new Date(group[group.length - 1].data.created_at).getTime();
-              const timeB = new Date(timeline[j].data.created_at).getTime();
-              if (timeB - timeA > 90 * 1000) break; // within 90 seconds
-              group.push(timeline[j]);
-              j++;
-            }
-            if (group.length > 1) {
-              const deckItems = group.map((g) => {
-                const m = getMediaItem(g);
-                return {
-                  id: g.data.id,
-                  url: m?.url || g.data.content,
-                  type: m?.type || "image",
-                  caption: m?.caption,
-                };
-              });
-              clustered.push({
-                kind: "message",
-                data: {
-                  ...item.data,
-                  type: "image_group",
-                  content: JSON.stringify(deckItems),
-                  originalMessages: group,
-                },
-              });
-              i = j;
-              continue;
-            }
-          }
-          clustered.push(item);
-          i++;
-        }
-        return clustered;
-      })().map((item: any, i, arr) => {
+      {clusteredTimeline.map((item: any, i, arr) => {
         let groupPosition: "single" | "top" | "middle" | "bottom" = "single";
         let mb = "mb-4";
 
@@ -278,4 +281,6 @@ export default function MessageList({
       <div ref={bottomRef} />
     </div>
   );
-}
+});
+
+export default MessageList;

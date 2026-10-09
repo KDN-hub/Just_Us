@@ -83,7 +83,7 @@ export default function GlobalOverlay() {
     });
   };
 
-  if (!myId || pathname === "/login" || pathname === "/signin" || pathname === "/") {
+  if (!myId || pathname === "/login" || pathname === "/signin" || pathname === "/" || pathname?.startsWith("/onboarding")) {
     return null;
   }
 
