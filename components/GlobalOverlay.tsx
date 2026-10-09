@@ -12,6 +12,7 @@ export default function GlobalOverlay() {
   const [myId, setMyId] = useState<string | null>(null);
   const channelRef = useRef<any>(null);
   const dragConstraintsRef = useRef<HTMLDivElement>(null);
+  const pathnameRef = useRef(pathname);
   
   const [toasts, setToasts] = useState<Array<{ id: string; title: string; body: string; type: string }>>([]);
 
@@ -21,20 +22,24 @@ export default function GlobalOverlay() {
   }, [pathname]);
 
   useEffect(() => {
+    pathnameRef.current = pathname;
+  }, [pathname]);
+
+  useEffect(() => {
     if (!myId) return;
 
     // Use a unique channel for notifications
     const channel = supabase.channel("chat_signal");
     
     channel.on("broadcast", { event: "nudge" }, (payload) => {
-      if (payload.payload?.userId !== myId && pathname !== '/chat') {
+      if (payload.payload?.userId !== myId && pathnameRef.current !== '/chat') {
         addToast("Nudge! 💖", "Your partner sent you a nudge!", "nudge");
         if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate([100, 50, 100]);
       }
     });
 
     channel.on("broadcast", { event: "message" }, (payload) => {
-      if (payload.payload?.userId !== myId && pathname !== '/chat') {
+      if (payload.payload?.userId !== myId && pathnameRef.current !== '/chat') {
          let preview = payload.payload?.content || "Sent a message";
          if (preview.startsWith("IMAGE_URL:")) preview = "Sent an image";
          if (preview.startsWith("VIDEO_URL:")) preview = "Sent a video";
@@ -50,7 +55,7 @@ export default function GlobalOverlay() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [myId, pathname]);
+  }, [myId]);
 
   const addToast = (title: string, body: string, type: string) => {
     const id = Math.random().toString();

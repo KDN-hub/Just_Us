@@ -1,4 +1,5 @@
 import bcrypt from "bcryptjs";
+import type { Session } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase";
 
 /**
@@ -108,8 +109,13 @@ function cacheProfile(p: AppProfile) {
  * chat/call pages read synchronously. The cache is only a convenience — the server
  * enforces identity from the session, so editing it can't grant access.
  */
-export async function loadProfile(opts: { useCache?: boolean } = {}): Promise<AppProfile | null> {
-  const { data: { session } } = await supabase.auth.getSession();
+export async function loadProfile(
+  opts: { useCache?: boolean; session?: Session | null } = {},
+): Promise<AppProfile | null> {
+  // Callers that already hold a session pass it in to avoid a duplicate auth round-trip.
+  const session = opts.session !== undefined
+    ? opts.session
+    : (await supabase.auth.getSession()).data.session;
   if (!session) return null;
 
   if (opts.useCache && localStorage.getItem("user_id")) {

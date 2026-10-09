@@ -9,19 +9,25 @@ export async function resolveMediaUrl(rawUrl: string): Promise<string> {
 
   // Check if URL points to Supabase storage
   // Format: .../storage/v1/object/(public|sign)/<bucket>/<path>
-  const supabaseStorageMatch = rawUrl.match(/\/storage\/v1\/object\/(?:public|sign)\/([^/]+)\/(.+?)(?:\?.*)?$/);
-  if (supabaseStorageMatch) {
-    const bucket = supabaseStorageMatch[1];
-    const path = decodeURIComponent(supabaseStorageMatch[2]);
-    try {
-      // Create a signed URL valid for 2 hours (7200s) for secure viewing
-      const { data, error } = await supabase.storage.from(bucket).createSignedUrl(path, 7200);
-      if (!error && data?.signedUrl) {
-        return data.signedUrl;
-      }
-    } catch {
-      // If signed URL generation fails (e.g. anon session or public bucket), fallback to raw URL
+  const supabaseStorageMatch = rawUrl.match(/\/storage\/v1\/object\/(public|sign)\/([^/]+)\/(.+?)(?:\?.*)?$/);
+  if (!supabaseStorageMatch) return rawUrl;
+
+  const visibility = supabaseStorageMatch[1];
+
+  // Public bucket URLs are already directly accessible — skip the
+  // signed-URL round-trip (avoids one network call per media render).
+  if (visibility === "public") return rawUrl;
+
+  const bucket = supabaseStorageMatch[2];
+  const path = decodeURIComponent(supabaseStorageMatch[3]);
+  try {
+    // Create a signed URL valid for 2 hours (7200s) for secure viewing
+    const { data, error } = await supabase.storage.from(bucket).createSignedUrl(path, 7200);
+    if (!error && data?.signedUrl) {
+      return data.signedUrl;
     }
+  } catch {
+    // If signed URL generation fails, fallback to raw URL
   }
 
   return rawUrl;

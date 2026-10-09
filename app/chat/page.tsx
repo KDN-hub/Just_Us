@@ -15,7 +15,8 @@ import Toast, { ToastMessage } from "@/components/chat/Toast";
 import DeleteMessageModal from "@/components/chat/DeleteMessageModal";
 import PinnedMessagesModal from "@/components/chat/PinnedMessagesModal";
 import MessageInfoModal from "@/components/chat/MessageInfoModal";
-import { useChatStore, generateUUID, formatLastSeen, TimelineItem, Message } from "@/hooks/useChatStore";
+import { useChatStore, generateUUID, TimelineItem, Message } from "@/hooks/useChatStore";
+import { useShallow } from "zustand/react/shallow";
 import { useChatRealtime } from "@/hooks/useChatRealtime";
 import { toggleFavoriteSticker, fetchFavoriteStickers } from "@/lib/stickers";
 
@@ -34,12 +35,28 @@ export default function Chat() {
   const [floatingDateText, setFloatingDateText] = useState("");
   const floatingDateTimerRef = useRef<NodeJS.Timeout | null>(null);
   const rafIdRef = useRef<number | null>(null);
+  // Keeps decorated message objects referentially stable across memo rebuilds
+  // so memoized message rows only re-render when their own data changes.
+  const decoratedCacheRef = useRef<Map<string, { src: Message; key: string; decorated: Message }>>(new Map());
+  const pinsMapRef = useRef<Record<string, boolean>>({});
 
   const {
     myId, partner, messages, callLog, reconnecting,
     partnerTyping, isOnline, daysTogether, incomingCall,
-    setIncomingCall, addOrUpdateMessage, getMessageList, getCallLogList
-  } = useChatStore();
+    setIncomingCall, addOrUpdateMessage
+  } = useChatStore(useShallow((s) => ({
+    myId: s.myId,
+    partner: s.partner,
+    messages: s.messages,
+    callLog: s.callLog,
+    reconnecting: s.reconnecting,
+    partnerTyping: s.partnerTyping,
+    isOnline: s.isOnline,
+    daysTogether: s.daysTogether,
+    incomingCall: s.incomingCall,
+    setIncomingCall: s.setIncomingCall,
+    addOrUpdateMessage: s.addOrUpdateMessage,
+  })));
 
   useChatRealtime(signalChRef);
 
@@ -87,7 +104,6 @@ export default function Chat() {
     setToasts((prev) => prev.filter((t) => t.id !== id));
   }, []);
 
-  const [now, setNow] = useState<number>(() => Date.now());
   const [wallpaper, setWallpaper] = useState<string>("default");
   
   const [showWallpaperModal, setShowWallpaperModal] = useState(false);
@@ -164,13 +180,13 @@ export default function Chat() {
     });
   }, [myId]);
 
-  const handleToggleFavoriteSticker = async (url: string) => {
+  const handleToggleFavoriteSticker = useCallback(async (url: string) => {
     const isNowFav = await toggleFavoriteSticker(myId, { id: "", url });
     setFavoriteStickerUrls((prev) =>
       isNowFav ? [url, ...prev.filter((u) => u !== url)] : prev.filter((u) => u !== url)
     );
     showToast(isNowFav ? "Added sticker to favorites ⭐" : "Removed sticker from favorites", "info");
-  };
+  }, [myId, showToast]);
 
   const toggleFavorite = (url: string, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -343,7 +359,7 @@ export default function Chat() {
     }
   };
 
-  const handleEditMedia = async (rawUrl: string, rawType: string) => {
+  const handleEditMedia = useCallback(async (rawUrl: string, rawType: string) => {
     try {
       showToast("Opening media editor...", "info");
       let cleanUrl = rawUrl;
@@ -391,7 +407,7 @@ export default function Chat() {
       console.error("Failed to load media for editing", err);
       showToast("Couldn't open media in editor", "error");
     }
-  };
+  }, [showToast]);
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const fileList = e.target.files;
@@ -463,11 +479,6 @@ export default function Chat() {
     const setupDone = localStorage.getItem("setup_complete");
     if (!myId || !setupDone) router.replace("/onboarding/welcome");
   }, [myId, router]);
-
-  useEffect(() => {
-    const id = setInterval(() => setNow(Date.now()), 60_000);
-    return () => clearInterval(id);
-  }, []);
 
   const messageList = useMemo(() => {
     return Object.values(messages).sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
@@ -750,7 +761,7 @@ export default function Chat() {
     setIncomingCall(null);
   }, [setIncomingCall]);
 
-  const scrollToAndHighlightMessage = (msgId: string) => {
+  const scrollToAndHighlightMessage = useCallback((msgId: string) => {
     setShowSearch(false);
     setTimeout(() => {
       const msgEl = document.getElementById(`msg-${msgId}`);
@@ -762,13 +773,13 @@ export default function Chat() {
         showToast("Original message is older and not loaded in current view", "info");
       }
     }, 100);
-  };
+  }, [showToast]);
 
-  const handleSearchResultClick = (msgId: string) => {
+  const handleSearchResultClick = useCallback((msgId: string) => {
     scrollToAndHighlightMessage(msgId);
-  };
+  }, [scrollToAndHighlightMessage]);
 
-  const handlePin = async (messageId: string, isCurrentlyPinned: boolean) => {
+  const handlePin = useCallback(async (messageId: string, isCurrentlyPinned: boolean) => {
     const tempId = generateUUID();
     const action = isCurrentlyPinned ? 'UNPIN' : 'PIN';
     addOrUpdateMessage({ 
@@ -795,9 +806,9 @@ export default function Chat() {
       useChatStore.getState().removeMessage(tempId);
       showToast("Couldn't update pin. Try again.", "error");
     }
-  };
+  }, [myId, showToast, addOrUpdateMessage]);
 
-  const handleForward = (content: string) => {
+  const handleForward = useCallback((content: string) => {
     if (navigator.share) {
       navigator.share({ text: content, title: "Shared from Just Us" }).catch(() => {});
     } else {
@@ -805,25 +816,25 @@ export default function Chat() {
         .then(() => showToast("✓ Message copied to share", "success"))
         .catch(() => showToast("Couldn't share message", "error"));
     }
-  };
+  }, [showToast]);
 
-  const handleCopy = (content: string) => {
+  const handleCopy = useCallback((content: string) => {
     navigator.clipboard.writeText(content)
       .then(() => showToast("✓ Message copied", "success"))
       .catch(() => showToast("Couldn't copy message", "error"));
-  };
+  }, [showToast]);
 
-  const handleInfo = (messageId: string) => {
+  const handleInfo = useCallback((messageId: string) => {
     setInfoMessageId(messageId);
-  };
+  }, []);
   
-  const handleReply = (messageId: string) => {
+  const handleReply = useCallback((messageId: string) => {
     setReplyingTo(messageId);
     setEditingMessage(null);
     inputRef.current?.focus();
-  };
+  }, []);
 
-  const handleEdit = (messageId: string) => {
+  const handleEdit = useCallback((messageId: string) => {
     const msg = useChatStore.getState().messages[messageId];
     if (msg && msg.type === 'text') {
       let content = msg.content;
@@ -839,9 +850,9 @@ export default function Chat() {
       setReplyingTo(null);
       inputRef.current?.focus();
     }
-  };
+  }, []);
 
-  const handleDeleteClick = (messageId: string) => {
+  const handleDeleteClick = useCallback((messageId: string) => {
     const msg = useChatStore.getState().messages[messageId];
     const isMine = msg?.sender_id === myId;
     setDeleteModalState({
@@ -851,9 +862,9 @@ export default function Chat() {
       canDeleteForEveryone: isMine,
       count: 1,
     });
-  };
+  }, [myId]);
 
-  const handleDeleteForMe = (ids: string[]) => {
+  const handleDeleteForMe = useCallback((ids: string[]) => {
     setDeletedForMe(prev => {
       const next = Array.from(new Set([...prev, ...ids]));
       if (typeof window !== "undefined") {
@@ -862,9 +873,9 @@ export default function Chat() {
       return next;
     });
     showToast(ids.length > 1 ? `${ids.length} messages deleted for you` : "Message deleted for you", "info");
-  };
+  }, [myId, showToast]);
 
-  const handleDeleteForEveryone = async (messageId: string) => {
+  const handleDeleteForEveryone = useCallback(async (messageId: string) => {
     const offline = !navigator.onLine;
     const tempId = generateUUID();
     const dbContent = `DELETE:${messageId}`;
@@ -897,14 +908,14 @@ export default function Chat() {
       useChatStore.getState().removeMessage(tempId);
       showToast("Couldn't delete message. Try again.", "error");
     }
-  };
+  }, [myId, showToast, addOrUpdateMessage]);
 
-  const handleSelectMessage = (id: string) => {
+  const handleSelectMessage = useCallback((id: string) => {
     setSelectionMode(true);
     setSelectedMessageIds([id]);
-  };
+  }, []);
 
-  const handleToggleSelect = (id: string) => {
+  const handleToggleSelect = useCallback((id: string) => {
     setSelectedMessageIds(prev => {
       if (prev.includes(id)) {
         const next = prev.filter(x => x !== id);
@@ -913,14 +924,14 @@ export default function Chat() {
       }
       return [...prev, id];
     });
-  };
+  }, []);
 
-  const handleCancelSelection = () => {
+  const handleCancelSelection = useCallback(() => {
     setSelectionMode(false);
     setSelectedMessageIds([]);
-  };
+  }, []);
 
-  const handleReaction = async (messageId: string, emoji: string) => {
+  const handleReaction = useCallback(async (messageId: string, emoji: string) => {
     const tempId = generateUUID();
     const dbContent = `REACTION:${messageId}:${emoji}`;
     const offline = !navigator.onLine;
@@ -951,9 +962,9 @@ export default function Chat() {
       useChatStore.getState().removeMessage(tempId);
       showToast("Couldn't add reaction. Try again.", "error");
     }
-  };
+  }, [myId, showToast, addOrUpdateMessage]);
 
-  const { realMessages, pinnedMessages, timeline } = useMemo(() => {
+  const { realMessages, pinnedMessages, timeline, pinsMap, getMessageSnippet } = useMemo(() => {
   let _realMessages: Message[] = [];
   const reactionsMap: Record<string, Record<string, string>> = {};
   const editsMap: Record<string, string> = {};
@@ -1055,44 +1066,89 @@ export default function Chat() {
     _realMessages.push(m);
   }
 
-  __realMessages = _realMessages.map(m => {
+  const cache = decoratedCacheRef.current;
+  const currentIds = new Set<string>();
+  _realMessages = _realMessages.map(m => {
+    const reactions = reactionsMap[m.id] || {};
     const isDeleted = deletedEveryoneIds.has(m.id);
     const replyTargetId = repliesMap[m.id] || m.reply_to;
     const originalMsg = replyTargetId ? msgMap.get(replyTargetId) : undefined;
     const baseContent = replyTextsMap[m.id] || m.content;
+    const content = isDeleted ? 'This message was deleted' : (editsMap[m.id] || baseContent);
+    const is_edited = !isDeleted && !!editsMap[m.id];
+    const reply_to_text = originalMsg ? getMessageSnippet(originalMsg) : undefined;
+    const reply_to_sender_id = originalMsg?.sender_id;
+    const is_pinned = !isDeleted && (pinsMap[m.id] || false);
 
-    return {
+    currentIds.add(m.id);
+    const decorationKey = `${isDeleted ? 1 : 0}|${is_edited ? 1 : 0}|${is_pinned ? 1 : 0}|${replyTargetId ?? ''}|${reply_to_sender_id ?? ''}|${reply_to_text ?? ''}|${content}|${JSON.stringify(reactions)}`;
+    const cached = cache.get(m.id);
+    if (cached && cached.src === m && cached.key === decorationKey) return cached.decorated;
+
+    const decorated: Message = {
        ...m,
-       reactions: reactionsMap[m.id] || {},
-       content: isDeleted ? 'This message was deleted' : (editsMap[m.id] || baseContent),
-       is_edited: !isDeleted && !!editsMap[m.id],
+       reactions,
+       content,
+       is_edited,
        is_deleted: isDeleted,
        reply_to: replyTargetId,
-       reply_to_text: originalMsg ? getMessageSnippet(originalMsg) : undefined,
-       reply_to_sender_id: originalMsg?.sender_id,
-       is_pinned: !isDeleted && (pinsMap[m.id] || false)
+       reply_to_text,
+       reply_to_sender_id,
+       is_pinned,
     };
+    cache.set(m.id, { src: m, key: decorationKey, decorated });
+    return decorated;
   });
+
+  if (cache.size > currentIds.size) {
+    for (const id of Array.from(cache.keys())) {
+      if (!currentIds.has(id)) cache.delete(id);
+    }
+  }
 
   const _pinnedMessages = _realMessages.filter(m => m.is_pinned && !m.is_deleted);
 
-  const handleCopySelected = () => {
-    const selectedMsgs = _realMessages
+  const _timeline: TimelineItem[] = [
+    ..._realMessages.map((m) => ({ kind: "message" as const, data: m, time: m.created_at })),
+    ...callLogList
+      .filter((c) => c.status !== null)
+      .map((c) => ({ kind: "call" as const, data: c, time: c.started_at })),
+  ].sort((a, b) => {
+    const pa = a.kind === "message" && a.data.pending ? 1 : 0;
+    const pb = b.kind === "message" && b.data.pending ? 1 : 0;
+    if (pa !== pb) return pa - pb;
+    return new Date(a.time).getTime() - new Date(b.time).getTime();
+  });
+
+    return { realMessages: _realMessages, pinnedMessages: _pinnedMessages, timeline: _timeline, pinsMap, getMessageSnippet };
+  }, [messageList, deletedForMe, callLogList]);
+
+  useEffect(() => { pinsMapRef.current = pinsMap; }, [pinsMap]);
+
+  const realMessagesRef = useRef(realMessages);
+  useEffect(() => { realMessagesRef.current = realMessages; }, [realMessages]);
+
+  const handlePinToggle = useCallback((id: string) => {
+    handlePin(id, !!pinsMapRef.current[id]);
+  }, [handlePin]);
+
+  const handleCopySelected = useCallback(() => {
+    const selectedMsgs = realMessagesRef.current
       .filter(m => selectedMessageIds.includes(m.id))
       .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
-    
+
     const text = selectedMsgs.map(m => (m.type === 'sticker' || (typeof m.content === 'string' && m.content.startsWith('STICKER:'))) ? '[Sticker]' : m.type === 'image' ? '[Photo]' : m.type === 'audio' ? '[Voice note]' : m.type === 'video' ? '[Video]' : m.content).join("\n\n");
     navigator.clipboard.writeText(text)
       .then(() => showToast(`✓ ${selectedMessageIds.length} messages copied`, "success"))
       .catch(() => showToast("Couldn't copy messages", "error"));
     handleCancelSelection();
-  };
+  }, [selectedMessageIds, showToast, handleCancelSelection]);
 
-  const handleShareSelected = () => {
-    const selectedMsgs = _realMessages
+  const handleShareSelected = useCallback(() => {
+    const selectedMsgs = realMessagesRef.current
       .filter(m => selectedMessageIds.includes(m.id))
       .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
-    
+
     const text = selectedMsgs.map(m => (m.type === 'sticker' || (typeof m.content === 'string' && m.content.startsWith('STICKER:'))) ? '[Sticker]' : m.type === 'image' ? '[Photo]' : m.type === 'audio' ? '[Voice note]' : m.type === 'video' ? '[Video]' : m.content).join("\n\n");
     if (navigator.share) {
       navigator.share({ text, title: "Shared from Just Us" }).catch(() => {});
@@ -1102,10 +1158,10 @@ export default function Chat() {
         .catch(() => showToast("Couldn't share messages", "error"));
     }
     handleCancelSelection();
-  };
+  }, [selectedMessageIds, showToast, handleCancelSelection]);
 
-  const handleDeleteSelected = () => {
-    const selectedMsgs = _realMessages.filter(m => selectedMessageIds.includes(m.id));
+  const handleDeleteSelected = useCallback(() => {
+    const selectedMsgs = realMessagesRef.current.filter(m => selectedMessageIds.includes(m.id));
     const allMine = selectedMsgs.length > 0 && selectedMsgs.every(m => m.sender_id === myId);
     setDeleteModalState({
       isOpen: true,
@@ -1114,7 +1170,7 @@ export default function Chat() {
       canDeleteForEveryone: allMine,
       count: selectedMessageIds.length,
     });
-  };
+  }, [selectedMessageIds, myId]);
 
   const confirmDeleteForMe = () => {
     if (deleteModalState.isMultiple) {
@@ -1134,24 +1190,19 @@ export default function Chat() {
     }
   };
 
-  const _timeline: TimelineItem[] = [
-    ..._realMessages.map((m) => ({ kind: "message" as const, data: m, time: m.created_at })),
-    ...callLogList
-      .filter((c) => c.status !== null)
-      .map((c) => ({ kind: "call" as const, data: c, time: c.started_at })),
-  ].sort((a, b) => {
-    const pa = a.kind === "message" && a.data.pending ? 1 : 0;
-    const pb = b.kind === "message" && b.data.pending ? 1 : 0;
-    if (pa !== pb) return pa - pb;
-    return new Date(a.time).getTime() - new Date(b.time).getTime();
-  });
-
-    return { realMessages: _realMessages, pinnedMessages: _pinnedMessages, timeline: _timeline };
-  }, [messageList, deletedForMe, callLogList]);
-
   const partnerDisplay = partner?.nickname ?? partner?.name ?? "…";
   const partnerInitial = partnerDisplay[0]?.toUpperCase() ?? "?";
   const partnerColor   = "var(--wine)";
+
+  const handleOpenWallpaper = useCallback(() => setShowWallpaperModal(true), []);
+  const handleOpenUsername = useCallback(() => {
+    setNewUsername(partnerDisplay);
+    setShowUsernameModal(true);
+  }, [partnerDisplay]);
+  const handleOpenMedia = useCallback(() => setShowMediaModal(true), []);
+  const handleOpenAvatarUpload = useCallback(() => setShowAvatarModal(true), []);
+  const handleOpenSearch = useCallback(() => setShowSearch(true), []);
+  const handleOpenPinned = useCallback(() => setShowPinnedModal(true), []);
 
   return (
     <motion.main 
@@ -1252,16 +1303,13 @@ export default function Chat() {
         reconnecting={reconnecting}
         partnerIsOnline={partner?.is_online ?? false}
         partnerLastSeen={partner?.last_seen ?? null}
-        onOpenWallpaper={() => setShowWallpaperModal(true)}
-        onOpenUsername={() => {
-          setNewUsername(partnerDisplay);
-          setShowUsernameModal(true);
-        }}
-        onOpenMedia={() => setShowMediaModal(true)}
+        onOpenWallpaper={handleOpenWallpaper}
+        onOpenUsername={handleOpenUsername}
+        onOpenMedia={handleOpenMedia}
         partnerAvatarUrl={partnerAvatarUrl}
-        onOpenAvatarUpload={() => setShowAvatarModal(true)}
-        onSearchClick={() => setShowSearch(true)}
-        onOpenPinned={() => setShowPinnedModal(true)}
+        onOpenAvatarUpload={handleOpenAvatarUpload}
+        onSearchClick={handleOpenSearch}
+        onOpenPinned={handleOpenPinned}
         pinnedCount={pinnedMessages.length}
         selectionMode={selectionMode}
         selectedCount={selectedMessageIds.length}
@@ -1334,7 +1382,7 @@ export default function Chat() {
           onDelete={handleDeleteClick}
           onCopy={handleCopy}
           onQuoteClick={scrollToAndHighlightMessage}
-          onPin={(id) => handlePin(id, !!pinsMap[id])}
+          onPin={handlePinToggle}
           onForward={handleForward}
           onInfo={handleInfo}
           onSelect={handleSelectMessage}

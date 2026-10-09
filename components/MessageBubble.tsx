@@ -1,14 +1,16 @@
 "use client";
 
 import { Check, CheckCheck, Clock, Play, Pause, X, Download, Mic, Plus, Reply, Copy, Pencil, Trash2, Share2, Pin, Info, CheckSquare, Ban, MessageSquare, Crop, ArrowLeft, Star } from "lucide-react";
-import { useState, useRef, useEffect, memo } from "react";
+import { useState, useRef, useEffect, useMemo, memo } from "react";
 import dynamic from "next/dynamic";
 const EmojiPicker = dynamic(() => import('emoji-picker-react'), { ssr: false });
-import { Theme } from 'emoji-picker-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Avatar from "@/components/Avatar";
-import MediaViewer, { MediaViewerItem } from "@/components/chat/MediaViewer";
+import type { MediaViewerItem } from "@/components/chat/MediaViewer";
 import { downloadMediaFile } from "@/lib/media";
+
+// Viewer (and react-zoom-pan-pinch) only loads once an image/video is opened fullscreen.
+const MediaViewer = dynamic(() => import("@/components/chat/MediaViewer"), { ssr: false });
 
 interface MessageBubbleProps {
   id: string;
@@ -105,7 +107,7 @@ const AudioPlayer = ({ url, isMine, timestamp, status, queued, myAvatarUrl, part
       <audio 
         ref={audioRef} 
         src={url} 
-        preload="metadata"
+        preload="none"
         onEnded={() => { setIsPlaying(false); setProgress(0); }} 
         onTimeUpdate={() => setProgress(audioRef.current?.currentTime || 0)} 
         onLoadedMetadata={() => setDuration(audioRef.current?.duration || 0)} 
@@ -246,16 +248,11 @@ const MessageBubble = memo(function MessageBubble({
 }: MessageBubbleProps) {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [fullscreenIndex, setFullscreenIndex] = useState(0);
-  const [mounted, setMounted] = useState(false);
   const [showReactionMenu, setShowReactionMenu] = useState(false);
   const [showFullPicker, setShowFullPicker] = useState(false);
   const [menuPlacement, setMenuPlacement] = useState<'bottom' | 'top'>('bottom');
   const pressTimerRef = useRef<NodeJS.Timeout | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
 
   // Close menus & fullscreen viewer on Escape key
   useEffect(() => {
@@ -331,7 +328,7 @@ const MessageBubble = memo(function MessageBubble({
     captionText = parts.slice(1).join("|CAPTION:");
   }
 
-  const deckItems: Array<{ id?: string; url: string; type: "image" | "video"; caption?: string }> = (() => {
+  const deckItems = useMemo(() => {
     if (actualType !== "image_group") return [];
     try {
       const raw = JSON.parse(actualContent);
@@ -363,9 +360,9 @@ const MessageBubble = memo(function MessageBubble({
     } catch {
       return [];
     }
-  })();
+  }, [actualType, actualContent, id]);
 
-  const viewerMediaItems: MediaViewerItem[] = (() => {
+  const viewerMediaItems: MediaViewerItem[] = useMemo(() => {
     if (actualType === "image_group") {
       return deckItems.map((item) => ({
         id: item.id || id,
@@ -389,7 +386,7 @@ const MessageBubble = memo(function MessageBubble({
       ];
     }
     return [];
-  })();
+  }, [actualType, deckItems, id, actualContent, captionText, timestamp, isMine, partnerName]);
 
   const isActuallyDeleted = isDeleted || content === "This message was deleted";
 
@@ -449,7 +446,7 @@ const MessageBubble = memo(function MessageBubble({
             onClick={e => e.stopPropagation()}
           >
             <EmojiPicker 
-              theme={Theme.DARK} 
+              theme={"dark" as any} 
               width="100%" 
               height={400} 
               onEmojiClick={(e) => { 
@@ -463,16 +460,18 @@ const MessageBubble = memo(function MessageBubble({
       )}
       </AnimatePresence>
 
-      <MediaViewer
-        isOpen={isFullscreen}
-        onClose={() => setIsFullscreen(false)}
-        items={viewerMediaItems}
-        initialIndex={fullscreenIndex}
-        onShowInChat={(targetId) => {
-          if (onQuoteClick) onQuoteClick(targetId);
-        }}
-        onEditMedia={onEditMedia}
-      />
+      {isFullscreen && (
+        <MediaViewer
+          isOpen={isFullscreen}
+          onClose={() => setIsFullscreen(false)}
+          items={viewerMediaItems}
+          initialIndex={fullscreenIndex}
+          onShowInChat={(targetId) => {
+            if (onQuoteClick) onQuoteClick(targetId);
+          }}
+          onEditMedia={onEditMedia}
+        />
+      )}
 
       {showReactionMenu && !showFullPicker && (
         <div 
@@ -560,7 +559,7 @@ const MessageBubble = memo(function MessageBubble({
                                 </div>
                               </div>
                             ) : (
-                              <img src={item.url} className="w-full h-full object-cover" alt="" />
+                              <img src={item.url} className="w-full h-full object-cover" alt="" loading="lazy" decoding="async" />
                             )}
                             {realIndex === 0 && remainingCount > 0 && (
                               <div className="absolute bottom-3 inset-x-0 flex justify-center z-40">
@@ -595,6 +594,7 @@ const MessageBubble = memo(function MessageBubble({
                     alt="Sticker"
                     className="w-[145px] h-[145px] sm:w-[160px] sm:h-[160px] object-contain drop-shadow-[0_8px_22px_rgba(0,0,0,0.38)] transition-transform active:scale-95 cursor-pointer"
                     loading="lazy"
+                    decoding="async"
                     onClick={() => { if (!selectionMode) { setIsFullscreen(true); setFullscreenIndex(0); } }}
                   />
                   <div className="bg-black/55 backdrop-blur-md text-white px-2 py-0.5 rounded-full text-[11px] absolute bottom-1.5 right-1.5 flex items-center gap-1 z-10 pointer-events-none shadow-md">
@@ -616,6 +616,8 @@ const MessageBubble = memo(function MessageBubble({
                     className="max-w-[210px] max-h-[270px] rounded-[8px] object-cover cursor-pointer border border-white/5 w-full block active:opacity-90 hover:opacity-95 transition-opacity" 
                     role="button"
                     aria-label="Open full-screen image"
+                    loading="lazy"
+                    decoding="async"
                   />
                   <div className="px-2 pt-1.5 pb-2 text-[14.5px] leading-snug break-words">
                     <span className="whitespace-pre-wrap">{captionText}</span>
@@ -642,6 +644,8 @@ const MessageBubble = memo(function MessageBubble({
                       className="max-w-[210px] max-h-[270px] rounded-[9px] object-cover cursor-pointer border border-white/5 active:opacity-90 hover:opacity-95 transition-opacity" 
                       role="button"
                       aria-label="Open full-screen image"
+                      loading="lazy"
+                      decoding="async"
                     />
                     <div className="bg-black/60 backdrop-blur-md text-white px-2 py-0.5 rounded-full text-[11.5px] absolute bottom-1.5 right-1.5 flex items-center gap-1 z-10 pointer-events-none">
                       <span>{formatTime(timestamp)}</span>

@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 import type { RealtimeChannel } from "@supabase/supabase-js";
+import { useShallow } from "zustand/react/shallow";
 import { supabase } from "@/lib/supabase";
 import { useChatStore, Message, CallLogEntry } from "./useChatStore";
 
@@ -18,7 +19,18 @@ export function useChatRealtime(signalChRef: React.MutableRefObject<ReturnType<t
     addOrUpdateMessages,
     addOrUpdateCallLog,
     addOrUpdateCallLogs
-  } = useChatStore();
+  } = useChatStore(useShallow((s) => ({
+    myId: s.myId,
+    setPartner: s.setPartner,
+    setReconnecting: s.setReconnecting,
+    setPartnerTyping: s.setPartnerTyping,
+    setDaysTogether: s.setDaysTogether,
+    setIncomingCall: s.setIncomingCall,
+    addOrUpdateMessage: s.addOrUpdateMessage,
+    addOrUpdateMessages: s.addOrUpdateMessages,
+    addOrUpdateCallLog: s.addOrUpdateCallLog,
+    addOrUpdateCallLogs: s.addOrUpdateCallLogs,
+  })));
 
   const hasConnectedRef = useRef(false);
 

@@ -22,7 +22,7 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
       if (cancelled) return;
       if (!session) { router.replace("/signin"); return; }
 
-      const profile = await loadProfile({ useCache: true });
+      const profile = await loadProfile({ useCache: true, session });
       if (cancelled) return;
       if (!profile) { router.replace("/signin"); return; }
 

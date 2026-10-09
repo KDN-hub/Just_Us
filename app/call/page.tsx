@@ -202,7 +202,9 @@ function CallScreen() {
     window.addEventListener("pagehide", onPageHide);
 
     async function setup() {
-      // 1. Acquire local media
+      // 1. Acquire local media and ICE servers in parallel — both involve
+      //    waiting on network/permission, so there is no reason to serialize them.
+      const iceServersPromise = getIceServers();
       let stream: MediaStream;
       try {
         stream = await navigator.mediaDevices.getUserMedia({
@@ -222,7 +224,7 @@ function CallScreen() {
       setStatus(isCallee ? "receiving" : "calling");
 
       // 2. Create peer connection
-      const pc = new RTCPeerConnection({ iceServers: await getIceServers() });
+      const pc = new RTCPeerConnection({ iceServers: await iceServersPromise });
       pcRef.current = pc;
 
       // Attach local tracks

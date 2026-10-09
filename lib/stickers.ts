@@ -56,6 +56,14 @@ const LOCAL_STORAGE_CUSTOM_PACKS = "just_us_custom_sticker_packs";
 const LOCAL_STORAGE_RECENTS = "just_us_recent_stickers";
 const LOCAL_STORAGE_FAVORITES = "just_us_fav_stickers";
 
+// Short-lived in-memory caches so reopening the sticker picker (which unmounts
+// on close) doesn't re-query every sticker table on each mount. Invalidated on
+// any mutation, so data freshness is preserved.
+const STICKER_CACHE_TTL_MS = 60_000;
+let packsNetworkCache: { data: StickerPack[]; at: number } | null = null;
+let recentsNetworkCache: Map<string, { data: Sticker[]; at: number }> = new Map();
+let favoritesNetworkCache: Map<string, { data: Sticker[]; at: number }> = new Map();
+
 /**
  * Validate a candidate sticker file before upload/import
  */
@@ -101,35 +109,45 @@ export async function validateStickerFile(file: File): Promise<{
 export async function fetchStickerPacks(): Promise<StickerPack[]> {
   const customPacks: StickerPack[] = [];
 
-  try {
-    // 1. Try fetching from Supabase table
-    const { data: packsData, error: packsError } = await supabase
-      .from("sticker_packs")
-      .select("id, name, creator_id, cover_url, created_at")
-      .order("created_at", { ascending: false });
+  const now = Date.now();
+  if (packsNetworkCache && now - packsNetworkCache.at < STICKER_CACHE_TTL_MS) {
+    customPacks.push(...packsNetworkCache.data);
+  } else {
+    try {
+      // 1. Try fetching from Supabase table
+      const { data: packsData, error: packsError } = await supabase
+        .from("sticker_packs")
+        .select("id, name, creator_id, cover_url, created_at")
+        .order("created_at", { ascending: false });
 
-    if (!packsError && packsData && packsData.length > 0) {
-      const { data: stickersData, error: stickersError } = await supabase
-        .from("stickers")
-        .select("*")
-        .order("created_at", { ascending: true });
+      if (!packsError && packsData) {
+        const fresh: StickerPack[] = [];
+        if (packsData.length > 0) {
+          const { data: stickersData, error: stickersError } = await supabase
+            .from("stickers")
+            .select("*")
+            .order("created_at", { ascending: true });
 
-      if (!stickersError && stickersData) {
-        for (const p of packsData) {
-          const packStickers = stickersData.filter((s: any) => s.pack_id === p.id);
-          customPacks.push({
-            id: p.id,
-            name: p.name,
-            creator_id: p.creator_id,
-            cover_url: p.cover_url || packStickers[0]?.url,
-            stickers: packStickers,
-            created_at: p.created_at,
-          });
+          if (!stickersError && stickersData) {
+            for (const p of packsData) {
+              const packStickers = stickersData.filter((s: any) => s.pack_id === p.id);
+              fresh.push({
+                id: p.id,
+                name: p.name,
+                creator_id: p.creator_id,
+                cover_url: p.cover_url || packStickers[0]?.url,
+                stickers: packStickers,
+                created_at: p.created_at,
+              });
+            }
+          }
         }
+        packsNetworkCache = { data: fresh, at: Date.now() };
+        customPacks.push(...fresh);
       }
+    } catch (err) {
+      console.warn("[stickers] DB fetch skipped or failed, falling back to local storage:", err);
     }
-  } catch (err) {
-    console.warn("[stickers] DB fetch skipped or failed, falling back to local storage:", err);
   }
 
   // 2. Merge with locally cached custom packs
@@ -186,17 +204,7 @@ export async function createStickerPack(
 
       if (uploadError) {
         console.warn(`[stickers] Storage upload to 'stickers' error:`, uploadError);
-        // Fallback to chat_media if stickers bucket policy hasn't been set yet
-        const altPath = `sticker-${Date.now()}-${idx}.${ext}`;
-        const { data: altData, error: altError } = await supabase.storage
-          .from("chat_media")
-          .upload(altPath, file, { contentType: file.type || "image/webp" });
-
-        if (!altError && altData) {
-          fileUrl = supabase.storage.from("chat_media").getPublicUrl(altPath).data.publicUrl;
-        } else {
-          return { ok: false, error: `Upload failed: ${uploadError.message}. Check storage policies.` };
-        }
+        return { ok: false, error: `Upload failed: ${uploadError.message}. Please check storage policies and retry.` };
       } else if (uploadData) {
         fileUrl = supabase.storage.from("stickers").getPublicUrl(storagePath).data.publicUrl;
       }
@@ -267,6 +275,9 @@ export async function createStickerPack(
     }
   }
 
+  // Invalidate pack cache so the new pack appears immediately
+  packsNetworkCache = null;
+
   return { ok: true, pack: newPack };
 }
 
@@ -296,6 +307,7 @@ export async function recordRecentSticker(userId: string, sticker: Sticker) {
         },
         { onConflict: "user_id,sticker_id" }
       );
+      recentsNetworkCache.delete(userId);
     }
   } catch (err) {
     // Silently fall back to localStorage
@@ -316,21 +328,29 @@ export async function fetchRecentStickers(userId: string): Promise<Sticker[]> {
   }
 
   try {
-    const { data, error } = await supabase
-      .from("recent_stickers")
-      .select("sticker_id, used_at, stickers(*)")
-      .eq("user_id", userId)
-      .order("used_at", { ascending: false })
-      .limit(20);
+    const cached = recentsNetworkCache.get(userId);
+    let dbRecents: Sticker[] = [];
+    if (cached && Date.now() - cached.at < STICKER_CACHE_TTL_MS) {
+      dbRecents = cached.data;
+    } else {
+      const { data, error } = await supabase
+        .from("recent_stickers")
+        .select("sticker_id, used_at, stickers(*)")
+        .eq("user_id", userId)
+        .order("used_at", { ascending: false })
+        .limit(20);
 
-    if (!error && data && data.length > 0) {
-      const dbRecents = data
-        .map((r: any) => r.stickers)
-        .filter(Boolean) as Sticker[];
-      for (const r of dbRecents) {
-        if (!list.some((it) => it.url === r.url)) {
-          list.push(r);
-        }
+      if (!error && data) {
+        dbRecents = data
+          .map((r: any) => r.stickers)
+          .filter(Boolean) as Sticker[];
+        recentsNetworkCache.set(userId, { data: dbRecents, at: Date.now() });
+      }
+    }
+
+    for (const r of dbRecents) {
+      if (!list.some((it) => it.url === r.url)) {
+        list.push(r);
       }
     }
   } catch {}
@@ -378,6 +398,7 @@ export async function toggleFavoriteSticker(
           .delete()
           .match({ user_id: userId, sticker_id: sticker.id });
       }
+      favoritesNetworkCache.delete(userId);
     }
   } catch {}
 
@@ -398,20 +419,28 @@ export async function fetchFavoriteStickers(userId: string): Promise<Sticker[]> 
   }
 
   try {
-    const { data, error } = await supabase
-      .from("favorite_stickers")
-      .select("sticker_id, created_at, stickers(*)")
-      .eq("user_id", userId)
-      .order("created_at", { ascending: false });
+    const cached = favoritesNetworkCache.get(userId);
+    let dbFavs: Sticker[] = [];
+    if (cached && Date.now() - cached.at < STICKER_CACHE_TTL_MS) {
+      dbFavs = cached.data;
+    } else {
+      const { data, error } = await supabase
+        .from("favorite_stickers")
+        .select("sticker_id, created_at, stickers(*)")
+        .eq("user_id", userId)
+        .order("created_at", { ascending: false });
 
-    if (!error && data && data.length > 0) {
-      const dbFavs = data
-        .map((f: any) => f.stickers)
-        .filter(Boolean) as Sticker[];
-      for (const f of dbFavs) {
-        if (!list.some((it) => it.url === f.url)) {
-          list.push(f);
-        }
+      if (!error && data) {
+        dbFavs = data
+          .map((f: any) => f.stickers)
+          .filter(Boolean) as Sticker[];
+        favoritesNetworkCache.set(userId, { data: dbFavs, at: Date.now() });
+      }
+    }
+
+    for (const f of dbFavs) {
+      if (!list.some((it) => it.url === f.url)) {
+        list.push(f);
       }
     }
   } catch {}

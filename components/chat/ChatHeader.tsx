@@ -1,8 +1,9 @@
 "use client";
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, memo } from "react";
 import Link from "next/link";
 import { ChevronLeft, Phone, Video, Image as ImageIcon, UserPen, Images, MoreVertical, Search, X, Copy, Share2, Trash2, Pin } from "lucide-react";
 import Avatar from "@/components/Avatar";
+import { formatLastSeen } from "@/hooks/useChatStore";
 
 interface ChatHeaderProps {
   partnerInitial: string;
@@ -12,7 +13,7 @@ interface ChatHeaderProps {
   isOnline: boolean;
   reconnecting: boolean;
   partnerIsOnline: boolean;
-  partnerLastSeenText: string;
+  partnerLastSeen: string | null;
   onOpenWallpaper?: () => void;
   onOpenUsername?: () => void;
   onOpenMedia?: () => void;
@@ -29,7 +30,7 @@ interface ChatHeaderProps {
   onDeleteSelected?: () => void;
 }
 
-export default function ChatHeader({
+function ChatHeader({
   partnerInitial,
   partnerColor,
   partnerDisplay,
@@ -37,7 +38,7 @@ export default function ChatHeader({
   isOnline,
   reconnecting,
   partnerIsOnline,
-  partnerLastSeenText,
+  partnerLastSeen,
   onOpenWallpaper,
   onOpenUsername,
   onOpenMedia,
@@ -55,6 +56,14 @@ export default function ChatHeader({
 }: ChatHeaderProps) {
   const [showMenu, setShowMenu] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+  const [now, setNow] = useState<number>(() => Date.now());
+
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), 60_000);
+    return () => clearInterval(id);
+  }, []);
+
+  const partnerLastSeenText = formatLastSeen(partnerLastSeen, now);
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -226,3 +235,5 @@ export default function ChatHeader({
     </header>
   );
 }
+
+export default memo(ChatHeader);

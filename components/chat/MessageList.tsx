@@ -52,6 +52,139 @@ export function formatDateSeparator(dateStr: string): string {
   return `${day} ${month} ${year}`;
 }
 
+interface MessageRowProps {
+  kind: "message" | "call";
+  data: any;
+  time: string;
+  myId: string;
+  partnerName: string;
+  partnerInitial: string;
+  partnerColor: string;
+  myAvatarUrl?: string | null;
+  partnerAvatarUrl?: string | null;
+  groupPosition: "single" | "top" | "middle" | "bottom";
+  mb: string;
+  isNewDay: boolean;
+  selectionMode: boolean;
+  isSelected: boolean;
+  isFavoriteSticker: boolean;
+  handleReaction: (messageId: string, emoji: string) => void;
+  onReply?: (messageId: string) => void;
+  onEdit?: (messageId: string) => void;
+  onDelete?: (messageId: string) => void;
+  onCopy?: (content: string) => void;
+  onQuoteClick?: (targetId: string) => void;
+  onPin?: (id: string) => void;
+  onForward?: (id: string) => void;
+  onInfo?: (id: string) => void;
+  onSelect?: (id: string) => void;
+  onToggleSelect?: (id: string) => void;
+  onEditMedia?: (url: string, type: string) => void;
+  onToggleFavoriteSticker?: (url: string) => void;
+}
+
+const MessageRow = memo(function MessageRow({
+  kind,
+  data,
+  time,
+  myId,
+  partnerName,
+  partnerInitial,
+  partnerColor,
+  myAvatarUrl,
+  partnerAvatarUrl,
+  groupPosition,
+  mb,
+  isNewDay,
+  selectionMode,
+  isSelected,
+  isFavoriteSticker,
+  handleReaction,
+  onReply,
+  onEdit,
+  onDelete,
+  onCopy,
+  onQuoteClick,
+  onPin,
+  onForward,
+  onInfo,
+  onSelect,
+  onToggleSelect,
+  onEditMedia,
+  onToggleFavoriteSticker,
+}: MessageRowProps) {
+  const msgId = data.id;
+  return (
+    <div>
+      {isNewDay && (
+        <div className="flex items-center justify-center my-4 select-none">
+          <span className="bg-[#18181A]/80 backdrop-blur-md border border-white/10 text-white/70 text-[11px] font-semibold px-3 py-1 rounded-full uppercase tracking-wider shadow-sm">
+            {formatDateSeparator(time)}
+          </span>
+        </div>
+      )}
+      <motion.div
+        id={`msg-${msgId}`}
+        data-msg-time={time}
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ type: "spring", stiffness: 300, damping: 25 }}
+        className={`transition-all duration-300 rounded-2xl ${mb}`}
+      >
+        {kind === "message" ? (
+          <MessageBubble
+            id={msgId}
+            content={data.content}
+            isMine={data.sender_id === myId}
+            timestamp={data.created_at}
+            status={data.sender_id === myId ? data.status : undefined}
+            queued={data.queued}
+            type={data.type}
+            reactions={data.reactions}
+            myReaction={data.reactions?.[myId]}
+            onReact={(emoji) => handleReaction(msgId, emoji)}
+            onReply={onReply ? () => onReply(msgId) : undefined}
+            onEdit={onEdit ? () => onEdit(msgId) : undefined}
+            onDelete={onDelete ? () => onDelete(msgId) : undefined}
+            onCopy={onCopy ? () => onCopy(data.content) : undefined}
+            replyToId={data.reply_to}
+            replyToText={data.reply_to_text}
+            replyToSenderName={data.reply_to_sender_id === myId ? "You" : partnerName}
+            onQuoteClick={onQuoteClick}
+            isEdited={data.is_edited}
+            isPinned={data.is_pinned}
+            isDeleted={data.is_deleted}
+            onPin={onPin ? () => onPin(msgId) : undefined}
+            onForward={onForward ? () => onForward(msgId) : undefined}
+            onInfo={onInfo ? () => onInfo(msgId) : undefined}
+            onSelect={onSelect ? () => onSelect(msgId) : undefined}
+            selectionMode={selectionMode}
+            isSelected={isSelected}
+            onToggleSelect={onToggleSelect ? () => onToggleSelect(msgId) : undefined}
+            groupPosition={groupPosition}
+            partnerInitial={partnerInitial}
+            partnerColor={partnerColor}
+            partnerName={partnerName}
+            myAvatarUrl={myAvatarUrl}
+            partnerAvatarUrl={partnerAvatarUrl}
+            onEditMedia={onEditMedia}
+            onToggleFavoriteSticker={onToggleFavoriteSticker}
+            isFavoriteSticker={isFavoriteSticker}
+          />
+        ) : (
+          <CallBubble
+            type={data.type}
+            status={data.status!}
+            duration={data.duration_seconds}
+            timestamp={data.started_at}
+            isMine={data.caller_id === myId}
+          />
+        )}
+      </motion.div>
+    </div>
+  );
+});
+
 const MessageList = memo(function MessageList({
   timeline,
   myId,
@@ -197,76 +330,43 @@ const MessageList = memo(function MessageList({
           }
         }
 
+        const isMessage = item.kind === "message";
+        const stickerCore = isMessage && typeof item.data.content === "string"
+          ? item.data.content.replace(/^STICKER:/, "")
+          : "";
+
         return (
-          <div key={`wrapper-${item.data.id}`}>
-            {isNewDay && (
-              <div className="flex items-center justify-center my-4 select-none">
-                <span className="bg-[#18181A]/80 backdrop-blur-md border border-white/10 text-white/70 text-[11px] font-semibold px-3 py-1 rounded-full uppercase tracking-wider shadow-sm">
-                  {formatDateSeparator(item.time)}
-                </span>
-              </div>
-            )}
-            <motion.div 
-              id={`msg-${item.data.id}`} 
-              data-msg-time={item.time}
-              key={item.data.id} 
-              layout 
-              initial={{ opacity: 0, y: 20 }} 
-              animate={{ opacity: 1, y: 0 }} 
-              transition={{ type: "spring", stiffness: 300, damping: 25 }} 
-              className={`transition-all duration-300 rounded-2xl ${mb}`}
-            >
-            {item.kind === "message" ? (
-              <MessageBubble
-                id={item.data.id}
-                content={item.data.content}
-                isMine={item.data.sender_id === myId}
-                timestamp={item.data.created_at}
-                status={item.data.sender_id === myId ? item.data.status : undefined}
-                queued={item.data.queued}
-                type={item.data.type}
-                reactions={item.data.reactions}
-                myReaction={item.data.reactions?.[myId]}
-                onReact={(emoji) => handleReaction(item.data.id, emoji)}
-                onReply={() => onReply?.(item.data.id)}
-                onEdit={() => onEdit?.(item.data.id)}
-                onDelete={() => onDelete?.(item.data.id)}
-                onCopy={() => onCopy?.(item.data.content)}
-                replyToId={item.data.reply_to}
-                replyToText={item.data.reply_to_text}
-                replyToSenderName={item.data.reply_to_sender_id === myId ? "You" : partnerName}
-                onQuoteClick={onQuoteClick}
-                isEdited={item.data.is_edited}
-                isPinned={item.data.is_pinned}
-                isDeleted={item.data.is_deleted}
-                onPin={() => onPin?.(item.data.id)}
-                onForward={() => onForward?.(item.data.id)}
-                onInfo={() => onInfo?.(item.data.id)}
-                onSelect={() => onSelect?.(item.data.id)}
-                selectionMode={selectionMode}
-                isSelected={selectedMessageIds.includes(item.data.id)}
-                onToggleSelect={() => onToggleSelect?.(item.data.id)}
-                groupPosition={groupPosition}
-                partnerInitial={partnerInitial}
-                partnerColor={partnerColor}
-                partnerName={partnerName}
-                myAvatarUrl={myAvatarUrl}
-                partnerAvatarUrl={partnerAvatarUrl}
-                onEditMedia={onEditMedia}
-                onToggleFavoriteSticker={onToggleFavoriteSticker}
-                isFavoriteSticker={favoriteStickers.includes(typeof item.data.content === 'string' ? item.data.content.replace(/^STICKER:/, '') : '')}
-              />
-            ) : (
-              <CallBubble
-                type={item.data.type}
-                status={item.data.status!}
-                duration={item.data.duration_seconds}
-                timestamp={item.data.started_at}
-                isMine={item.data.caller_id === myId}
-              />
-            )}
-          </motion.div>
-          </div>
+          <MessageRow
+            key={`wrapper-${item.data.id}`}
+            kind={item.kind}
+            data={item.data}
+            time={item.time}
+            myId={myId}
+            partnerName={partnerName}
+            partnerInitial={partnerInitial}
+            partnerColor={partnerColor}
+            myAvatarUrl={myAvatarUrl}
+            partnerAvatarUrl={partnerAvatarUrl}
+            groupPosition={groupPosition}
+            mb={mb}
+            isNewDay={isNewDay}
+            selectionMode={selectionMode}
+            isSelected={isMessage && selectedMessageIds.includes(item.data.id)}
+            isFavoriteSticker={isMessage && favoriteStickers.includes(stickerCore)}
+            handleReaction={handleReaction}
+            onReply={onReply}
+            onEdit={onEdit}
+            onDelete={onDelete}
+            onCopy={onCopy}
+            onQuoteClick={onQuoteClick}
+            onPin={onPin}
+            onForward={onForward}
+            onInfo={onInfo}
+            onSelect={onSelect}
+            onToggleSelect={onToggleSelect}
+            onEditMedia={onEditMedia}
+            onToggleFavoriteSticker={onToggleFavoriteSticker}
+          />
         );
       })}
 
