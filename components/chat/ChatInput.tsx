@@ -172,7 +172,7 @@ export default function ChatInput({
                 onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(); } }} maxRows={6} style={{ resize: "none" }}
                 placeholder="Message…"
                 autoComplete="off"
-                className="flex-1 bg-transparent py-2 px-1 text-[15.5px] leading-[22px] text-white outline-none placeholder:text-white/40 min-w-0"
+                className="flex-1 bg-transparent py-2 px-1 text-[16px] leading-[22px] text-white outline-none placeholder:text-white/40 min-w-0"
               />
 
               <div className="relative flex items-center shrink-0">

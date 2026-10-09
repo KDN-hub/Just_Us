@@ -52,9 +52,9 @@ export default function HomePage() {
 
   return (
     <div 
-      className="relative flex min-h-full w-full flex-col p-6 pb-28"
+      className="relative flex min-h-full w-full flex-col px-6 pb-28 pt-[max(env(safe-area-inset-top,0px),4.5rem)]"
     >
-      <div className="mt-12">
+      <div>
         <h1 className="text-[32px] font-bold text-white tracking-tight" style={{ fontFamily: "var(--font-fraunces), serif" }}>
           {partnerName ? partnerName : "..."}
         </h1>

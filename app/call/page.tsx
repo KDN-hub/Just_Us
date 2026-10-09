@@ -565,7 +565,7 @@ function CallScreen() {
       <div className="relative z-10 flex h-full flex-col">
 
         {/* Top: partner name + status/timer */}
-        <div className="flex flex-col items-center gap-1 pt-[max(env(safe-area-inset-top),60px)]">
+        <div className="flex flex-col items-center gap-1 pt-[max(env(safe-area-inset-top,0px),1rem)]">
           <p className="text-[15px] font-medium text-[var(--cream)]">
             {partnerName}
           </p>
@@ -613,7 +613,7 @@ function CallScreen() {
         )}
 
         {/* Controls row */}
-        <div className="flex items-center justify-center gap-5 pb-[max(env(safe-area-inset-bottom),3.5rem)]">
+        <div className="flex items-center justify-center gap-5 pb-[max(env(safe-area-inset-bottom,0px),1.5rem)]">
 
           {/* Mute / Unmute */}
           <button

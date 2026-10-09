@@ -79,7 +79,7 @@ export default function SignIn() {
         type="button"
         onClick={() => router.push("/onboarding/welcome")}
         aria-label="Go back"
-        className="absolute top-6 left-6 z-30 flex h-11 w-11 items-center justify-center rounded-full bg-[var(--wine)] shadow-[0_4px_12px_rgba(188,21,41,0.35)] transition-transform duration-200 hover:scale-105 active:scale-95"
+        className="absolute top-[max(env(safe-area-inset-top,0px),1.5rem)] left-6 z-30 flex h-11 w-11 items-center justify-center rounded-full bg-[var(--wine)] shadow-[0_4px_12px_rgba(188,21,41,0.35)] transition-transform duration-200 hover:scale-105 active:scale-95"
       >
         <ChevronLeft className="h-5 w-5 stroke-[3] text-white mr-[2px]" />
       </motion.button>
@@ -119,7 +119,7 @@ export default function SignIn() {
         initial={{ opacity: 0, y: 70 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6, delay: 0.15, ease: [0.16, 1, 0.3, 1] }}
-        className="relative z-10 flex flex-col gap-3.5 rounded-t-[36px] bg-[#26221E] px-6 pb-24 pt-9 shadow-[0_-8px_30px_rgba(0,0,0,0.35)]"
+        className="relative z-10 flex flex-col gap-3.5 rounded-t-[36px] bg-[#26221E] px-6 pb-[calc(env(safe-area-inset-bottom,0px)+6rem)] pt-9 shadow-[0_-8px_30px_rgba(0,0,0,0.35)]"
       >
         {notice && <p className="text-[12px] text-[#C9A66B]">{notice}</p>}
 
@@ -130,7 +130,7 @@ export default function SignIn() {
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           placeholder="Email"
-          className="w-full rounded-2xl border border-[#3A342E] bg-[#1E1B18] px-4 py-3.5 text-[15px] text-[#F5F0E8] outline-none placeholder:text-[#8A8177] focus:border-[var(--wine)] focus:ring-1 focus:ring-[var(--wine)]"
+          className="w-full rounded-2xl border border-[#3A342E] bg-[#1E1B18] px-4 py-3.5 text-[16px] text-[#F5F0E8] outline-none placeholder:text-[#8A8177] focus:border-[var(--wine)] focus:ring-1 focus:ring-[var(--wine)]"
         />
         <input
           type="password"
@@ -139,7 +139,7 @@ export default function SignIn() {
           onChange={(e) => setPassword(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && handleSignIn()}
           placeholder="Password"
-          className="w-full rounded-2xl border border-[#3A342E] bg-[#1E1B18] px-4 py-3.5 text-[15px] text-[#F5F0E8] outline-none placeholder:text-[#8A8177] focus:border-[var(--wine)] focus:ring-1 focus:ring-[var(--wine)]"
+          className="w-full rounded-2xl border border-[#3A342E] bg-[#1E1B18] px-4 py-3.5 text-[16px] text-[#F5F0E8] outline-none placeholder:text-[#8A8177] focus:border-[var(--wine)] focus:ring-1 focus:ring-[var(--wine)]"
         />
 
         {error && <p className="text-[12px] text-red-400">{error}</p>}

@@ -125,7 +125,7 @@ export default function PinSetup() {
         type="button"
         onClick={handleBack}
         aria-label="Go back"
-        className="absolute top-6 left-6 z-30 flex h-11 w-11 items-center justify-center rounded-full bg-[var(--wine)] shadow-[0_4px_12px_rgba(188,21,41,0.35)] transition-transform duration-200 hover:scale-105 active:scale-95"
+        className="absolute top-[max(env(safe-area-inset-top,0px),1.5rem)] left-6 z-30 flex h-11 w-11 items-center justify-center rounded-full bg-[var(--wine)] shadow-[0_4px_12px_rgba(188,21,41,0.35)] transition-transform duration-200 hover:scale-105 active:scale-95"
       >
         <ChevronLeft className="h-5 w-5 stroke-[3] text-white mr-[2px]" />
       </motion.button>
@@ -149,7 +149,7 @@ export default function PinSetup() {
         initial={{ opacity: 0, y: 70 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6, delay: 0.1, ease: [0.16, 1, 0.3, 1] }}
-        className="relative z-10 flex flex-col items-center gap-4 rounded-t-[36px] border-t border-white/10 bg-[#18181A]/90 px-6 backdrop-blur-2xl pb-24 pt-8 shadow-[0_-8px_30px_rgba(0,0,0,0.35)]"
+        className="relative z-10 flex flex-col items-center gap-4 rounded-t-[36px] border-t border-white/10 bg-[#18181A]/90 px-6 backdrop-blur-2xl pb-[calc(env(safe-area-inset-bottom,0px)+6rem)] pt-8 shadow-[0_-8px_30px_rgba(0,0,0,0.35)]"
       >
         {/* Avatar initial */}
         <div

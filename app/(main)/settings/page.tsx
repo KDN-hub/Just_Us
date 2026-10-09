@@ -192,7 +192,7 @@ export default function Settings() {
       initial={{ opacity: 0, y: 15 }} 
       animate={{ opacity: 1, y: 0 }} 
       transition={{ duration: 0.5, ease: "easeOut" }}
-      className="flex min-h-full w-full flex-col font-sans pt-[72px] pb-28 relative"
+      className="flex min-h-full w-full flex-col font-sans pt-[max(env(safe-area-inset-top,0px),4.5rem)] pb-28 relative"
     >
       {step !== "menu" && (
         <div className="absolute top-[72px] left-6 z-10">

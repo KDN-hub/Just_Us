@@ -95,7 +95,7 @@ export default function GlobalOverlay() {
   return (
     <>
       {/* Toasts Container */}
-      <div className="fixed top-0 left-0 right-0 z-[100] flex flex-col items-center gap-2 p-4 pointer-events-none pt-[max(env(safe-area-inset-top),1rem)]">
+      <div className="fixed top-0 left-0 right-0 z-[100] flex flex-col items-center gap-2 p-4 pointer-events-none pt-[max(env(safe-area-inset-top,0px),1rem)]">
         <AnimatePresence>
           {toasts.map((t) => (
             <motion.div

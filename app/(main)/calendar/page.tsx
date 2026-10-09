@@ -201,7 +201,7 @@ export default function CalendarPage() {
       initial={{ opacity: 0, y: 15 }} 
       animate={{ opacity: 1, y: 0 }} 
       transition={{ duration: 0.5, ease: "easeOut" }}
-      className="relative flex min-h-full w-full flex-col px-4 pt-[72px] pb-28"
+      className="relative flex min-h-full w-full flex-col px-4 pt-[max(env(safe-area-inset-top,0px),4.5rem)] pb-28"
     >
       
       {/* Calendar Grid Container */}

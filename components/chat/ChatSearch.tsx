@@ -54,7 +54,7 @@ export default function ChatSearch({ onClose, conversationId, onResultClick, myI
 
   return (
     <div className="absolute inset-0 z-[60] bg-[#0A0A0A] flex flex-col animate-in fade-in slide-in-from-top-4 duration-300">
-      <div className="flex items-center gap-3 pt-[max(env(safe-area-inset-top,0px),3.75rem)] px-4 pb-3 bg-[#18181A] border-b border-white/10">
+      <div className="flex items-center gap-3 pt-[max(env(safe-area-inset-top,0px),1rem)] px-4 pb-3 bg-[#18181A] border-b border-white/10">
         <div className="flex-1 relative flex items-center">
           <Search className="absolute left-3 w-4 h-4 text-white/50" />
           <input

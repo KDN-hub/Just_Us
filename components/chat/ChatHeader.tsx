@@ -77,7 +77,7 @@ function ChatHeader({
 
   if (selectionMode) {
     return (
-      <header className="relative z-[60] shrink-0 flex items-center justify-between bg-[#18181A]/95 backdrop-blur-2xl border-b border-white/10 px-4 pb-4 pt-[max(env(safe-area-inset-top),4.5rem)] shadow-lg animate-in fade-in duration-200">
+      <header className="relative z-[60] shrink-0 flex items-center justify-between bg-[#18181A]/95 backdrop-blur-2xl border-b border-white/10 px-4 pb-4 pt-[max(env(safe-area-inset-top,0px),1rem)] shadow-lg animate-in fade-in duration-200">
         <div className="flex items-center gap-3">
           <button
             onClick={onCancelSelection}
@@ -121,7 +121,7 @@ function ChatHeader({
   }
 
   return (
-    <header className="relative z-[60] shrink-0 flex items-center gap-3 bg-[#18181A]/95 backdrop-blur-2xl border-b border-white/10 px-4 pb-4 pt-[max(env(safe-area-inset-top),4.5rem)] shadow-lg">
+    <header className="relative z-[60] shrink-0 flex items-center gap-3 bg-[#18181A]/95 backdrop-blur-2xl border-b border-white/10 px-4 pb-4 pt-[max(env(safe-area-inset-top,0px),1rem)] shadow-lg">
       <Link
         href="/home"
         aria-label="Back"

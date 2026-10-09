@@ -505,7 +505,7 @@ export default function MediaComposer({
       }}
     >
       {/* Top Navigation & Tool Header - Dropped down to comfortably clear status bar & notch */}
-      <div className="flex items-center justify-between px-4 pt-[max(env(safe-area-inset-top,0px),3.75rem)] pb-3 bg-gradient-to-b from-black/85 via-black/40 to-transparent z-30">
+      <div className="flex items-center justify-between px-4 pt-[max(env(safe-area-inset-top,0px),1rem)] pb-3 bg-gradient-to-b from-black/85 via-black/40 to-transparent z-30">
         <button
           onClick={handleAttemptClose}
           className="flex items-center justify-center w-10 h-10 rounded-full text-white/90 hover:text-white active:scale-95 transition-all bg-black/60 border border-white/10 shadow-lg backdrop-blur-md shrink-0"
@@ -854,7 +854,7 @@ export default function MediaComposer({
             onClick={confirmTextOverlay}
           >
             {/* Top Toolbar */}
-            <div className="flex items-center justify-between w-full pt-[max(env(safe-area-inset-top,0px),3.75rem)] px-2" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between w-full pt-[max(env(safe-area-inset-top,0px),1rem)] px-2" onClick={(e) => e.stopPropagation()}>
               <button
                 onClick={() => setTextStyle((prev) => (prev === "classic" ? "bold" : "classic"))}
                 className="px-3.5 py-1.5 rounded-full bg-white/15 text-white text-[12.5px] font-semibold tracking-wide border border-white/10"

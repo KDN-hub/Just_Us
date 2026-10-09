@@ -303,7 +303,7 @@ export default function MediaViewer({
     >
       {/* Top Controls Bar */}
       <div
-        className={`absolute top-0 inset-x-0 z-50 flex items-center justify-between px-4 pt-[max(env(safe-area-inset-top,0px),3.75rem)] pb-4 bg-gradient-to-b from-black/95 via-black/70 to-transparent transition-opacity duration-300 pointer-events-auto ${
+        className={`absolute top-0 inset-x-0 z-50 flex items-center justify-between px-4 pt-[max(env(safe-area-inset-top,0px),1rem)] pb-4 bg-gradient-to-b from-black/95 via-black/70 to-transparent transition-opacity duration-300 pointer-events-auto ${
           showControls ? "opacity-100" : "opacity-0 pointer-events-none"
         }`}
       >
