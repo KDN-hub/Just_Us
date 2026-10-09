@@ -538,7 +538,7 @@ function CallScreen() {
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: "100%" }}
       transition={{ type: "spring", stiffness: 300, damping: 30 }}
-      className="relative mx-auto flex h-dvh w-full max-w-md flex-col overflow-hidden font-sans"
+      className="shell-h relative mx-auto flex w-full max-w-md flex-col overflow-hidden font-sans"
       style={{ backgroundColor: "#0F0D0B" }}
     >
       {/* ── Remote audio (voice calls) — without this a voice call is silent ── */}
@@ -676,7 +676,7 @@ export default function CallPage() {
   return (
     <Suspense
       fallback={
-        <div className="h-dvh font-sans" style={{ backgroundColor: "#0F0D0B" }} />
+        <div className="shell-h font-sans" style={{ backgroundColor: "#0F0D0B" }} />
       }
     >
       <CallScreen />

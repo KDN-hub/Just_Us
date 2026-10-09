@@ -17,7 +17,7 @@ export default function ChatError({
 
   return (
     <main
-      className="flex h-dvh flex-col items-center justify-center p-6 text-center font-sans"
+      className="shell-h flex flex-col items-center justify-center p-6 text-center font-sans"
       style={{ background: "var(--gradient)" }}
     >
       <div className="mb-6 rounded-full bg-red-900/30 p-4 ring-1 ring-red-500/50">

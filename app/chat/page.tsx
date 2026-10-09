@@ -1210,7 +1210,7 @@ export default function Chat() {
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -8 }}
       transition={{ type: "spring", stiffness: 300, damping: 30 }}
-      className="mx-auto flex h-dvh w-full max-w-md flex-col font-sans relative overflow-x-hidden" 
+      className="shell-h mx-auto flex w-full max-w-md flex-col font-sans relative overflow-x-hidden" 
       style={{ 
         background: wallpaper === "default" ? "var(--gradient)" : "#000"
       }}

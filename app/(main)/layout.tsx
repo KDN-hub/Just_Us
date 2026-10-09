@@ -98,7 +98,7 @@ export default function MainLayout({ children }: { children: ReactNode }) {
 
   return (
     <div 
-      className="relative mx-auto flex h-dvh w-full max-w-md flex-col overflow-hidden font-sans"
+      className="shell-h relative mx-auto flex w-full max-w-md flex-col overflow-hidden font-sans"
       onTouchStart={onTouchStart}
       onTouchMove={onTouchMove}
       onTouchEnd={onTouchEnd}

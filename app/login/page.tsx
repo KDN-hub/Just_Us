@@ -156,7 +156,7 @@ export default function Login() {
   if (!ready) return null;
 
   return (
-    <main className="relative mx-auto flex h-dvh w-full max-w-md flex-col font-notch overflow-hidden">
+    <main className="shell-h relative mx-auto flex w-full max-w-md flex-col font-notch overflow-hidden">
       {/* Back button */}
       {showPinPad && (
         <motion.button

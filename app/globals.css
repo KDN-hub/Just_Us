@@ -27,3 +27,17 @@ body {
   /* Avoid dark fringe artifacts against rounded screen edges */
   isolation: isolate;
 }
+
+/* Viewport-height shells with a 100vh fallback: on engines without dvh
+   support the second declaration is dropped and 100vh stands, so
+   bottom-anchored bars (nav, chat input, call controls) never fall
+   below the fold. Where dvh is valid it wins by source order. */
+.shell-h {
+  height: 100vh;
+  height: 100dvh;
+}
+
+.shell-minh {
+  min-height: 100vh;
+  min-height: 100dvh;
+}

@@ -8,7 +8,7 @@ import { motion } from "framer-motion";
 export default function Welcome() {
   return (
     <main
-      className="mx-auto flex min-h-dvh w-full max-w-md flex-col px-6 py-10 text-center font-notch overflow-hidden"
+      className="shell-minh mx-auto flex w-full max-w-md flex-col px-6 py-10 text-center font-notch overflow-y-auto"
       style={{
         background: "var(--gradient)",
       }}
@@ -20,7 +20,7 @@ export default function Welcome() {
           initial={{ opacity: 0, scale: 0.85, y: -12 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
-          className="relative h-[240px] w-[240px] animate-float overflow-hidden rounded-full border-[3px] border-[var(--gold)] shadow-[0_30px_60px_-15px_rgba(0,0,0,0.8),0_0_45px_rgba(201,166,107,0.3)]"
+          className="relative h-[240px] w-[240px] max-h-[calc(100dvh-440px)] max-w-[calc(100dvh-440px)] animate-float overflow-hidden rounded-full border-[3px] border-[var(--gold)] shadow-[0_30px_60px_-15px_rgba(0,0,0,0.8),0_0_45px_rgba(201,166,107,0.3)]"
         >
           <Image
             src="/images/welcome-couple.jpeg"

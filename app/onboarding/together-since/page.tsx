@@ -46,7 +46,7 @@ export default function TogetherSince() {
   }
 
   return (
-    <main className="relative mx-auto flex h-dvh w-full max-w-md flex-col font-notch overflow-hidden">
+    <main className="shell-h relative mx-auto flex w-full max-w-md flex-col font-notch overflow-hidden">
       {/* Back button */}
       <motion.button
         initial={{ opacity: 0, scale: 0.8 }}
