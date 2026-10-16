@@ -13,20 +13,32 @@ export default function GlobalOverlay() {
   const channelRef = useRef<any>(null);
   const dragConstraintsRef = useRef<HTMLDivElement>(null);
   const pathnameRef = useRef(pathname);
+  const toastTimersRef = useRef<NodeJS.Timeout[]>([]);
   
   const [toasts, setToasts] = useState<Array<{ id: string; title: string; body: string; type: string }>>([]);
 
+  const isExcludedRoute = !pathname || pathname === "/login" || pathname === "/signin" || pathname === "/" || pathname.startsWith("/onboarding");
+
   useEffect(() => {
-    const id = localStorage.getItem("user_id") || localStorage.getItem("my_id");
-    if (id) setMyId(id);
-  }, [pathname]);
+    if (!myId) {
+      const id = localStorage.getItem("user_id") || localStorage.getItem("my_id");
+      if (id) setMyId(id);
+    }
+  }, [pathname, myId]);
 
   useEffect(() => {
     pathnameRef.current = pathname;
   }, [pathname]);
 
   useEffect(() => {
-    if (!myId) return;
+    return () => {
+      toastTimersRef.current.forEach((t) => clearTimeout(t));
+      toastTimersRef.current = [];
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!myId || isExcludedRoute) return;
 
     // Use a unique channel for notifications
     const channel = supabase.channel("chat_signal");
@@ -55,14 +67,15 @@ export default function GlobalOverlay() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [myId]);
+  }, [myId, isExcludedRoute]);
 
   const addToast = (title: string, body: string, type: string) => {
     const id = Math.random().toString();
     setToasts((prev) => [...prev, { id, title, body, type }]);
-    setTimeout(() => {
+    const timer = setTimeout(() => {
       setToasts((prev) => prev.filter((t) => t.id !== id));
     }, 4000);
+    toastTimersRef.current.push(timer);
   };
 
   const handleSendNudge = async () => {

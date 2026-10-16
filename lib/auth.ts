@@ -1,4 +1,3 @@
-import bcrypt from "bcryptjs";
 import type { Session } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase";
 
@@ -64,7 +63,8 @@ export async function verifyLocalPin(
     const currentHash = await hashPin(pin);
     isMatch = currentHash === storedHash;
   } else {
-    // Legacy bcrypt hash fallback
+    // Legacy bcrypt hash fallback - loaded dynamically only when needed
+    const bcrypt = (await import("bcryptjs")).default;
     isMatch = await bcrypt.compare(pin, storedHash);
     if (isMatch) {
       // Migrate to fast hash immediately so subsequent logins are instant

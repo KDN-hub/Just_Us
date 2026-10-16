@@ -29,8 +29,8 @@ const config: Config = {
         ink: "var(--ink)",
       },
       fontFamily: {
-        sans: ['"Stack Sans Text"', "sans-serif"],
-        serif: ['"Stack Sans Text"', "sans-serif"],
+        sans: ['"Stack Sans Text Variable"', '"Stack Sans Text"', "sans-serif"],
+        serif: ['"Stack Sans Text Variable"', '"Stack Sans Text"', "sans-serif"],
         notch: ['"Stack Sans Notch"', "sans-serif"],
       },
       keyframes: {

@@ -4,9 +4,9 @@ import dynamic from 'next/dynamic';
 const EmojiPicker = dynamic(() => import('emoji-picker-react'), { ssr: false });
 import TextareaAutosize from 'react-textarea-autosize';
 import { motion, AnimatePresence } from 'framer-motion';
-import MediaComposer from "@/components/chat/MediaComposer";
+const MediaComposer = dynamic(() => import("@/components/chat/MediaComposer"), { ssr: false });
 const StickerPicker = dynamic(() => import('@/components/chat/StickerPicker'), { ssr: false });
-import StickerImportModal from "@/components/chat/StickerImportModal";
+const StickerImportModal = dynamic(() => import("@/components/chat/StickerImportModal"), { ssr: false });
 
 interface ChatInputProps {
   draft: string;

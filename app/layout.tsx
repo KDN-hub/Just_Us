@@ -1,12 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import "@fontsource/stack-sans-text/400.css";
-import "@fontsource/stack-sans-text/500.css";
-import "@fontsource/stack-sans-text/600.css";
-import "@fontsource/stack-sans-text/700.css";
-import "@fontsource/stack-sans-notch/400.css";
-import "@fontsource/stack-sans-notch/500.css";
-import "@fontsource/stack-sans-notch/600.css";
-import "@fontsource/stack-sans-notch/700.css";
+import "@fontsource-variable/stack-sans-text";
 import "./globals.css";
 
 export const metadata: Metadata = {

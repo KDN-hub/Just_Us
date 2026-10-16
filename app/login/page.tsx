@@ -3,6 +3,8 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
+import "@fontsource/stack-sans-notch/400.css";
+import "@fontsource/stack-sans-notch/700.css";
 import { Lock, ChevronRight, ChevronLeft } from "lucide-react";
 import { motion, useAnimation, useMotionValue, useTransform, AnimatePresence } from "framer-motion";
 import { supabase } from "@/lib/supabase";
