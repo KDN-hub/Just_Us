@@ -197,11 +197,8 @@ export default function CalendarPage() {
   const eventColors = ['#1EA1F2', '#FFB100', '#A855F7', '#FF3E6C'];
 
   return (
-    <motion.div 
-      initial={{ opacity: 0, y: 15 }} 
-      animate={{ opacity: 1, y: 0 }} 
-      transition={{ duration: 0.5, ease: "easeOut" }}
-      className="relative flex min-h-full w-full flex-col px-4 pt-[max(env(safe-area-inset-top,0px),4.5rem)] pb-28"
+    <div 
+      className="relative flex min-h-full w-full flex-col px-4 pt-[max(env(safe-area-inset-top,0px),4.5rem)] pb-28 animate-page-in"
     >
       
       {/* Calendar Grid Container */}
@@ -470,7 +467,7 @@ export default function CalendarPage() {
           </div>
         )}
       </AnimatePresence>
-    </motion.div>
+    </div>
   );
 }
 

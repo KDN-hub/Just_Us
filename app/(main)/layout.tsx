@@ -1,7 +1,6 @@
 "use client";
 
 import { Calendar } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
 import { useState, useEffect, useRef, ReactNode } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -123,13 +122,12 @@ export default function MainLayout({ children }: { children: ReactNode }) {
                 }`}
               >
                 {isActive && (
-                  <motion.div
-                    layoutId="nav-pill"
-                    className="absolute inset-0 rounded-full bg-[var(--wine)] shadow-md p-1"
-                    transition={{ type: "spring", stiffness: 350, damping: 30 }}
+                  <div
+                    aria-hidden
+                    className="absolute inset-0 rounded-full bg-[var(--wine)] shadow-md p-1 animate-nav-fade"
                   >
                     <div className="h-full w-full rounded-full border border-white/40" />
-                  </motion.div>
+                  </div>
                 )}
                 <span className="relative z-10 flex items-center gap-2">
                   {item.name === "Calendar" ? (
@@ -137,19 +135,11 @@ export default function MainLayout({ children }: { children: ReactNode }) {
                   ) : (
                     <Icon className="h-[28px] w-[28px]" isActive={isActive} />
                   )}
-                  <AnimatePresence mode="popLayout">
-                    {isActive && (
-                      <motion.span
-                        initial={{ opacity: 0, width: 0, scale: 0.8 }}
-                        animate={{ opacity: 1, width: "auto", scale: 1 }}
-                        exit={{ opacity: 0, width: 0, scale: 0.8 }}
-                        transition={{ duration: 0.2 }}
-                        className="text-[17px] font-normal tracking-wide whitespace-nowrap overflow-hidden"
-                      >
-                        {item.name}
-                      </motion.span>
-                    )}
-                  </AnimatePresence>
+                  {isActive && (
+                    <span className="text-[17px] font-normal tracking-wide whitespace-nowrap overflow-hidden animate-nav-fade">
+                      {item.name}
+                    </span>
+                  )}
                 </span>
               </Link>
             );
