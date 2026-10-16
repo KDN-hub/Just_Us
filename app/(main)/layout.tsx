@@ -2,7 +2,7 @@
 
 import { Calendar } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-import { useState, useEffect, ReactNode } from "react";
+import { useState, useEffect, useRef, ReactNode } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
@@ -60,24 +60,24 @@ export default function MainLayout({ children }: { children: ReactNode }) {
     { name: "Profile", href: "/settings", icon: ProfileIcon },
   ];
 
-  const [touchStartXY, setTouchStartXY] = useState<{ x: number; y: number } | null>(null);
-  const [touchEndXY, setTouchEndXY] = useState<{ x: number; y: number } | null>(null);
+  const touchStartRef = useRef<{ x: number; y: number } | null>(null);
+  const touchEndRef = useRef<{ x: number; y: number } | null>(null);
 
   const minSwipeDistance = 50;
 
   const onTouchStart = (e: React.TouchEvent) => {
-    setTouchEndXY(null);
-    setTouchStartXY({ x: e.targetTouches[0].clientX, y: e.targetTouches[0].clientY });
+    touchEndRef.current = null;
+    touchStartRef.current = { x: e.targetTouches[0].clientX, y: e.targetTouches[0].clientY };
   };
 
   const onTouchMove = (e: React.TouchEvent) => {
-    setTouchEndXY({ x: e.targetTouches[0].clientX, y: e.targetTouches[0].clientY });
+    touchEndRef.current = { x: e.targetTouches[0].clientX, y: e.targetTouches[0].clientY };
   };
 
   const onTouchEnd = () => {
-    if (!touchStartXY || !touchEndXY) return;
-    const distanceX = touchStartXY.x - touchEndXY.x;
-    const distanceY = touchStartXY.y - touchEndXY.y;
+    if (!touchStartRef.current || !touchEndRef.current) return;
+    const distanceX = touchStartRef.current.x - touchEndRef.current.x;
+    const distanceY = touchStartRef.current.y - touchEndRef.current.y;
 
     // Mostly horizontal swipe
     if (Math.abs(distanceX) > Math.abs(distanceY) && Math.abs(distanceX) > minSwipeDistance) {

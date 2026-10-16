@@ -33,6 +33,7 @@ export default function Chat() {
   const [unreadNewCount, setUnreadNewCount] = useState(0);
   const [showFloatingDate, setShowFloatingDate] = useState(false);
   const [floatingDateText, setFloatingDateText] = useState("");
+  const lastFloatingDateRef = useRef("");
   const floatingDateTimerRef = useRef<NodeJS.Timeout | null>(null);
   const rafIdRef = useRef<number | null>(null);
   // Keeps decorated message objects referentially stable across memo rebuilds
@@ -492,28 +493,54 @@ export default function Chat() {
     const el = scrollContainerRef.current;
     if (!el) return;
 
-    const containerRect = el.getBoundingClientRect();
-    const targetY = containerRect.top + 35;
-
     const msgElements = el.querySelectorAll<HTMLElement>("[data-msg-time]");
+    if (msgElements.length === 0) return;
+
+    // Target vertical scroll offset inside container content
+    const targetScrollY = el.scrollTop + 35;
     let activeTime: string | null = null;
 
-    for (let i = 0; i < msgElements.length; i++) {
-      const msgEl = msgElements[i];
-      const rect = msgEl.getBoundingClientRect();
-      if (rect.bottom >= targetY) {
-        activeTime = msgEl.getAttribute("data-msg-time");
-        break;
+    // Use binary search over message elements to find the first element
+    // whose bottom edge is >= targetScrollY.
+    // This avoids querying getBoundingClientRect() inside a loop across all messages.
+    let low = 0;
+    let high = msgElements.length - 1;
+    let foundIndex = -1;
+
+    const firstEl = msgElements[0];
+    const isDirectOffset = firstEl.offsetParent === el;
+    let containerTop = 0;
+    if (!isDirectOffset) {
+      containerTop = el.getBoundingClientRect().top;
+    }
+
+    while (low <= high) {
+      const mid = (low + high) >> 1;
+      const msgEl = msgElements[mid];
+      const bottom = isDirectOffset
+        ? msgEl.offsetTop + msgEl.offsetHeight
+        : msgEl.getBoundingClientRect().bottom - containerTop + el.scrollTop;
+
+      if (bottom >= targetScrollY) {
+        foundIndex = mid;
+        high = mid - 1; // look for earlier matching message
+      } else {
+        low = mid + 1;
       }
     }
 
-    if (!activeTime && msgElements.length > 0) {
+    if (foundIndex !== -1) {
+      activeTime = msgElements[foundIndex].getAttribute("data-msg-time");
+    } else {
       activeTime = msgElements[msgElements.length - 1].getAttribute("data-msg-time");
     }
 
     if (activeTime) {
       const formatted = formatDateSeparator(activeTime);
-      setFloatingDateText(formatted);
+      if (formatted !== lastFloatingDateRef.current) {
+        lastFloatingDateRef.current = formatted;
+        setFloatingDateText(formatted);
+      }
     }
   }, []);
 

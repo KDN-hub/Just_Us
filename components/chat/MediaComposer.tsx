@@ -69,7 +69,7 @@ export default function MediaComposer({
   // Drawing state
   const [drawColor, setDrawColor] = useState(DRAW_COLORS[1]);
   const [strokes, setStrokes] = useState<DrawStroke[]>([]);
-  const [currentStroke, setCurrentStroke] = useState<DrawStroke | null>(null);
+  const currentStrokeRef = useRef<DrawStroke | null>(null);
 
   // Snapchat-style Text Overlay state
   const [textOverlays, setTextOverlays] = useState<SnapchatTextOverlay[]>([]);
@@ -112,8 +112,8 @@ export default function MediaComposer({
     const targetW = isRotated90or270 ? img.naturalHeight : img.naturalWidth;
     const targetH = isRotated90or270 ? img.naturalWidth : img.naturalHeight;
 
-    canvas.width = targetW;
-    canvas.height = targetH;
+    if (canvas.width !== targetW) canvas.width = targetW;
+    if (canvas.height !== targetH) canvas.height = targetH;
 
     ctx.clearRect(0, 0, targetW, targetH);
 
@@ -129,8 +129,7 @@ export default function MediaComposer({
     ctx.restore();
 
     // Render drawings
-    const allStrokes = currentStroke ? [...strokes, currentStroke] : strokes;
-    for (const stroke of allStrokes) {
+    for (const stroke of strokes) {
       if (stroke.points.length < 1) continue;
       ctx.beginPath();
       ctx.strokeStyle = stroke.color;
@@ -179,7 +178,7 @@ export default function MediaComposer({
       ctx.fillStyle = overlay.color;
       ctx.fillText(overlay.text, targetW / 2, y);
     }
-  }, [rotation, strokes, currentStroke, textOverlays]);
+  }, [rotation, strokes, textOverlays]);
 
   // Load image object
   useEffect(() => {
@@ -214,25 +213,61 @@ export default function MediaComposer({
     const pt = getCanvasPoint(e);
     if (!pt) return;
     (e.target as HTMLElement).setPointerCapture(e.pointerId);
-    setCurrentStroke({
+    currentStrokeRef.current = {
       color: drawColor,
       size: 6,
       points: [pt],
-    });
+    };
+
+    // Draw initial point immediately to canvas
+    const canvas = canvasRef.current;
+    const ctx = canvas?.getContext("2d");
+    if (ctx && canvas) {
+      ctx.beginPath();
+      ctx.fillStyle = drawColor;
+      const radius = Math.max(1, ((6 * canvas.width) / 500) / 2);
+      ctx.arc(pt.x * canvas.width, pt.y * canvas.height, radius, 0, Math.PI * 2);
+      ctx.fill();
+    }
   };
 
   const handlePointerMove = (e: React.PointerEvent<HTMLCanvasElement>) => {
-    if (activeTool !== "draw" || !currentStroke) return;
+    if (activeTool !== "draw" || !currentStrokeRef.current) return;
     const pt = getCanvasPoint(e);
     if (!pt) return;
-    setCurrentStroke((prev) => (prev ? { ...prev, points: [...prev.points, pt] } : null));
+
+    const stroke = currentStrokeRef.current;
+    const pts = stroke.points;
+    const prevPt = pts[pts.length - 1];
+    pts.push(pt);
+
+    // Draw segment directly on canvas without React re-render or canvas clear
+    const canvas = canvasRef.current;
+    const ctx = canvas?.getContext("2d");
+    if (ctx && canvas) {
+      ctx.beginPath();
+      ctx.strokeStyle = stroke.color;
+      ctx.lineWidth = (stroke.size * canvas.width) / 500;
+      ctx.lineCap = "round";
+      ctx.lineJoin = "round";
+      ctx.moveTo(prevPt.x * canvas.width, prevPt.y * canvas.height);
+      ctx.lineTo(pt.x * canvas.width, pt.y * canvas.height);
+      ctx.stroke();
+    }
   };
 
   const handlePointerUp = (e: React.PointerEvent<HTMLCanvasElement>) => {
-    if (activeTool !== "draw" || !currentStroke) return;
-    (e.target as HTMLElement).releasePointerCapture(e.pointerId);
-    setStrokes((prev) => [...prev, currentStroke]);
-    setCurrentStroke(null);
+    if (activeTool !== "draw" || !currentStrokeRef.current) return;
+    try {
+      (e.target as HTMLElement).releasePointerCapture(e.pointerId);
+    } catch {
+      // ignore
+    }
+    const completed = currentStrokeRef.current;
+    currentStrokeRef.current = null;
+    if (completed && completed.points.length > 0) {
+      setStrokes((prev) => [...prev, completed]);
+    }
   };
 
   // Rotate 90 degrees clockwise

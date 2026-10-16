@@ -50,14 +50,52 @@ export default function Settings() {
   const handleAvatarUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const dataUrl = event.target?.result as string;
-      setMyAvatar(dataUrl);
-      localStorage.setItem('my_avatar', dataUrl);
-      window.dispatchEvent(new Event("storage"));
+
+    const objectUrl = URL.createObjectURL(file);
+    const img = new window.Image();
+
+    img.onload = () => {
+      URL.revokeObjectURL(objectUrl);
+
+      // Downscale to max 256x256 to prevent LocalStorage QuotaExceededError
+      // and keep synchronous main thread operations under 1ms.
+      const maxDim = 256;
+      let w = img.naturalWidth || img.width;
+      let h = img.naturalHeight || img.height;
+
+      if (w > maxDim || h > maxDim) {
+        if (w > h) {
+          h = Math.round((h * maxDim) / w);
+          w = maxDim;
+        } else {
+          w = Math.round((w * maxDim) / h);
+          h = maxDim;
+        }
+      }
+
+      const canvas = document.createElement("canvas");
+      canvas.width = Math.max(1, w);
+      canvas.height = Math.max(1, h);
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return;
+
+      ctx.drawImage(img, 0, 0, w, h);
+      const resizedDataUrl = canvas.toDataURL("image/jpeg", 0.85);
+
+      try {
+        setMyAvatar(resizedDataUrl);
+        localStorage.setItem("my_avatar", resizedDataUrl);
+        window.dispatchEvent(new Event("storage"));
+      } catch (err) {
+        console.error("Failed to save avatar to localStorage:", err);
+      }
     };
-    reader.readAsDataURL(file);
+
+    img.onerror = () => {
+      URL.revokeObjectURL(objectUrl);
+    };
+
+    img.src = objectUrl;
   };
 
   useEffect(() => {
