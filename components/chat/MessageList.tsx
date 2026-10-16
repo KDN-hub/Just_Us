@@ -123,13 +123,10 @@ const MessageRow = memo(function MessageRow({
           </span>
         </div>
       )}
-      <motion.div
+      <div
         id={`msg-${msgId}`}
         data-msg-time={time}
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ type: "spring", stiffness: 300, damping: 25 }}
-        className={`transition-all duration-300 rounded-2xl ${mb}`}
+        className={`animate-msg-in transition-all duration-300 rounded-2xl ${mb}`}
       >
         {kind === "message" ? (
           <MessageBubble
@@ -180,7 +177,7 @@ const MessageRow = memo(function MessageRow({
             isMine={data.caller_id === myId}
           />
         )}
-      </motion.div>
+      </div>
     </div>
   );
 });

@@ -488,11 +488,8 @@ const MessageBubble = memo(function MessageBubble({
         </div>
       )}
 
-      <motion.div
+      <div
         ref={containerRef}
-        initial={{ y: 20, opacity: 0, scale: 0.95 }}
-        animate={{ y: 0, opacity: 1, scale: 1 }}
-        transition={{ type: "spring", stiffness: 300, damping: 25 }}
         className={`group relative flex w-full items-end gap-2.5 ${isMine ? "flex-row-reverse" : "flex-row"} ${showReactionMenu ? "z-[110] scale-[1.02] transition-transform shadow-2xl" : "z-0 transition-transform"} ${selectionMode ? "cursor-pointer" : ""}`}
         onClick={handleBubbleClick}
         onTouchStart={startPress}
@@ -886,7 +883,7 @@ const MessageBubble = memo(function MessageBubble({
             )}
           </div>
         </div>
-      </motion.div>
+      </div>
     </>
   );
 });

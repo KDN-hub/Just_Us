@@ -121,11 +121,6 @@ interface ChatState {
   incomingCall: IncomingCall | null;
   hasMoreMessages: boolean;
   isLoadingOlder: boolean;
-  _lastMessagesVersion?: number;
-  _messagesListCache?: Message[];
-  _messagesListVersion?: number;
-  _callLogListCache?: CallLogEntry[];
-  _callLogListVersion?: number;
   
   setMyId: (id: string) => void;
   setPartner: (partner: Partial<UserRow>) => void;
@@ -165,11 +160,6 @@ export const useChatStore = create<ChatState>((set, get) => ({
   incomingCall: null,
   hasMoreMessages: true,
   isLoadingOlder: false,
-  _lastMessagesVersion: 0,
-  _messagesListCache: [] as Message[],
-  _messagesListVersion: -1,
-  _callLogListCache: [] as CallLogEntry[],
-  _callLogListVersion: -1,
   
   setMyId: (id) => set({ myId: id }),
   setPartner: (partnerInfo) => set((state) => ({
@@ -226,7 +216,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
         : msg
     };
     saveMsgCache(newMessages);
-    return { messages: newMessages, _lastMessagesVersion: (state as any)._lastMessagesVersion + 1, _messagesListVersion: (state as any)._messagesListVersion - 1 };
+    return { messages: newMessages };
   }),
 
   addOrUpdateMessages: (msgs) => set((state) => {
@@ -238,13 +228,13 @@ export const useChatStore = create<ChatState>((set, get) => ({
         : msg;
     }
     saveMsgCache(newMessages);
-    return { messages: newMessages, _lastMessagesVersion: (state as any)._lastMessagesVersion + 1, _messagesListVersion: (state as any)._messagesListVersion - 1 };
+    return { messages: newMessages };
   }),
   
   removeMessage: (id) => set((state) => {
     const { [id]: _, ...remaining } = state.messages;
     saveMsgCache(remaining);
-    return { messages: remaining, _lastMessagesVersion: (state as any)._lastMessagesVersion + 1, _messagesListVersion: (state as any)._messagesListVersion - 1 };
+    return { messages: remaining };
   }),
   
   addOrUpdateCallLog: (call) => set((state) => ({
@@ -257,22 +247,6 @@ export const useChatStore = create<ChatState>((set, get) => ({
     return { callLog: newCallLog };
   }),
   
-  getMessageList: () => {
-    const state: any = get();
-    if (state._messagesListVersion === state._lastMessagesVersion && state._messagesListCache) {
-      return state._messagesListCache;
-    }
-    const list = Object.values(state.messages).sort((a: any, b: any) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
-    set({ _messagesListCache: list, _messagesListVersion: state._lastMessagesVersion } as any);
-    return list;
-  },
-  getCallLogList: () => {
-    const state: any = get();
-    if (state._callLogListVersion === (state._lastMessagesVersion ?? 0) && state._callLogListCache) {
-      return state._callLogListCache;
-    }
-    const list = Object.values(state.callLog).sort((a: any, b: any) => new Date(a.started_at).getTime() - new Date(b.started_at).getTime());
-    set({ _callLogListCache: list, _callLogListVersion: state._lastMessagesVersion ?? 0 } as any);
-    return list;
-  },
+  getMessageList: () => Object.values(get().messages).sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()),
+  getCallLogList: () => Object.values(get().callLog).sort((a, b) => new Date(a.started_at).getTime() - new Date(b.started_at).getTime()),
 }));

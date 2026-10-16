@@ -42,6 +42,11 @@ export default function Chat() {
   // so memoized message rows only re-render when their own data changes.
   const decoratedCacheRef = useRef<Map<string, { src: Message; key: string; decorated: Message }>>(new Map());
   const pinsMapRef = useRef<Record<string, boolean>>({});
+  // Cached DOM nodes for the floating-date indicator. Avoids an O(n)
+  // querySelectorAll on every scroll frame; refreshed only when the
+  // rendered timeline actually changes.
+  const msgElementsRef = useRef<HTMLElement[]>([]);
+  const msgElementsStaleRef = useRef(true);
 
   const {
     myId, partner, messages, callLog, reconnecting,
@@ -483,10 +488,9 @@ export default function Chat() {
     if (!myId || !setupDone) router.replace("/onboarding/welcome");
   }, [myId, router]);
 
-  const messagesVersion = (useChatStore as any)((s: any) => s._lastMessagesVersion ?? 0);
   const messageList = useMemo(() => {
     return Object.values(messages).sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
-  }, [messages, messagesVersion]);
+  }, [messages]);
 
   const callLogList = useMemo(() => {
     return Object.values(callLog).sort((a, b) => new Date(a.started_at).getTime() - new Date(b.started_at).getTime());
@@ -496,7 +500,11 @@ export default function Chat() {
     const el = scrollContainerRef.current;
     if (!el) return;
 
-    const msgElements = el.querySelectorAll<HTMLElement>("[data-msg-time]");
+    if (msgElementsStaleRef.current) {
+      msgElementsRef.current = Array.from(el.querySelectorAll<HTMLElement>("[data-msg-time]"));
+      msgElementsStaleRef.current = false;
+    }
+    const msgElements = msgElementsRef.current;
     if (msgElements.length === 0) return;
 
     // Target vertical scroll offset inside container content
@@ -1154,6 +1162,10 @@ export default function Chat() {
   }, [messageList, deletedForMe, callLogList]);
 
   useEffect(() => { pinsMapRef.current = pinsMap; }, [pinsMap]);
+
+  // The rendered rows change whenever the timeline is rebuilt; invalidate the
+  // cached element list so the next scroll frame re-queries once.
+  useEffect(() => { msgElementsStaleRef.current = true; }, [timeline]);
 
   const realMessagesRef = useRef(realMessages);
   useEffect(() => { realMessagesRef.current = realMessages; }, [realMessages]);

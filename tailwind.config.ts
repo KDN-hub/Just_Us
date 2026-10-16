@@ -45,10 +45,15 @@ const config: Config = {
           "0%, 100%": { transform: "translateY(0)" },
           "50%": { transform: "translateY(-12px)" },
         },
+        "msg-in": {
+          "0%": { opacity: "0", transform: "translateY(20px) scale(0.95)" },
+          "100%": { opacity: "1", transform: "translateY(0) scale(1)" },
+        },
       },
       animation: {
         shake: "shake 0.5s ease-in-out",
         float: "float 3s ease-in-out infinite",
+        "msg-in": "msg-in 0.25s cubic-bezier(0.2, 0.9, 0.3, 1) both",
       },
     },
   },
