@@ -8,7 +8,7 @@ import { motion } from "framer-motion";
 export default function Welcome() {
   return (
     <main
-      className="shell-minh mx-auto flex w-full max-w-md flex-col px-6 py-10 text-center font-notch overflow-y-auto"
+      className="shell-h mx-auto flex w-full max-w-md flex-col px-6 py-10 text-center font-notch overflow-y-auto overscroll-contain"
       style={{
         background: "var(--gradient)",
       }}

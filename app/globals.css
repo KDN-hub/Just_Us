@@ -20,7 +20,13 @@
 
 html,
 body {
+  height: 100%;
   min-height: 100dvh;
+  /* The app is a fixed shell: each screen scrolls inside its own container, so
+     the document itself must never scroll or rubber-band — otherwise it drags
+     bottom-anchored chrome (e.g. the nav bar) out of view. */
+  overflow: hidden;
+  overscroll-behavior: none;
   background-color: var(--bg);
   color: var(--cream);
   -webkit-font-smoothing: antialiased;

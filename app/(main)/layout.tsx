@@ -123,12 +123,13 @@ export default function MainLayout({ children }: { children: ReactNode }) {
       onTouchMove={onTouchMove}
       onTouchEnd={onTouchEnd}
     >
-      <div className="flex-1 overflow-y-auto">
+      <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain">
         {children}
       </div>
 
-      {/* Floating Bottom Nav Bar */}
-      <div className="absolute bottom-[max(env(safe-area-inset-bottom,0px),2.5rem)] left-0 right-0 z-50 flex w-full justify-center px-5 pointer-events-none">
+      {/* Floating Bottom Nav Bar — fixed to the viewport (not the shell) so it
+          stays visible even if the page underneath ever scrolls. */}
+      <div className="fixed bottom-[max(env(safe-area-inset-bottom,0px),2.5rem)] left-0 right-0 z-50 mx-auto flex w-full max-w-md justify-center px-5 pointer-events-none">
         <div className="flex w-full items-center justify-between rounded-full border border-white/10 bg-[#18181A]/90 p-3 px-4 shadow-[0_10px_40px_rgba(0,0,0,0.4)] backdrop-blur-xl pointer-events-auto">
           {navItems.map((item) => {
             const isActive = activeHref.startsWith(item.href);
