@@ -25,6 +25,27 @@ export default function MainLayout({ children }: { children: ReactNode }) {
   const router = useRouter();
   const [partnerName, setPartnerName] = useState("Home");
 
+  // Optimistic tab highlight: on press, move the pill/label to the tapped tab
+  // immediately, instead of waiting for the route to render (which left a dead
+  // moment between tap and any visible change). Cleared the instant the real
+  // pathname lands, with a safety timeout in case a navigation is slow/fails.
+  const [pendingHref, setPendingHref] = useState<string | null>(null);
+  const pendingTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const activeHref = pendingHref ?? pathname;
+
+  useEffect(() => {
+    setPendingHref(null);
+    if (pendingTimer.current) { clearTimeout(pendingTimer.current); pendingTimer.current = null; }
+  }, [pathname]);
+
+  useEffect(() => () => { if (pendingTimer.current) clearTimeout(pendingTimer.current); }, []);
+
+  const selectTab = (href: string) => {
+    setPendingHref(href);
+    if (pendingTimer.current) clearTimeout(pendingTimer.current);
+    pendingTimer.current = setTimeout(() => setPendingHref(null), 2000);
+  };
+
   useEffect(() => {
     const fetchPartnerName = async () => {
       // Optimistically use local storage
@@ -110,14 +131,16 @@ export default function MainLayout({ children }: { children: ReactNode }) {
       <div className="absolute bottom-[max(env(safe-area-inset-bottom,0px),2.5rem)] left-0 right-0 z-50 flex w-full justify-center px-5 pointer-events-none">
         <div className="flex w-full items-center justify-between rounded-full border border-white/10 bg-[#18181A]/90 p-3 px-4 shadow-[0_10px_40px_rgba(0,0,0,0.4)] backdrop-blur-xl pointer-events-auto">
           {navItems.map((item) => {
-            const isActive = pathname.startsWith(item.href);
+            const isActive = activeHref.startsWith(item.href);
             const Icon = item.icon as any;
 
             return (
               <Link
                 key={item.name}
                 href={item.href}
-                className={`relative flex items-center justify-center rounded-full transition-all duration-300 ${
+                onPointerDown={(e) => { if (e.button === 0) selectTab(item.href); }}
+                onClick={() => selectTab(item.href)}
+                className={`relative flex items-center justify-center rounded-full transition-all duration-200 touch-manipulation select-none ${
                   isActive ? "px-6 py-3 text-[var(--cream)]" : "p-3 text-white/50 hover:text-white/80"
                 }`}
               >
