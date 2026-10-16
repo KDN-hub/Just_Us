@@ -1,5 +1,8 @@
 import { supabase } from "@/lib/supabase";
 
+const signedUrlCache = new Map<string, { url: string; expiresAt: number }>();
+const SIGNED_URL_TTL_SEC = 7200;
+
 /**
  * Resolves a media URL to ensure private Supabase Storage buckets
  * can be accessed using a signed URL if required.
@@ -14,16 +17,27 @@ export async function resolveMediaUrl(rawUrl: string): Promise<string> {
 
   const visibility = supabaseStorageMatch[1];
 
-  // Public bucket URLs are already directly accessible — skip the
-  // signed-URL round-trip (avoids one network call per media render).
+  // Public bucket URLs are already directly accessible
   if (visibility === "public") return rawUrl;
 
   const bucket = supabaseStorageMatch[2];
   const path = decodeURIComponent(supabaseStorageMatch[3]);
+  const cacheKey = `${bucket}|${path}`;
+
+  const now = Date.now();
+  const cached = signedUrlCache.get(cacheKey);
+  if (cached && cached.expiresAt > now + 60000) {
+    return cached.url;
+  }
+
   try {
     // Create a signed URL valid for 2 hours (7200s) for secure viewing
-    const { data, error } = await supabase.storage.from(bucket).createSignedUrl(path, 7200);
+    const { data, error } = await supabase.storage.from(bucket).createSignedUrl(path, SIGNED_URL_TTL_SEC);
     if (!error && data?.signedUrl) {
+      signedUrlCache.set(cacheKey, {
+        url: data.signedUrl,
+        expiresAt: now + SIGNED_URL_TTL_SEC * 1000 * 0.9,
+      });
       return data.signedUrl;
     }
   } catch {

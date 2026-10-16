@@ -123,9 +123,11 @@ export async function fetchStickerPacks(): Promise<StickerPack[]> {
       if (!packsError && packsData) {
         const fresh: StickerPack[] = [];
         if (packsData.length > 0) {
+          const packIds = packsData.map((p: any) => p.id);
           const { data: stickersData, error: stickersError } = await supabase
             .from("stickers")
             .select("*")
+            .in("pack_id", packIds.length > 0 ? packIds : ["00000000-0000-0000-0000-000000000000"])
             .order("created_at", { ascending: true });
 
           if (!stickersError && stickersData) {
@@ -428,7 +430,8 @@ export async function fetchFavoriteStickers(userId: string): Promise<Sticker[]> 
         .from("favorite_stickers")
         .select("sticker_id, created_at, stickers(*)")
         .eq("user_id", userId)
-        .order("created_at", { ascending: false });
+        .order("created_at", { ascending: false })
+        .limit(100);
 
       if (!error && data) {
         dbFavs = data

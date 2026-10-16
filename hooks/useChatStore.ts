@@ -121,6 +121,7 @@ interface ChatState {
   incomingCall: IncomingCall | null;
   hasMoreMessages: boolean;
   isLoadingOlder: boolean;
+  _lastMessagesVersion?: number;
   
   setMyId: (id: string) => void;
   setPartner: (partner: Partial<UserRow>) => void;
@@ -160,6 +161,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
   incomingCall: null,
   hasMoreMessages: true,
   isLoadingOlder: false,
+  _lastMessagesVersion: 0,
   
   setMyId: (id) => set({ myId: id }),
   setPartner: (partnerInfo) => set((state) => ({
@@ -211,14 +213,14 @@ export const useChatStore = create<ChatState>((set, get) => ({
     const existing = state.messages[msg.id];
     const newMessages = {
       ...state.messages,
-      [msg.id]: existing 
+      [msg.id]: existing
         ? { ...existing, ...msg, status: higherStatus(existing.status, msg.status) }
         : msg
     };
     saveMsgCache(newMessages);
-    return { messages: newMessages };
+    return { messages: newMessages, _lastMessagesVersion: (state as any)._lastMessagesVersion + 1 };
   }),
-  
+
   addOrUpdateMessages: (msgs) => set((state) => {
     const newMessages = { ...state.messages };
     for (const msg of msgs) {
@@ -228,13 +230,13 @@ export const useChatStore = create<ChatState>((set, get) => ({
         : msg;
     }
     saveMsgCache(newMessages);
-    return { messages: newMessages };
+    return { messages: newMessages, _lastMessagesVersion: (state as any)._lastMessagesVersion + 1 };
   }),
   
   removeMessage: (id) => set((state) => {
     const { [id]: _, ...remaining } = state.messages;
     saveMsgCache(remaining);
-    return { messages: remaining };
+    return { messages: remaining, _lastMessagesVersion: (state as any)._lastMessagesVersion + 1 };
   }),
   
   addOrUpdateCallLog: (call) => set((state) => ({

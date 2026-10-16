@@ -483,9 +483,10 @@ export default function Chat() {
     if (!myId || !setupDone) router.replace("/onboarding/welcome");
   }, [myId, router]);
 
+  const messagesVersion = (useChatStore as any)((s: any) => s._lastMessagesVersion ?? 0);
   const messageList = useMemo(() => {
     return Object.values(messages).sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
-  }, [messages]);
+  }, [messages, messagesVersion]);
 
   const callLogList = useMemo(() => {
     return Object.values(callLog).sort((a, b) => new Date(a.started_at).getTime() - new Date(b.started_at).getTime());

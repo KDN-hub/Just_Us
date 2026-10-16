@@ -92,24 +92,67 @@ export function useChatRealtime(signalChRef: React.MutableRefObject<ReturnType<t
     let cancelled = false;
     let channel: RealtimeChannel | null = null;
     let partnerId: string | null = null;
+    let lastResyncAt = 0;
+    const RESYNC_THROTTLE_MS = 1000;
+
+    const pendingReadIds = new Set<string>();
+    const pendingDeliveredIds = new Set<string>();
+    let receiptFlushTimeout: NodeJS.Timeout | null = null;
+
+    const flushReceipts = () => {
+      if (receiptFlushTimeout) {
+        clearTimeout(receiptFlushTimeout);
+        receiptFlushTimeout = null;
+      }
+
+      const isVisible = typeof document !== "undefined" ? !document.hidden : true;
+      const readIds = Array.from(pendingReadIds);
+      const deliveredIds = Array.from(pendingDeliveredIds);
+
+      pendingReadIds.clear();
+      pendingDeliveredIds.clear();
+
+      if (readIds.length > 0) {
+        supabase
+          .from("messages")
+          .update({ status: "read" })
+          .in("id", readIds)
+          .then(({ error }) => {
+            if (error) console.error("[chat] batch mark-as-read failed:", error.message);
+          });
+      }
+
+      if (deliveredIds.length > 0 && !isVisible) {
+        supabase
+          .from("messages")
+          .update({ status: "delivered" })
+          .in("id", deliveredIds)
+          .then(({ error }) => {
+            if (error) console.error("[chat] batch mark-as-delivered failed:", error.message);
+          });
+      }
+    };
+
+    const scheduleReceiptFlush = () => {
+      if (receiptFlushTimeout) return;
+      receiptFlushTimeout = setTimeout(flushReceipts, 250);
+    };
 
     const markPartnerMessagesRead = () => {
       if (!partnerId) return;
-      
+
       const { messages } = useChatStore.getState();
       const unreadIds = Object.values(messages)
-        .filter(m => m.sender_id === partnerId && m.status !== "read")
-        .map(m => m.id);
-        
+        .filter((m) => m.sender_id === partnerId && m.status !== "read")
+        .map((m) => m.id);
+
       if (unreadIds.length === 0) return;
 
-      supabase
-        .from("messages")
-        .update({ status: "read" })
-        .in("id", unreadIds)
-        .then(({ error }) => {
-          if (error) console.error("[chat] mark-as-read failed:", error.message);
-        });
+      for (const id of unreadIds) {
+        pendingReadIds.add(id);
+        pendingDeliveredIds.delete(id);
+      }
+      scheduleReceiptFlush();
     };
 
     const resync = async () => {
@@ -189,7 +232,16 @@ export function useChatRealtime(signalChRef: React.MutableRefObject<ReturnType<t
     }
 
     const handleVisibility = () => {
-      if (!document.hidden) resync();
+      if (!document.hidden) {
+        const now = Date.now();
+        if (now - lastResyncAt > RESYNC_THROTTLE_MS) {
+          lastResyncAt = now;
+          resync();
+        }
+        flushReceipts();
+      } else {
+        flushReceipts();
+      }
     };
 
     async function bootstrap() {
@@ -236,13 +288,15 @@ export function useChatRealtime(signalChRef: React.MutableRefObject<ReturnType<t
             addOrUpdateMessage({ ...msg, pending: false, queued: false });
 
             if (msg.sender_id !== myId) {
-              supabase
-                .from("messages")
-                .update({ status: document.hidden ? "delivered" : "read" })
-                .eq("id", msg.id)
-                .then(({ error }) => {
-                  if (error) console.error("[chat] receipt update failed:", error.message);
-                });
+              const isVisible = typeof document !== "undefined" ? !document.hidden : true;
+              if (isVisible) {
+                pendingReadIds.add(msg.id);
+                pendingDeliveredIds.delete(msg.id);
+              } else {
+                pendingDeliveredIds.add(msg.id);
+                pendingReadIds.delete(msg.id);
+              }
+              scheduleReceiptFlush();
             }
           },
         )
@@ -256,7 +310,7 @@ export function useChatRealtime(signalChRef: React.MutableRefObject<ReturnType<t
         )
         .on(
           "postgres_changes",
-          { event: "UPDATE", schema: "public", table: "users", filter: `id=eq.${partnerId}` },
+          { event: "UPDATE", schema: "public", table: "users", filter: partnerId ? `id=eq.${partnerId}` : undefined },
           (payload) => {
             if (cancelled) return;
             setPartner(payload.new as Partial<typeof payload.new>);
@@ -283,7 +337,11 @@ export function useChatRealtime(signalChRef: React.MutableRefObject<ReturnType<t
           if (status === "SUBSCRIBED") {
             hasConnectedRef.current = true;
             setReconnecting(false);
-            resync();
+            const now = Date.now();
+            if (now - lastResyncAt > RESYNC_THROTTLE_MS) {
+              lastResyncAt = now;
+              resync();
+            }
           } else if (status === "CHANNEL_ERROR") {
             if (hasConnectedRef.current) setReconnecting(true);
           } else if (status === "TIMED_OUT") {
@@ -299,6 +357,11 @@ export function useChatRealtime(signalChRef: React.MutableRefObject<ReturnType<t
 
     return () => {
       cancelled = true;
+      if (receiptFlushTimeout) {
+        clearTimeout(receiptFlushTimeout);
+        receiptFlushTimeout = null;
+      }
+      flushReceipts();
       document.removeEventListener("visibilitychange", handleVisibility);
       if (channel) supabase.removeChannel(channel);
     };
