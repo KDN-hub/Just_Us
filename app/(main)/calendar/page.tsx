@@ -14,6 +14,17 @@ type CalendarEvent = {
   end_time?: string;
 };
 
+// Module-level cache so returning to Calendar fills the grid from the last known
+// events immediately, instead of waiting on a fresh network round-trip before
+// showing anything. Keyed by user id so switching accounts can never surface the
+// previous user's events; the effect below still revalidates in the background.
+let eventsCache: { userId: string | null; data: Record<string, CalendarEvent[]> } | null = null;
+
+function writeEventsCache(data: Record<string, CalendarEvent[]>) {
+  const userId = typeof window !== "undefined" ? localStorage.getItem("user_id") : null;
+  eventsCache = { userId, data };
+}
+
 export default function CalendarPage() {
   const [currentDate, setCurrentDate] = useState(new Date());
   
@@ -46,6 +57,13 @@ export default function CalendarPage() {
   const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
   
   useEffect(() => {
+    // Paint from the last known events for this user right away (one extra commit,
+    // no network wait), then revalidate below.
+    const userId = typeof window !== "undefined" ? localStorage.getItem("user_id") : null;
+    if (eventsCache && eventsCache.userId === userId) {
+      setEvents(eventsCache.data);
+    }
+
     async function fetchEvents() {
       const { data, error } = await supabase.from("calendar_events").select("*");
       if (data && !error) {
@@ -58,6 +76,7 @@ export default function CalendarPage() {
         for (const k in evMap) {
           evMap[k].sort((a, b) => (a.start_time || "00:00").localeCompare(b.start_time || "00:00"));
         }
+        writeEventsCache(evMap);
         setEvents(evMap);
       }
     }
@@ -98,7 +117,9 @@ export default function CalendarPage() {
     setEvents(prev => {
       const dayArr = [...(prev[selectedDateStr] || []), addedEv];
       dayArr.sort((a, b) => (a.start_time || "00:00").localeCompare(b.start_time || "00:00"));
-      return { ...prev, [selectedDateStr]: dayArr };
+      const next = { ...prev, [selectedDateStr]: dayArr };
+      writeEventsCache(next);
+      return next;
     });
     
     setNewEventTitle("");
@@ -111,10 +132,11 @@ export default function CalendarPage() {
   
   const handleDeleteEvent = async (id: string, dateStr: string) => {
     // Optimistic update: Instantly remove the event from the UI so it feels snappy!
-    setEvents(prev => ({
-      ...prev,
-      [dateStr]: prev[dateStr].filter(e => e.id !== id)
-    }));
+    setEvents(prev => {
+      const next = { ...prev, [dateStr]: prev[dateStr].filter(e => e.id !== id) };
+      writeEventsCache(next);
+      return next;
+    });
 
     // Perform database deletion in the background
     await supabase.from("calendar_events").delete().eq("id", id);

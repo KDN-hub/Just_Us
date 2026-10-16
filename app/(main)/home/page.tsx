@@ -1,6 +1,5 @@
 "use client";
 
-import { motion } from "framer-motion";
 import Link from "next/link";
 import { MessageCircle } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -64,10 +63,8 @@ export default function HomePage() {
       <div className="mt-8 flex flex-col gap-4">
         {/* Temporary entry point to the actual chat room until the design is finalized */}
         <Link href="/chat">
-          <motion.div 
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
-            className="flex items-center gap-4 rounded-2xl border border-white/10 bg-[#18181A]/90 p-4 backdrop-blur-md shadow-lg"
+          <div 
+            className="flex items-center gap-4 rounded-2xl border border-white/10 bg-[#18181A]/90 p-4 backdrop-blur-md shadow-lg transition-transform duration-150 hover:scale-[1.02] active:scale-[0.98]"
           >
             <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[var(--wine)] text-white">
               <MessageCircle className="h-6 w-6" />
@@ -76,7 +73,7 @@ export default function HomePage() {
               <h2 className="text-[17px] font-semibold text-white">Our Chat</h2>
               <p className="text-[14px] text-white/70 line-clamp-1">Tap to enter the conversation...</p>
             </div>
-          </motion.div>
+          </div>
         </Link>
       </div>
     </div>
