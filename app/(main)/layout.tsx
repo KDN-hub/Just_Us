@@ -148,7 +148,7 @@ export default function MainLayout({ children }: { children: ReactNode }) {
                 {isActive && (
                   <div
                     aria-hidden
-                    className="absolute inset-0 rounded-full bg-[var(--wine)] shadow-md p-1 animate-nav-fade"
+                    className="absolute inset-0 rounded-full bg-[var(--wine)] shadow-md p-1"
                   >
                     <div className="h-full w-full rounded-full border border-white/40" />
                   </div>
@@ -160,7 +160,7 @@ export default function MainLayout({ children }: { children: ReactNode }) {
                     <Icon className="h-[28px] w-[28px]" isActive={isActive} />
                   )}
                   {isActive && (
-                    <span className="text-[17px] font-normal tracking-wide whitespace-nowrap overflow-hidden animate-nav-fade">
+                    <span className="text-[17px] font-normal tracking-wide whitespace-nowrap overflow-hidden">
                       {item.name}
                     </span>
                   )}

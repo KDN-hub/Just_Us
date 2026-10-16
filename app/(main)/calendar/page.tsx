@@ -220,7 +220,7 @@ export default function CalendarPage() {
 
   return (
     <div 
-      className="relative flex min-h-full w-full flex-col px-4 pt-[max(env(safe-area-inset-top,0px),4.5rem)] pb-28 animate-page-in"
+      className="relative flex min-h-full w-full flex-col px-4 pt-[max(env(safe-area-inset-top,0px),4.5rem)] pb-28"
     >
       
       {/* Calendar Grid Container */}

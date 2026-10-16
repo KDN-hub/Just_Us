@@ -49,17 +49,11 @@ const config: Config = {
           "0%": { opacity: "0", transform: "translateY(20px) scale(0.95)" },
           "100%": { opacity: "1", transform: "translateY(0) scale(1)" },
         },
-        // Opacity-only page/tab fades: compositor work, no JS per frame and no
-        // transform that would force backdrop-filter re-blur on every screen.
-        "page-in": { "0%": { opacity: "0" }, "100%": { opacity: "1" } },
-        "nav-fade": { "0%": { opacity: "0" }, "100%": { opacity: "1" } },
       },
       animation: {
         shake: "shake 0.5s ease-in-out",
         float: "float 3s ease-in-out infinite",
         "msg-in": "msg-in 0.25s cubic-bezier(0.2, 0.9, 0.3, 1) both",
-        "page-in": "page-in 0.12s ease-out both",
-        "nav-fade": "nav-fade 0.14s ease-out both",
       },
     },
   },

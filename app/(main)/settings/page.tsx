@@ -227,7 +227,7 @@ export default function Settings() {
 
   return (
     <main 
-      className="flex min-h-full w-full flex-col font-sans pt-[max(env(safe-area-inset-top,0px),4.5rem)] pb-28 relative animate-page-in"
+      className="flex min-h-full w-full flex-col font-sans pt-[max(env(safe-area-inset-top,0px),4.5rem)] pb-28 relative"
     >
       {step !== "menu" && (
         <div className="absolute top-[72px] left-6 z-10">
