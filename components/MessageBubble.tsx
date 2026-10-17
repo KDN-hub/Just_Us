@@ -872,7 +872,7 @@ const MessageBubble = memo(function MessageBubble({
                     openActionMenu();
                   }
                 }}
-                className={`absolute bottom-2 ${isMine ? 'right-2' : 'left-2'} flex items-center gap-1 border ${myReaction ? 'bg-[#bc1529] border-[#bc1529]' : 'bg-[#121212] border-[#2C2C2E]'} rounded-full px-3 py-1 shadow-lg z-30 cursor-pointer active:scale-95 transition-all`}
+                className={`absolute bottom-[-4px] ${isMine ? 'right-2' : 'left-2'} flex items-center gap-1 border ${myReaction ? 'bg-[#bc1529] border-[#bc1529]' : 'bg-[#121212] border-[#2C2C2E]'} rounded-full px-3 py-1 shadow-lg z-30 cursor-pointer active:scale-95 transition-all`}
               >
                 {Array.from(new Set(Object.values(reactions))).map((emoji, idx) => (
                   <span key={idx} className="text-[14px]">{emoji}</span>
