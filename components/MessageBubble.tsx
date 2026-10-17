@@ -103,7 +103,7 @@ const AudioPlayer = ({ url, isMine, timestamp, status, queued, myAvatarUrl, part
   const displayTime = isPlaying || progress > 0 ? progress : duration;
 
   return (
-    <div className={`relative w-full p-2 flex items-center gap-2 ${isMine ? 'bg-gradient-to-b from-white/[0.28] to-white/[0.18] border-white/30 text-white' : 'bg-gradient-to-b from-[#242428]/90 to-[#18181A]/85 border-white/15 text-white'} backdrop-blur-xl border shadow-[0_4px_16px_rgba(0,0,0,0.22)] rounded-[10px] overflow-hidden`}>
+    <div className={`relative w-full p-2 flex items-center gap-2 ${isMine ? 'bg-[#bc1529] text-white border-[#bc1529]' : 'bg-[#1C1C1E] text-white border-[#2C2C2E]'} border shadow-[0_4px_16px_rgba(0,0,0,0.22)] rounded-[10px] overflow-hidden`}>
       <audio 
         ref={audioRef} 
         src={url} 
@@ -190,7 +190,7 @@ const VideoPlayer = ({ url, onClick, children }: { url: string; onClick: () => v
         preload="metadata"
       />
       <div className="absolute inset-0 flex items-center justify-center bg-black/20 group-hover:bg-black/30 transition-colors pointer-events-none">
-        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-white/20 backdrop-blur-sm text-white shadow-lg">
+        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[#121212] text-white shadow-lg">
           <Play className="h-6 w-6 fill-current ml-1" />
         </div>
       </div>
@@ -527,7 +527,7 @@ const MessageBubble = memo(function MessageBubble({
                 const remainingCount = deckItems.length - 1;
                 
                 return (
-                  <div className={`relative inline-block ${replyToText && !isActuallyDeleted ? (isMine ? 'bg-gradient-to-b from-white/[0.28] to-white/[0.18] text-white backdrop-blur-xl border-white/30' : 'bg-gradient-to-b from-[#242428]/90 to-[#18181A]/85 text-white backdrop-blur-xl border-white/15') + ' p-1 rounded-[10px] border shadow-[0_4px_16px_rgba(0,0,0,0.22)]' : ''}`}>
+                  <div className={`relative inline-block ${replyToText && !isActuallyDeleted ? (isMine ? 'bg-[#bc1529] text-white border-[#bc1529]' : 'bg-[#1C1C1E] text-white border-[#2C2C2E]') + ' p-1 rounded-[10px] border shadow-[0_4px_16px_rgba(0,0,0,0.22)]' : ''}`}>
                     {renderQuotedReply("max-w-[210px]")}
                     <div className="relative inline-block group w-[210px] h-[250px] my-1 cursor-pointer" onClick={() => { if (!selectionMode) { setIsFullscreen(true); setFullscreenIndex(0); } }}> 
                       {Array.from({ length: displayCount }).map((_, domIndex) => {
@@ -550,7 +550,7 @@ const MessageBubble = memo(function MessageBubble({
                               <div className="w-full h-full relative bg-black">
                                 <video src={item.url} preload="metadata" muted playsInline className="w-full h-full object-cover" />
                                 <div className="absolute inset-0 flex items-center justify-center bg-black/30 pointer-events-none">
-                                  <div className="w-9 h-9 rounded-full bg-white/30 backdrop-blur-sm flex items-center justify-center text-white shadow-lg">
+                                  <div className="w-9 h-9 rounded-full bg-[#121212] flex items-center justify-center text-white shadow-lg">
                                     <Play className="w-4 h-4 fill-current ml-0.5" />
                                   </div>
                                 </div>
@@ -560,7 +560,7 @@ const MessageBubble = memo(function MessageBubble({
                             )}
                             {realIndex === 0 && remainingCount > 0 && (
                               <div className="absolute bottom-3 inset-x-0 flex justify-center z-40">
-                                <span className="bg-black/60 backdrop-blur-xl px-3.5 py-1 rounded-full text-white font-medium text-[13px] shadow-xl border border-white/10 flex items-center gap-1.5">
+                                <span className="bg-[#121212] px-3.5 py-1 rounded-full text-white font-medium text-[13px] shadow-xl border-[#2C2C2E] flex items-center gap-1.5">
                                   +{remainingCount} {deckItems.some(d => d.type === "video") ? "media" : "photos"}
                                 </span>
                               </div>
@@ -568,7 +568,7 @@ const MessageBubble = memo(function MessageBubble({
                           </div>
                         );
                       })}
-                      <div className="bg-black/55 backdrop-blur-md text-white px-2 py-0.5 rounded-full text-[11.5px] absolute -bottom-1.5 -right-1.5 flex items-center gap-1 z-40 pointer-events-none shadow-lg">
+                      <div className="bg-[#121212] text-white px-2 py-0.5 rounded-full text-[11.5px] absolute -bottom-1.5 -right-1.5 flex items-center gap-1 z-40 pointer-events-none shadow-lg">
                         <span>{formatTime(timestamp)}</span>
                         {isMine && status && (
                           <MessageStatusTicks status={status} queued={queued} className="h-3.5 w-3.5" />
@@ -594,7 +594,7 @@ const MessageBubble = memo(function MessageBubble({
                     decoding="async"
                     onClick={() => { if (!selectionMode) { setIsFullscreen(true); setFullscreenIndex(0); } }}
                   />
-                  <div className="bg-black/55 backdrop-blur-md text-white px-2 py-0.5 rounded-full text-[11px] absolute bottom-1.5 right-1.5 flex items-center gap-1 z-10 pointer-events-none shadow-md">
+                  <div className="bg-[#121212] text-white px-2 py-0.5 rounded-full text-[11px] absolute bottom-1.5 right-1.5 flex items-center gap-1 z-10 pointer-events-none shadow-md">
                     <span>{formatTime(timestamp)}</span>
                     {isMine && status && (
                       <MessageStatusTicks status={status} queued={queued} className="h-3.5 w-3.5" />
@@ -604,7 +604,7 @@ const MessageBubble = memo(function MessageBubble({
               </div>
             ) : actualType === "image" ? (
               captionText ? (
-                <div className={`relative inline-block group rounded-[10px] border shadow-[0_4px_16px_rgba(0,0,0,0.22)] overflow-hidden p-1 ${isMine ? 'bg-gradient-to-b from-white/[0.28] to-white/[0.18] text-white backdrop-blur-xl border-white/30' : 'bg-gradient-to-b from-[#242428]/90 to-[#18181A]/85 text-white backdrop-blur-xl border-white/15'}`}>
+                <div className={`relative inline-block group rounded-[10px] border shadow-[0_4px_16px_rgba(0,0,0,0.22)] overflow-hidden p-1 ${isMine ? 'bg-[#bc1529] text-white border-[#bc1529]' : 'bg-[#1C1C1E] text-white border-[#2C2C2E]'}`}>
                   {renderQuotedReply("max-w-[210px]")}
                   <img 
                     src={actualContent} 
@@ -631,7 +631,7 @@ const MessageBubble = memo(function MessageBubble({
                   </span>
                 </div>
               ) : (
-                <div className={`relative inline-block group ${replyToText && !isActuallyDeleted ? (isMine ? 'bg-gradient-to-b from-white/[0.28] to-white/[0.18] text-white backdrop-blur-xl border-white/30' : 'bg-gradient-to-b from-[#242428]/90 to-[#18181A]/85 text-white backdrop-blur-xl border-white/15') + ' p-1 rounded-[10px] border shadow-[0_4px_16px_rgba(0,0,0,0.22)]' : ''}`}>
+                <div className={`relative inline-block group ${replyToText && !isActuallyDeleted ? (isMine ? 'bg-[#bc1529] text-white border-[#bc1529]' : 'bg-[#1C1C1E] text-white border-[#2C2C2E]') + ' p-1 rounded-[10px] border shadow-[0_4px_16px_rgba(0,0,0,0.22)]' : ''}`}>
                   {renderQuotedReply("max-w-[210px]")}
                   <div className="relative inline-block">
                     <img 
@@ -644,7 +644,7 @@ const MessageBubble = memo(function MessageBubble({
                       loading="lazy"
                       decoding="async"
                     />
-                    <div className="bg-black/60 backdrop-blur-md text-white px-2 py-0.5 rounded-full text-[11.5px] absolute bottom-1.5 right-1.5 flex items-center gap-1 z-10 pointer-events-none">
+                    <div className="bg-[#121212] text-white px-2 py-0.5 rounded-full text-[11.5px] absolute bottom-1.5 right-1.5 flex items-center gap-1 z-10 pointer-events-none">
                       <span>{formatTime(timestamp)}</span>
                       {isMine && status && (
                         <MessageStatusTicks status={status} queued={queued} className="h-3.5 w-3.5" />
@@ -655,7 +655,7 @@ const MessageBubble = memo(function MessageBubble({
               )
             ) : actualType === "video" ? (
               captionText ? (
-                <div className={`relative inline-block group rounded-[10px] border shadow-[0_4px_16px_rgba(0,0,0,0.22)] overflow-hidden p-1 ${isMine ? 'bg-gradient-to-b from-white/[0.28] to-white/[0.18] text-white backdrop-blur-xl border-white/30' : 'bg-gradient-to-b from-[#242428]/90 to-[#18181A]/85 text-white backdrop-blur-xl border-white/15'}`}>
+                <div className={`relative inline-block group rounded-[10px] border shadow-[0_4px_16px_rgba(0,0,0,0.22)] overflow-hidden p-1 ${isMine ? 'bg-[#bc1529] text-white border-[#bc1529]' : 'bg-[#1C1C1E] text-white border-[#2C2C2E]'}`}>
                   {renderQuotedReply("max-w-[250px]")}
                   <VideoPlayer url={actualContent} onClick={() => { if (!selectionMode) { setIsFullscreen(true); setFullscreenIndex(0); } }} />
                   <div className="px-2 pt-1.5 pb-2 text-[14.5px] leading-snug break-words">
@@ -673,10 +673,10 @@ const MessageBubble = memo(function MessageBubble({
                   </span>
                 </div>
               ) : (
-                <div className={`relative inline-block group ${replyToText && !isActuallyDeleted ? (isMine ? 'bg-gradient-to-b from-white/[0.28] to-white/[0.18] text-white backdrop-blur-xl border-white/30' : 'bg-gradient-to-b from-[#242428]/90 to-[#18181A]/85 text-white backdrop-blur-xl border-white/15') + ' p-1 rounded-[10px] border shadow-[0_4px_16px_rgba(0,0,0,0.22)]' : ''}`}>
+                <div className={`relative inline-block group ${replyToText && !isActuallyDeleted ? (isMine ? 'bg-[#bc1529] text-white border-[#bc1529]' : 'bg-[#1C1C1E] text-white border-[#2C2C2E]') + ' p-1 rounded-[10px] border shadow-[0_4px_16px_rgba(0,0,0,0.22)]' : ''}`}>
                   {renderQuotedReply("max-w-[250px]")}
                   <VideoPlayer url={actualContent} onClick={() => { if (!selectionMode) { setIsFullscreen(true); setFullscreenIndex(0); } }}>
-                    <div className="bg-black/60 backdrop-blur-md text-white px-2 py-0.5 rounded-full text-[11.5px] absolute bottom-1.5 right-1.5 flex items-center gap-1 z-10 pointer-events-none">
+                    <div className="bg-[#121212] text-white px-2 py-0.5 rounded-full text-[11.5px] absolute bottom-1.5 right-1.5 flex items-center gap-1 z-10 pointer-events-none">
                       <span>{formatTime(timestamp)}</span>
                       {isMine && status && (
                         <MessageStatusTicks status={status} queued={queued} className="h-3.5 w-3.5" />
@@ -686,10 +686,10 @@ const MessageBubble = memo(function MessageBubble({
                 </div>
               )
             ) : isFile ? (
-              <div className={`flex flex-col px-3 py-1.5 rounded-[10px] relative shadow-[0_4px_16px_rgba(0,0,0,0.22)] min-w-[175px] ${isMine ? 'bg-gradient-to-b from-white/[0.28] to-white/[0.18] text-white backdrop-blur-xl border border-white/30' : 'bg-gradient-to-b from-[#242428]/90 to-[#18181A]/85 text-white backdrop-blur-xl border border-white/15'}`}>
+              <div className={`flex flex-col px-3 py-1.5 rounded-[10px] relative shadow-[0_4px_16px_rgba(0,0,0,0.22)] min-w-[175px] ${isMine ? 'bg-[#bc1529] text-white border-[#bc1529]' : 'bg-[#1C1C1E] text-white border-[#2C2C2E]'}`}>
                 {renderQuotedReply()}
                 <a href={fileUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2.5 hover:opacity-90 active:scale-[0.98] transition-all">
-                  <div className={`flex items-center justify-center w-8 h-8 rounded-lg ${isMine ? 'bg-white/20 text-white' : 'bg-white/10 text-white/80'}`}>
+                  <div className={`flex items-center justify-center w-8 h-8 rounded-lg ${isMine ? 'bg-[#bc1529] text-white' : 'bg-[#1C1C1E] text-white'}`}>
                     <Download className="w-3.5 h-3.5" />
                   </div>
                   <div className="flex flex-col flex-1 min-w-0 pr-7">
@@ -704,7 +704,7 @@ const MessageBubble = memo(function MessageBubble({
                 </a>
               </div>
             ) : actualType === "audio" ? (
-              <div className={`flex flex-col w-[240px] xs:w-[255px] sm:w-[270px] max-w-[calc(100vw-65px)] min-w-0 ${replyToText && !isActuallyDeleted ? (isMine ? 'bg-gradient-to-b from-white/[0.28] to-white/[0.18] text-white backdrop-blur-xl border-white/30' : 'bg-gradient-to-b from-[#242428]/90 to-[#18181A]/85 text-white backdrop-blur-xl border-white/15') + ' p-1 rounded-[10px] border shadow-[0_4px_16px_rgba(0,0,0,0.22)]' : ''}`}>
+              <div className={`flex flex-col w-[240px] xs:w-[255px] sm:w-[270px] max-w-[calc(100vw-65px)] min-w-0 ${replyToText && !isActuallyDeleted ? (isMine ? 'bg-[#bc1529] text-white border-[#bc1529]' : 'bg-[#1C1C1E] text-white border-[#2C2C2E]') + ' p-1 rounded-[10px] border shadow-[0_4px_16px_rgba(0,0,0,0.22)]' : ''}`}>
                 {renderQuotedReply("w-full")}
                 <AudioPlayer url={actualContent} isMine={isMine} timestamp={timestamp} status={status} queued={queued} myAvatarUrl={myAvatarUrl} partnerAvatarUrl={partnerAvatarUrl} partnerInitial={partnerInitial} partnerColor={partnerColor} />
               </div>
@@ -714,8 +714,8 @@ const MessageBubble = memo(function MessageBubble({
                   isActuallyDeleted
                     ? "bg-white/5 text-white/40 italic border-dashed border border-white/15"
                     : isMine
-                    ? `bg-gradient-to-b from-white/[0.28] to-white/[0.18] text-white backdrop-blur-xl border border-white/30`
-                    : `bg-gradient-to-b from-[#242428]/90 to-[#18181A]/85 text-white backdrop-blur-xl border border-white/15`
+                    ? `bg-[#bc1529] text-white border-[#bc1529]`
+                    : `bg-[#1C1C1E] text-white border-[#2C2C2E]`
                 }`}
               >
                 {renderQuotedReply()}
@@ -788,7 +788,7 @@ const MessageBubble = memo(function MessageBubble({
                   initial={{ opacity: 0, scale: 0.8, y: menuPlacement === 'top' ? 10 : -10 }}
                   animate={{ opacity: 1, scale: 1, y: 0 }}
                   exit={{ opacity: 0, scale: 0.8, y: menuPlacement === 'top' ? 10 : -10 }}
-                  className="flex flex-col bg-[#18181A]/95 backdrop-blur-2xl rounded-2xl shadow-[0_10px_40px_rgba(0,0,0,0.6)] border border-white/10 overflow-hidden py-1 divide-y divide-white/5"
+                  className="flex flex-col bg-[#121212] rounded-2xl shadow-[0_10px_40px_rgba(0,0,0,0.6)] border-[#2C2C2E] overflow-hidden py-1 divide-y divide-[#2C2C2E]"
                 >
                   {/* Actions for regular messages */}
                   {!isActuallyDeleted && (
@@ -871,7 +871,7 @@ const MessageBubble = memo(function MessageBubble({
                     openActionMenu();
                   }
                 }}
-                className={`absolute -bottom-3 ${isMine ? 'right-4' : 'left-4'} flex items-center border ${myReaction ? 'border-white/30 bg-white/20' : 'bg-[#18181A] border-white/10'} rounded-full px-2 py-0.5 shadow-md z-20 cursor-pointer active:scale-95 transition-all`}
+                className={`absolute -bottom-3 ${isMine ? 'right-4' : 'left-4'} flex items-center border ${myReaction ? 'bg-[#bc1529] border-[#bc1529]' : 'bg-[#18181A] border-[#2C2C2E]'} rounded-full px-2 py-0.5 shadow-md z-20 cursor-pointer active:scale-95 transition-all`}
               >
                 {Array.from(new Set(Object.values(reactions))).map((emoji, idx) => (
                   <span key={idx} className="text-[12px]">{emoji}</span>
