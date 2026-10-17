@@ -1,19 +1,25 @@
 import { useEffect, useRef } from "react";
-import type { RealtimeChannel } from "@supabase/supabase-js";
 import { useShallow } from "zustand/react/shallow";
 import { supabase } from "@/lib/supabase";
 import { useChatStore, CallLogEntry } from "./useChatStore";
+import { listUnreadFromPartner, mergeRemoteMessages } from "@/lib/db";
+import { drainOutbox, syncConversation } from "@/lib/sync";
 import {
-  listUnreadFromPartner,
-  mergeRemoteMessages,
-  type SupabaseMessageRow,
-} from "@/lib/db";
-import { flushPendingMessages, syncConversation } from "@/lib/sync";
+  getRealtimeStatus,
+  startRealtime,
+  stopRealtime,
+  subscribeRealtimeHandlers,
+} from "@/lib/realtime";
+import { flushReceipts, queueDeliveredReceipt } from "@/lib/receipts";
+import { useReadReceipts } from "@/hooks/useReadReceipts";
 
 const CONVERSATION_ID = "c0000000-0000-0000-0000-000000000003";
-const SIGNAL_CHANNEL  = `call-signal-${CONVERSATION_ID}`;
 
-export function useChatRealtime(signalChRef: React.MutableRefObject<ReturnType<typeof supabase.channel> | null>) {
+// The whole chat feature shares ONE realtime channel, owned by lib/realtime:
+// messages / users / call_log postgres changes + broadcast signaling
+// (offer, hangup, typing, nudge). This hook just reacts to its events.
+// Read/delivered receipts are viewport-driven (useReadReceipts + lib/receipts).
+export function useChatRealtime() {
   const {
     myId,
     setPartner,
@@ -35,6 +41,9 @@ export function useChatRealtime(signalChRef: React.MutableRefObject<ReturnType<t
   })));
 
   const hasConnectedRef = useRef(false);
+
+  // Viewport-driven read receipts for partner messages.
+  useReadReceipts(CONVERSATION_ID);
 
   // My own presence
   useEffect(() => {
@@ -87,72 +96,15 @@ export function useChatRealtime(signalChRef: React.MutableRefObject<ReturnType<t
     };
   }, [myId]);
 
-  // Realtime: db-sync
+  // Realtime: events from the shared channel
   useEffect(() => {
     if (!myId) return;
 
     let cancelled = false;
-    let channel: RealtimeChannel | null = null;
     let partnerId: string | null = null;
     let lastResyncAt = 0;
+    let partnerTypingTimer: NodeJS.Timeout | null = null;
     const RESYNC_THROTTLE_MS = 1000;
-
-    const pendingReadIds = new Set<string>();
-    const pendingDeliveredIds = new Set<string>();
-    let receiptFlushTimeout: NodeJS.Timeout | null = null;
-
-    const flushReceipts = () => {
-      if (receiptFlushTimeout) {
-        clearTimeout(receiptFlushTimeout);
-        receiptFlushTimeout = null;
-      }
-
-      const isVisible = typeof document !== "undefined" ? !document.hidden : true;
-      const readIds = Array.from(pendingReadIds);
-      const deliveredIds = Array.from(pendingDeliveredIds);
-
-      pendingReadIds.clear();
-      pendingDeliveredIds.clear();
-
-      if (readIds.length > 0) {
-        supabase
-          .from("messages")
-          .update({ status: "read" })
-          .in("id", readIds)
-          .then(({ error }) => {
-            if (error) console.error("[chat] batch mark-as-read failed:", error.message);
-          });
-      }
-
-      if (deliveredIds.length > 0 && !isVisible) {
-        supabase
-          .from("messages")
-          .update({ status: "delivered" })
-          .in("id", deliveredIds)
-          .then(({ error }) => {
-            if (error) console.error("[chat] batch mark-as-delivered failed:", error.message);
-          });
-      }
-    };
-
-    const scheduleReceiptFlush = () => {
-      if (receiptFlushTimeout) return;
-      receiptFlushTimeout = setTimeout(flushReceipts, 250);
-    };
-
-    // Reads the partner's unread ids from Dexie (background-safe, never blocks render).
-    const markPartnerMessagesRead = async () => {
-      if (!partnerId) return;
-
-      const unread = await listUnreadFromPartner(CONVERSATION_ID, partnerId);
-      if (unread.length === 0) return;
-
-      for (const m of unread) {
-        pendingReadIds.add(m.id);
-        pendingDeliveredIds.delete(m.id);
-      }
-      scheduleReceiptFlush();
-    };
 
     const resync = async () => {
       if (!partnerId) return;
@@ -199,8 +151,100 @@ export function useChatRealtime(signalChRef: React.MutableRefObject<ReturnType<t
         localStorage.setItem("partner_id",    p.id);
       }
 
-      if (!document.hidden) void markPartnerMessagesRead();
+      // Anything pulled in that the partner still sees as single-tick gets a
+      // delivered receipt; the viewport observer upgrades visible ones to read.
+      const unread = await listUnreadFromPartner(CONVERSATION_ID, partnerId);
+      const undelivered = unread.filter((m) => m.status === "sent").map((m) => m.id);
+      if (undelivered.length > 0) queueDeliveredReceipt(undelivered);
     };
+
+    const maybeResync = () => {
+      const now = Date.now();
+      if (now - lastResyncAt > RESYNC_THROTTLE_MS) {
+        lastResyncAt = now;
+        void resync();
+      }
+    };
+
+    const unsubscribe = subscribeRealtimeHandlers({
+      onMessageInsert: (row) => {
+        if (cancelled) return;
+        void mergeRemoteMessages([row]);
+        if (row.sender_id !== myId) queueDeliveredReceipt([row.id]);
+      },
+      onMessageUpdate: (row) => {
+        if (cancelled) return;
+        void mergeRemoteMessages([row]);
+      },
+      onPartnerUpdate: (row) => {
+        if (cancelled) return;
+        setPartner(row);
+      },
+      onCallLog: (row) => {
+        if (cancelled) return;
+        addOrUpdateCallLog(row);
+      },
+      onOffer: (payload) => {
+        if (cancelled) return;
+        if (payload.callerId && payload.callerId !== myId) {
+          setIncomingCall({
+            sdp:      payload.sdp,
+            callType: payload.callType ?? "voice",
+            callerId: payload.callerId,
+          });
+        }
+      },
+      onHangup: () => {
+        if (cancelled) return;
+        setIncomingCall(null);
+      },
+      onTyping: (payload) => {
+        if (cancelled) return;
+        if (payload.userId !== myId) {
+          if (partnerTypingTimer) clearTimeout(partnerTypingTimer);
+          setPartnerTyping(payload.isTyping);
+          if (payload.isTyping) {
+            partnerTypingTimer = setTimeout(() => {
+              setPartnerTyping(false);
+            }, 3500);
+          }
+        }
+      },
+      onNudge: (payload) => {
+        if (cancelled) return;
+        if (payload.userId !== myId) {
+          if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
+          if ('speechSynthesis' in window) {
+            const utterance = new SpeechSynthesisUtterance(`${payload.userName || 'Your partner'} is thinking of you!`);
+            utterance.rate = 1.05;
+            utterance.pitch = 1.1;
+            window.speechSynthesis.speak(utterance);
+          }
+          if (document.hidden && 'Notification' in window && Notification.permission === 'granted') {
+             new Notification("💖 Thinking of you!", {
+                body: `${payload.userName || 'Your partner'} just sent you a nudge.`,
+             });
+          }
+        }
+      },
+      onStatusChange: (next) => {
+        if (cancelled) return;
+        if (next === "connected") {
+          hasConnectedRef.current = true;
+          setReconnecting(false);
+          // Socket is back — flush anything the outbox queued and catch up on
+          // whatever happened while the channel was down.
+          void drainOutbox(CONVERSATION_ID, myId);
+          maybeResync();
+        } else if ((next === "connecting" || next === "reconnecting") && hasConnectedRef.current) {
+          setReconnecting(true);
+        }
+      },
+    });
+
+    if (getRealtimeStatus() === "reconnecting" && hasConnectedRef.current) {
+      setReconnecting(true);
+    }
 
     if (typeof window !== "undefined" && "Notification" in window) {
       if (Notification.permission === "default") {
@@ -210,12 +254,8 @@ export function useChatRealtime(signalChRef: React.MutableRefObject<ReturnType<t
 
     const handleVisibility = () => {
       if (!document.hidden) {
-        const now = Date.now();
-        if (now - lastResyncAt > RESYNC_THROTTLE_MS) {
-          lastResyncAt = now;
-          void resync();
-        }
-        void flushPendingMessages(CONVERSATION_ID, myId);
+        maybeResync();
+        void drainOutbox(CONVERSATION_ID, myId);
         flushReceipts();
       } else {
         flushReceipts();
@@ -233,7 +273,7 @@ export function useChatRealtime(signalChRef: React.MutableRefObject<ReturnType<t
           .single();
         if (cancelled || !conv) return;
         partnerId = conv.user_a_id === myId ? conv.user_b_id : conv.user_a_id;
-        
+
         const startDate = conv.together_since || conv.created_at;
         if (startDate) {
            const days = Math.floor((Date.now() - new Date(startDate).getTime()) / (1000 * 60 * 60 * 24));
@@ -255,150 +295,22 @@ export function useChatRealtime(signalChRef: React.MutableRefObject<ReturnType<t
           });
       }
 
-      channel = supabase
-        .channel(`db-sync-${CONVERSATION_ID}`)
-        .on(
-          "postgres_changes",
-          { event: "INSERT", schema: "public", table: "messages", filter: `conversation_id=eq.${CONVERSATION_ID}` },
-          (payload) => {
-            if (cancelled) return;
-            const row = payload.new as SupabaseMessageRow;
-            void mergeRemoteMessages([row]);
-
-            if (row.sender_id !== myId) {
-              const isVisible = typeof document !== "undefined" ? !document.hidden : true;
-              if (isVisible) {
-                pendingReadIds.add(row.id);
-                pendingDeliveredIds.delete(row.id);
-              } else {
-                pendingDeliveredIds.add(row.id);
-                pendingReadIds.delete(row.id);
-              }
-              scheduleReceiptFlush();
-            }
-          },
-        )
-        .on(
-          "postgres_changes",
-          { event: "UPDATE", schema: "public", table: "messages", filter: `conversation_id=eq.${CONVERSATION_ID}` },
-          (payload) => {
-            if (cancelled) return;
-            void mergeRemoteMessages([payload.new as SupabaseMessageRow]);
-          },
-        )
-        .on(
-          "postgres_changes",
-          { event: "UPDATE", schema: "public", table: "users", filter: partnerId ? `id=eq.${partnerId}` : undefined },
-          (payload) => {
-            if (cancelled) return;
-            setPartner(payload.new as Partial<typeof payload.new>);
-          },
-        )
-        .on(
-          "postgres_changes",
-          { event: "INSERT", schema: "public", table: "call_log", filter: `conversation_id=eq.${CONVERSATION_ID}` },
-          (payload) => {
-            if (cancelled) return;
-            addOrUpdateCallLog(payload.new as CallLogEntry);
-          },
-        )
-        .on(
-          "postgres_changes",
-          { event: "UPDATE", schema: "public", table: "call_log", filter: `conversation_id=eq.${CONVERSATION_ID}` },
-          (payload) => {
-            if (cancelled) return;
-            addOrUpdateCallLog(payload.new as CallLogEntry);
-          },
-        )
-        .subscribe((status) => {
-          if (cancelled) return;
-          if (status === "SUBSCRIBED") {
-            hasConnectedRef.current = true;
-            setReconnecting(false);
-            const now = Date.now();
-            if (now - lastResyncAt > RESYNC_THROTTLE_MS) {
-              lastResyncAt = now;
-              void resync();
-            }
-          } else if (status === "CHANNEL_ERROR") {
-            if (hasConnectedRef.current) setReconnecting(true);
-          } else if (status === "TIMED_OUT") {
-            if (hasConnectedRef.current) setReconnecting(true);
-          } else if (status === "CLOSED") {
-            if (hasConnectedRef.current) setReconnecting(true);
-          }
-        });
+      if (cancelled) return;
+      startRealtime(CONVERSATION_ID, partnerId);
+      // If the socket is slow, partner + call log still load through this.
+      maybeResync();
     }
 
     document.addEventListener("visibilitychange", handleVisibility);
-    bootstrap();
+    void bootstrap();
 
     return () => {
       cancelled = true;
-      if (receiptFlushTimeout) {
-        clearTimeout(receiptFlushTimeout);
-        receiptFlushTimeout = null;
-      }
-      flushReceipts();
-      document.removeEventListener("visibilitychange", handleVisibility);
-      if (channel) supabase.removeChannel(channel);
-    };
-  }, [myId, setPartner, setReconnecting, setDaysTogether, addOrUpdateCallLog, addOrUpdateCallLogs]);
-
-  // Incoming call & signaling
-  useEffect(() => {
-    if (!myId) return;
-
-    let partnerTypingTimer: NodeJS.Timeout | null = null;
-
-    const ch = supabase
-      .channel(SIGNAL_CHANNEL, { config: { broadcast: { self: false }, private: true } })
-      .on("broadcast", { event: "offer" }, ({ payload }) => {
-        if (payload.callerId && payload.callerId !== myId) {
-          setIncomingCall({
-            sdp:      payload.sdp as RTCSessionDescriptionInit,
-            callType: (payload.callType as "voice" | "video") ?? "voice",
-            callerId: payload.callerId as string,
-          });
-        }
-      })
-      .on("broadcast", { event: "hangup" }, () => {
-        setIncomingCall(null);
-      })
-      .on("broadcast", { event: "typing" }, ({ payload }) => {
-        if (payload.userId !== myId) {
-          if (partnerTypingTimer) clearTimeout(partnerTypingTimer);
-          setPartnerTyping(payload.isTyping);
-          if (payload.isTyping) {
-            partnerTypingTimer = setTimeout(() => {
-              setPartnerTyping(false);
-            }, 3500);
-          }
-        }
-      })
-      .on("broadcast", { event: "nudge" }, ({ payload }) => {
-        if (payload.userId !== myId) {
-          if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
-          if ('speechSynthesis' in window) {
-            const utterance = new SpeechSynthesisUtterance(`${payload.userName || 'Your partner'} is thinking of you!`);
-            utterance.rate = 1.05;
-            utterance.pitch = 1.1;
-            window.speechSynthesis.speak(utterance);
-          }
-          if (document.hidden && 'Notification' in window && Notification.permission === 'granted') {
-             new Notification("💖 Thinking of you!", {
-                body: `${payload.userName || 'Your partner'} just sent you a nudge.`,
-             });
-          }
-        }
-      })
-      .subscribe();
-
-    signalChRef.current = ch;
-
-    return () => { 
       if (partnerTypingTimer) clearTimeout(partnerTypingTimer);
-      supabase.removeChannel(ch); 
+      document.removeEventListener("visibilitychange", handleVisibility);
+      unsubscribe();
+      flushReceipts();
+      stopRealtime();
     };
-  }, [myId, setIncomingCall, setPartnerTyping, signalChRef]);
+  }, [myId, setPartner, setReconnecting, setPartnerTyping, setDaysTogether, setIncomingCall, addOrUpdateCallLog, addOrUpdateCallLogs]);
 }

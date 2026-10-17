@@ -4,12 +4,11 @@ import { useEffect, useRef, useState, useCallback, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { PhoneIncoming, PhoneOff, X, Video, ChevronLeft, ImagePlus, Pencil, Reply, Copy, Trash2, Pin } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-import type { RealtimeChannel } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase";
 import Avatar from "@/components/Avatar";
 import dynamic from "next/dynamic";
 import ChatHeader from "@/components/chat/ChatHeader";
-import MessageList, { formatDateSeparator } from "@/components/chat/MessageList";
+import MessageList, { formatDateSeparator, MessageListHandle } from "@/components/chat/MessageList";
 import ChatInput from "@/components/chat/ChatInput";
 import Toast, { ToastMessage } from "@/components/chat/Toast";
 
@@ -23,7 +22,8 @@ import { useChatRealtime } from "@/hooks/useChatRealtime";
 import { useMessages } from "@/hooks/useMessages";
 import { useSyncEngine } from "@/hooks/useSyncEngine";
 import { getLatestEditContent, getLocalMessage } from "@/lib/db";
-import { sendLocalMessage } from "@/lib/sync";
+import { retryOutboxMessage, sendLocalMessage } from "@/lib/sync";
+import { sendRealtimeBroadcast } from "@/lib/realtime";
 import { toggleFavoriteSticker, fetchFavoriteStickers } from "@/lib/stickers";
 
 const CONVERSATION_ID = "c0000000-0000-0000-0000-000000000003";
@@ -33,7 +33,6 @@ export default function Chat() {
   const bottomRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
-  const signalChRef = useRef<RealtimeChannel | null>(null);
   const prevCountRef = useRef(0);
   const isAtBottomRef = useRef(true);
   const [unreadNewCount, setUnreadNewCount] = useState(0);
@@ -46,11 +45,9 @@ export default function Chat() {
   // so memoized message rows only re-render when their own data changes.
   const decoratedCacheRef = useRef<Map<string, { src: Message; key: string; decorated: Message }>>(new Map());
   const pinsMapRef = useRef<Record<string, boolean>>({});
-  // Cached DOM nodes for the floating-date indicator. Avoids an O(n)
-  // querySelectorAll on every scroll frame; refreshed only when the
-  // rendered timeline actually changes.
-  const msgElementsRef = useRef<HTMLElement[]>([]);
-  const msgElementsStaleRef = useRef(true);
+  // Imperative access to the virtualized message list (jump-to-message when
+  // the target row isn't rendered in the current window).
+  const messageListRef = useRef<MessageListHandle>(null);
 
   const {
     myId, partner, callLog, reconnecting,
@@ -71,7 +68,7 @@ export default function Chat() {
   // Messages render from IndexedDB only — never from a network await.
   const { messages: localMessages, ready: messagesReady } = useMessages(CONVERSATION_ID);
 
-  useChatRealtime(signalChRef);
+  useChatRealtime();
   useSyncEngine(CONVERSATION_ID, myId);
 
   const [draft, setDraft] = useState("");
@@ -421,41 +418,31 @@ export default function Chat() {
     return Object.values(callLog).sort((a, b) => new Date(a.started_at).getTime() - new Date(b.started_at).getTime());
   }, [callLog]);
 
+  // Floating date pill: which day header sits at the top of the viewport right
+  // now. With virtualization only a window of rows lives in the DOM — and the
+  // window always covers the viewport edge, so binary-searching the rendered
+  // rows (still sorted) finds the first message at the reading line.
   const updateVisibleDate = useCallback(() => {
     const el = scrollContainerRef.current;
     if (!el) return;
 
-    if (msgElementsStaleRef.current) {
-      msgElementsRef.current = Array.from(el.querySelectorAll<HTMLElement>("[data-msg-time]"));
-      msgElementsStaleRef.current = false;
-    }
-    const msgElements = msgElementsRef.current;
+    const msgElements = Array.from(el.querySelectorAll<HTMLElement>("[data-msg-time]"));
     if (msgElements.length === 0) return;
 
     // Target vertical scroll offset inside container content
     const targetScrollY = el.scrollTop + 35;
     let activeTime: string | null = null;
 
-    // Use binary search over message elements to find the first element
-    // whose bottom edge is >= targetScrollY.
-    // This avoids querying getBoundingClientRect() inside a loop across all messages.
+    // Binary search for the first element whose bottom edge is >= targetScrollY.
     let low = 0;
     let high = msgElements.length - 1;
     let foundIndex = -1;
-
-    const firstEl = msgElements[0];
-    const isDirectOffset = firstEl.offsetParent === el;
-    let containerTop = 0;
-    if (!isDirectOffset) {
-      containerTop = el.getBoundingClientRect().top;
-    }
+    const containerTop = el.getBoundingClientRect().top;
 
     while (low <= high) {
       const mid = (low + high) >> 1;
       const msgEl = msgElements[mid];
-      const bottom = isDirectOffset
-        ? msgEl.offsetTop + msgEl.offsetHeight
-        : msgEl.getBoundingClientRect().bottom - containerTop + el.scrollTop;
+      const bottom = msgEl.getBoundingClientRect().bottom - containerTop + el.scrollTop;
 
       if (bottom >= targetScrollY) {
         foundIndex = mid;
@@ -480,7 +467,9 @@ export default function Chat() {
     }
   }, []);
 
-  const handleScrollContainer = useCallback(async () => {
+  // The virtual list pipes its scroll events here (passive listener). Keeps the
+  // at-bottom flag, the unread pill and the floating date indicator honest.
+  const handleScrollContainer = useCallback(() => {
     const el = scrollContainerRef.current;
     if (!el) return;
 
@@ -504,23 +493,16 @@ export default function Chat() {
     rafIdRef.current = requestAnimationFrame(() => {
       updateVisibleDate();
     });
-
-    if (el.scrollTop < 60) {
-      const state = useChatStore.getState();
-      if (state.hasMoreMessages && !state.isLoadingOlder) {
-        const prevScrollHeight = el.scrollHeight;
-        const prevScrollTop = el.scrollTop;
-        await state.loadOlderMessages();
-        requestAnimationFrame(() => {
-          if (scrollContainerRef.current) {
-            const newScrollHeight = scrollContainerRef.current.scrollHeight;
-            scrollContainerRef.current.scrollTop = prevScrollTop + (newScrollHeight - prevScrollHeight);
-            updateVisibleDate();
-          }
-        });
-      }
-    }
   }, [updateVisibleDate]);
+
+  // Virtuoso reached the start of the loaded window — pull the next older batch.
+  // (The store guards re-entry; the list keeps the viewport pinned on prepend.)
+  const handleStartReached = useCallback(() => {
+    const state = useChatStore.getState();
+    if (state.hasMoreMessages && !state.isLoadingOlder) {
+      void state.loadOlderMessages();
+    }
+  }, []);
 
   const scrollToBottom = useCallback(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
@@ -553,7 +535,7 @@ export default function Chat() {
       if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
       if (floatingDateTimerRef.current) clearTimeout(floatingDateTimerRef.current);
       if (rafIdRef.current) cancelAnimationFrame(rafIdRef.current);
-      signalChRef.current?.send({ type: "broadcast", event: "typing", payload: { userId: myId, isTyping: false } });
+      sendRealtimeBroadcast("typing", { userId: myId, isTyping: false });
     };
   }, [myId]);
 
@@ -590,19 +572,20 @@ export default function Chat() {
       // @ts-ignore
       typingTimeoutRef.current = null;
     }
-    signalChRef.current?.send({ type: "broadcast", event: "typing", payload: { userId: myId, isTyping: false } });
+    sendRealtimeBroadcast("typing", { userId: myId, isTyping: false });
   }, [draft, myId, editingMessage, replyingTo]);
+
+  // Tap-to-retry on a failed message: requeue it and attempt the send again now.
+  const handleRetrySend = useCallback((messageId: string) => {
+    void retryOutboxMessage(messageId, CONVERSATION_ID, myId);
+  }, [myId]);
 
   const handleNudge = () => {
     if (!isOnline) return;
 
-    signalChRef.current?.send({
-      type: "broadcast",
-      event: "nudge",
-      payload: { 
-        userId: myId, 
-        userName: typeof window !== 'undefined' ? localStorage.getItem('user_name') || 'Your partner' : 'Your partner' 
-      },
+    sendRealtimeBroadcast("nudge", {
+      userId: myId,
+      userName: typeof window !== 'undefined' ? localStorage.getItem('user_name') || 'Your partner' : 'Your partner',
     });
 
     void sendLocalMessage({
@@ -623,21 +606,44 @@ export default function Chat() {
   }, [incomingCall, router, setIncomingCall]);
 
   const handleDeclineCall = useCallback(() => {
-    signalChRef.current?.send({ type: "broadcast", event: "declined", payload: {} });
+    sendRealtimeBroadcast("declined", {});
     setIncomingCall(null);
   }, [setIncomingCall]);
 
   const scrollToAndHighlightMessage = useCallback((msgId: string) => {
     setShowSearch(false);
+
+    const highlight = (el: HTMLElement) => {
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      el.classList.add('ring-2', 'ring-[var(--gold)]', 'bg-white/20', 'transition-all', 'duration-500');
+      setTimeout(() => el.classList.remove('ring-2', 'ring-[var(--gold)]', 'bg-white/20', 'transition-all', 'duration-500'), 2500);
+    };
+
     setTimeout(() => {
-      const msgEl = document.getElementById(`msg-${msgId}`);
-      if (msgEl) {
-        msgEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        msgEl.classList.add('ring-2', 'ring-[var(--gold)]', 'bg-white/20', 'transition-all', 'duration-500');
-        setTimeout(() => msgEl.classList.remove('ring-2', 'ring-[var(--gold)]', 'bg-white/20'), 2500);
-      } else {
-        showToast("Original message is older and not loaded in current view", "info");
+      const existing = document.getElementById(`msg-${msgId}`);
+      if (existing) {
+        highlight(existing);
+        return;
       }
+
+      // The row is virtualized out of the window — ask the list to bring it in,
+      // then poll briefly until the DOM node mounts (it appears mid-scroll).
+      const found = messageListRef.current?.scrollToMessageId(msgId) ?? false;
+      if (!found) {
+        showToast("Original message is older and not loaded in current view", "info");
+        return;
+      }
+
+      let tries = 0;
+      const poll = () => {
+        const el = document.getElementById(`msg-${msgId}`);
+        if (el) {
+          highlight(el);
+          return;
+        }
+        if (tries++ < 14) setTimeout(poll, 120);
+      };
+      setTimeout(poll, 120);
     }, 100);
   }, [showToast]);
 
@@ -928,10 +934,6 @@ export default function Chat() {
 
   useEffect(() => { pinsMapRef.current = pinsMap; }, [pinsMap]);
 
-  // The rendered rows change whenever the timeline is rebuilt; invalidate the
-  // cached element list so the next scroll frame re-queries once.
-  useEffect(() => { msgElementsStaleRef.current = true; }, [timeline]);
-
   const realMessagesRef = useRef(realMessages);
   useEffect(() => { realMessagesRef.current = realMessages; }, [realMessages]);
 
@@ -1180,9 +1182,11 @@ export default function Chat() {
         </AnimatePresence>
 
         <MessageList
+          ref={messageListRef}
           timeline={timeline}
           myId={myId}
           showEmptyState={messagesReady}
+          loading={!messagesReady}
           partnerName={partnerDisplay}
           handleReaction={handleReaction}
           onReply={handleReply}
@@ -1190,6 +1194,7 @@ export default function Chat() {
           onDelete={handleDeleteClick}
           onCopy={handleCopy}
           onQuoteClick={scrollToAndHighlightMessage}
+          onRetry={handleRetrySend}
           onPin={handlePinToggle}
           onForward={handleForward}
           onInfo={handleInfo}
@@ -1205,6 +1210,7 @@ export default function Chat() {
           partnerAvatarUrl={partnerAvatarUrl}
           scrollContainerRef={scrollContainerRef}
           onScrollContainer={handleScrollContainer}
+          onStartReached={handleStartReached}
           onEditMedia={handleEditMedia}
           onToggleFavoriteSticker={handleToggleFavoriteSticker}
           favoriteStickers={favoriteStickerUrls}
@@ -1258,7 +1264,6 @@ export default function Chat() {
         stopRecording={stopRecording}
         startRecording={startRecording}
         inputRef={inputRef}
-        signalChRef={signalChRef}
         myId={myId}
         typingTimeoutRef={typingTimeoutRef}
         handleSend={handleSend}

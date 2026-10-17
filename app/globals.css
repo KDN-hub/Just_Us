@@ -47,3 +47,12 @@ body {
   min-height: 100vh;
   min-height: 100dvh;
 }
+
+/* Phase 5: interactive elements react instantly on touch — no 300ms
+   double-tap-zoom delay, no accidental zoom from rapid taps. */
+button,
+a,
+[role="button"],
+label {
+  touch-action: manipulation;
+}

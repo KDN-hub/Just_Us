@@ -210,20 +210,53 @@ export async function markMessageFailed(id: string): Promise<void> {
   }
 }
 
-// ── Outbox (queue logic arrives in Phase 2) ─────────────────
-
-export async function enqueueOutbox(messageId: string): Promise<void> {
-  await db.outbox.add({
-    message_id: messageId,
-    created_at: new Date().toISOString(),
-    attempts: 0,
-    next_attempt_at: Date.now(),
-    last_error: null,
+/** Forward-only local status bump (used by the receipt queue). */
+export async function markLocalMessagesStatus(ids: string[], status: LocalMessageStatus): Promise<void> {
+  if (ids.length === 0) return;
+  await db.transaction("rw", db.messages, async () => {
+    for (const id of ids) {
+      const message = await db.messages.get(id);
+      if (!message) continue;
+      if (STATUS_RANK[status] > STATUS_RANK[message.status]) {
+        await db.messages.update(id, { status });
+      }
+    }
   });
 }
 
+/** Back to the clock icon while a manual retry is in flight. */
+export async function markMessagePending(id: string): Promise<void> {
+  await db.messages.update(id, { status: "pending" });
+}
+
+// ── Outbox ──────────────────────────────────────────────────
+
+/** Add a message to the send queue. Idempotent: one entry per message. */
+export async function enqueueOutbox(messageId: string): Promise<void> {
+  await db.transaction("rw", db.outbox, async () => {
+    const existing = await db.outbox.where("message_id").equals(messageId).first();
+    if (existing) return;
+    await db.outbox.add({
+      message_id: messageId,
+      created_at: new Date().toISOString(),
+      attempts: 0,
+      next_attempt_at: Date.now(),
+      last_error: null,
+    });
+  });
+}
+
+/** Entries in send order (all start due; ties break by insertion id). */
 export function listOutbox(): Promise<OutboxEntry[]> {
   return db.outbox.orderBy("next_attempt_at").toArray();
+}
+
+export function getOutboxForMessage(messageId: string): Promise<OutboxEntry | undefined> {
+  return db.outbox.where("message_id").equals(messageId).first();
+}
+
+export async function updateOutbox(id: number, patch: Partial<OutboxEntry>): Promise<void> {
+  await db.outbox.update(id, patch);
 }
 
 export async function removeOutbox(id: number): Promise<void> {

@@ -1,12 +1,13 @@
 // ============================================================
-//  Just Us — Sync engine (Phase 1)
+//  Just Us — Sync engine (Phases 1–2)
 //
 //  UI  <-  Dexie (local DB)  <-  this module  <->  Supabase  <->  Postgres
 //
 //  Two jobs, both background-only (never block a render):
-//   1. syncConversation()      — cursor-based delta pull from Postgres
-//   2. sendLocalMessage()      — save locally, push to Postgres, in order
-//      flushPendingMessages()  — retry anything still pending/failed
+//   1. syncConversation()  — cursor-based delta pull from Postgres
+//   2. sendLocalMessage()   — save locally, queue in the outbox, drain
+//      drainOutbox()         — idempotent push with exponential backoff
+//      retryOutboxMessage()  — tap-to-retry from the bubble UI
 //
 //  Phase 3 will own the reconnect loop (backoff, visibility, socket
 //  events); this module only exposes the primitives it will call.
@@ -14,14 +15,21 @@
 
 import { supabase } from "@/lib/supabase";
 import {
+  enqueueOutbox,
   getCursor,
+  getLocalMessage,
+  getOutboxForMessage,
+  listOutbox,
   listPendingLocalMessages,
   markMessageFailed,
+  markMessagePending,
   markMessageSent,
   mergeRemoteMessages,
+  removeOutbox,
   saveLocalMessage,
   setCursor,
   setLastSyncedAt,
+  updateOutbox,
   type LocalMessage,
   type NewLocalMessage,
   type SupabaseMessageRow,
@@ -124,15 +132,20 @@ async function doSync(conversationId: string): Promise<void> {
 
 // ── Outgoing messages ───────────────────────────────────────
 
-let sendChain: Promise<void> = Promise.resolve();
+export interface SendResult {
+  ok: boolean;
+  error?: string;
+}
 
 /**
- * Idempotent push of one local message. If the same UUID already exists in
- * Postgres (a retry after an uncertain failure, or two devices flushing the
- * same queue), ignoreDuplicates turns the conflict into a no-op.
+ * One idempotent push attempt for a local message. If the same UUID already
+ * exists in Postgres (retry after an uncertain failure, or another device
+ * flushing the same queue), ignoreDuplicates turns the conflict into a no-op.
  */
-export async function sendPendingMessage(message: LocalMessage): Promise<void> {
-  if (typeof navigator !== "undefined" && !navigator.onLine) return; // stays pending
+export async function sendPendingMessage(message: LocalMessage): Promise<SendResult> {
+  if (typeof navigator !== "undefined" && !navigator.onLine) {
+    return { ok: false, error: "offline" }; // stays pending, not failed
+  }
 
   const row = {
     id: message.id,
@@ -164,44 +177,156 @@ export async function sendPendingMessage(message: LocalMessage): Promise<void> {
   if (error) {
     console.error("[sync] send failed:", error.message);
     await markMessageFailed(message.id);
-    return;
+    return { ok: false, error: error.message };
   }
 
   const inserted = (data ?? []) as { created_at?: string | null }[];
   await markMessageSent(message.id, inserted[0]?.created_at ?? null);
+  return { ok: true };
 }
 
 /**
- * Save an outgoing message to Dexie (instant UI, status 'pending') and push
- * it to Postgres in the background. Sends are chained so server timestamps
- * keep the same order as the local ones.
+ * Save an outgoing message to Dexie (instant UI, status 'pending'), queue it
+ * in the outbox, and kick the drain loop. Nothing here waits on the network.
  */
 export async function sendLocalMessage(input: NewLocalMessage): Promise<LocalMessage> {
   const local = await saveLocalMessage(input);
-  sendChain = sendChain.then(() => sendPendingMessage(local)).catch(() => {});
+  await enqueueOutbox(local.id);
+  void drainOutbox(local.conversation_id, local.sender_id);
   return local;
 }
 
-// ── Retry ───────────────────────────────────────────────────
+// ── Outbox drain (exponential backoff + jitter) ─────────────
 
-let flushInFlight: Promise<void> | null = null;
+const BASE_BACKOFF_MS = 1_000;
+const MAX_BACKOFF_MS = 30_000;
 
-/** Retry every pending/failed local message, oldest first. Coalesced. */
-export function flushPendingMessages(conversationId: string, senderId: string): Promise<void> {
-  if (!flushInFlight) {
-    flushInFlight = doFlush(conversationId, senderId).finally(() => {
-      flushInFlight = null;
-    });
-  }
-  return flushInFlight;
+function backoffDelay(attempts: number): number {
+  const base = Math.min(MAX_BACKOFF_MS, BASE_BACKOFF_MS * 2 ** Math.max(0, attempts - 1));
+  return Math.round(base * (0.8 + Math.random() * 0.4)); // ±20% jitter
 }
 
-async function doFlush(conversationId: string, senderId: string): Promise<void> {
-  if (typeof navigator !== "undefined" && !navigator.onLine) return;
+let drainInFlight = false;
+let drainAgain = false;
+let retryTimer: ReturnType<typeof setTimeout> | null = null;
+let retryAt = 0;
 
-  const pending = await listPendingLocalMessages(conversationId, senderId);
-  for (const message of pending) {
-    if (typeof navigator !== "undefined" && !navigator.onLine) break;
-    await sendPendingMessage(message);
+function scheduleRetry(delayMs: number, conversationId: string, senderId: string): void {
+  const at = Date.now() + delayMs;
+  if (retryTimer && retryAt <= at) return; // an earlier retry is already booked
+  if (retryTimer) clearTimeout(retryTimer);
+  retryAt = at;
+  retryTimer = setTimeout(() => {
+    retryTimer = null;
+    retryAt = 0;
+    void drainOutbox(conversationId, senderId);
+  }, delayMs);
+}
+
+/**
+ * Push everything in the outbox that is due, oldest first, and book a retry
+ * timer for entries still in backoff. Coalesced and safe to call from
+ * anywhere: a fresh send, the online event, visibility, or a socket reconnect.
+ */
+export async function drainOutbox(conversationId: string, senderId: string): Promise<void> {
+  if (drainInFlight) {
+    drainAgain = true;
+    return;
   }
+  drainInFlight = true;
+  try {
+    if (typeof navigator !== "undefined" && !navigator.onLine) return;
+
+    await reconcileOutbox(conversationId, senderId);
+
+    const nextDue = await pushDueEntries();
+    if (nextDue !== Infinity) scheduleRetry(nextDue, conversationId, senderId);
+  } finally {
+    drainInFlight = false;
+    if (drainAgain) {
+      drainAgain = false;
+      void drainOutbox(conversationId, senderId);
+    }
+  }
+}
+
+/**
+ * Safety net: pending/failed rows without an outbox entry (written before the
+ * outbox existed, or a crash between the two writes) get queued again.
+ */
+async function reconcileOutbox(conversationId: string, senderId: string): Promise<void> {
+  const waiting = await listPendingLocalMessages(conversationId, senderId);
+  if (waiting.length === 0) return;
+
+  const entries = await listOutbox();
+  const covered = new Set(entries.map((entry) => entry.message_id));
+  for (const message of waiting) {
+    if (!covered.has(message.id)) await enqueueOutbox(message.id);
+  }
+}
+
+/** One pass over the queue. Returns ms until the next due entry, or Infinity. */
+async function pushDueEntries(): Promise<number> {
+  const entries = await listOutbox();
+  let nextDue = Infinity;
+
+  for (const entry of entries) {
+    if (entry.id === undefined) continue;
+
+    const dueIn = entry.next_attempt_at - Date.now();
+    if (dueIn > 0) {
+      nextDue = Math.min(nextDue, dueIn);
+      continue;
+    }
+
+    const message = await getLocalMessage(entry.message_id);
+    if (!message) {
+      await removeOutbox(entry.id); // orphaned entry
+      continue;
+    }
+    if (message.status !== "pending" && message.status !== "failed") {
+      await removeOutbox(entry.id); // already confirmed (e.g. realtime echo arrived first)
+      continue;
+    }
+
+    const result = await sendPendingMessage(message);
+    if (result.ok) {
+      await removeOutbox(entry.id);
+      continue;
+    }
+
+    const attempts = entry.attempts + 1;
+    const delay = backoffDelay(attempts);
+    await updateOutbox(entry.id, {
+      attempts,
+      next_attempt_at: Date.now() + delay,
+      last_error: result.error ?? "unknown",
+    });
+    nextDue = Math.min(nextDue, delay);
+
+    if (typeof navigator !== "undefined" && !navigator.onLine) break; // no point hammering
+  }
+
+  return nextDue;
+}
+
+/** Tap-to-retry: reset the entry's backoff and attempt it again right now. */
+export async function retryOutboxMessage(
+  messageId: string,
+  conversationId: string,
+  senderId: string,
+): Promise<void> {
+  await markMessagePending(messageId);
+  await enqueueOutbox(messageId);
+
+  const entry = await getOutboxForMessage(messageId);
+  if (entry?.id !== undefined) {
+    await updateOutbox(entry.id, { attempts: 0, next_attempt_at: Date.now(), last_error: null });
+  }
+  if (retryTimer) {
+    clearTimeout(retryTimer);
+    retryTimer = null;
+    retryAt = 0;
+  }
+  await drainOutbox(conversationId, senderId);
 }

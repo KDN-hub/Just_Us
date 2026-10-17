@@ -4,6 +4,7 @@ import dynamic from 'next/dynamic';
 const EmojiPicker = dynamic(() => import('emoji-picker-react'), { ssr: false });
 import TextareaAutosize from 'react-textarea-autosize';
 import { motion, AnimatePresence } from 'framer-motion';
+import { sendRealtimeBroadcast } from '@/lib/realtime';
 const MediaComposer = dynamic(() => import("@/components/chat/MediaComposer"), { ssr: false });
 const StickerPicker = dynamic(() => import('@/components/chat/StickerPicker'), { ssr: false });
 const StickerImportModal = dynamic(() => import("@/components/chat/StickerImportModal"), { ssr: false });
@@ -26,7 +27,6 @@ interface ChatInputProps {
   stopRecording: () => void;
   startRecording: () => void;
   inputRef: RefObject<HTMLTextAreaElement>;
-  signalChRef: RefObject<any>;
   myId: string;
   typingTimeoutRef: RefObject<NodeJS.Timeout | null>;
   handleSend: () => void;
@@ -58,7 +58,6 @@ export default function ChatInput({
   stopRecording,
   startRecording,
   inputRef,
-  signalChRef,
   myId,
   typingTimeoutRef,
   handleSend,
@@ -156,15 +155,15 @@ export default function ChatInput({
                 value={draft}
                 onChange={(e) => {
                   setDraft(e.target.value);
-                  if (!signalChRef.current || !isOnline) return;
+                  if (!isOnline) return;
                   if (!typingTimeoutRef.current) {
-                    signalChRef.current.send({ type: "broadcast", event: "typing", payload: { userId: myId, isTyping: true } });
+                    sendRealtimeBroadcast("typing", { userId: myId, isTyping: true });
                   } else {
-                    if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+                    clearTimeout(typingTimeoutRef.current);
                   }
                   // @ts-ignore
                   typingTimeoutRef.current = setTimeout(() => {
-                    signalChRef.current?.send({ type: "broadcast", event: "typing", payload: { userId: myId, isTyping: false } });
+                    sendRealtimeBroadcast("typing", { userId: myId, isTyping: false });
                     // @ts-ignore
                     typingTimeoutRef.current = null;
                   }, 2000);
@@ -223,7 +222,6 @@ export default function ChatInput({
             <button
               type="button"
               onClick={() => handleSend()}
-              disabled={!isOnline}
               aria-label="Send"
               className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#18181A]/80 backdrop-blur-xl border border-white/10 text-white transition-all active:scale-[0.97] active:bg-white/10 md:hover:bg-white/10 shadow-lg disabled:opacity-40"
             >

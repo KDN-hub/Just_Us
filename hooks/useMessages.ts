@@ -24,8 +24,8 @@ export interface MessagesView {
 function toChatMessage(local: LocalMessage): Message {
   const isWaiting = local.status === "pending" || local.status === "failed";
 
-  // The bubble component renders the clock when `queued` is true; the status
-  // field only drives ticks once the message has actually been accepted.
+  // The bubble shows a clock while waiting, a tap-to-retry icon when failed,
+  // and the tick indicator once the message has been accepted.
   let status: Message["status"] = "sent";
   if (local.status === "delivered" || local.status === "read") status = local.status;
 
@@ -37,7 +37,8 @@ function toChatMessage(local: LocalMessage): Message {
     status,
     created_at: local.created_at,
     pending: isWaiting,
-    queued: isWaiting,
+    queued: local.status === "pending",
+    failed: local.status === "failed",
   };
 }
 

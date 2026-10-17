@@ -23,6 +23,8 @@ export interface Message {
   created_at: string;
   pending?: boolean;
   queued?: boolean;
+  /** Send failed after a real attempt — the bubble shows a tap-to-retry icon. */
+  failed?: boolean;
   reactions?: Record<string, string>; // sender_id -> emoji
   reply_to?: string;
   reply_to_text?: string;
