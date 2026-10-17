@@ -529,7 +529,8 @@ const MessageBubble = memo(function MessageBubble({
                 return (
                   <div className={`relative inline-block ${replyToText && !isActuallyDeleted ? (isMine ? 'bg-[#bc1529] text-white border-[#bc1529]' : 'bg-[#1C1C1E] text-white border-[#2C2C2E]') + ' p-1 rounded-[10px] border shadow-[0_4px_16px_rgba(0,0,0,0.22)]' : ''}`}>
                     {renderQuotedReply("max-w-[210px]")}
-                    <div className="relative inline-block group w-[210px] h-[250px] my-1 cursor-pointer" onClick={() => { if (!selectionMode) { setIsFullscreen(true); setFullscreenIndex(0); } }}> 
+                    {/* my-4 reserves room for the tilted side cards so they never overlap bubbles above/below */}
+                    <div className="relative inline-block group w-[210px] h-[250px] my-4 cursor-pointer" onClick={() => { if (!selectionMode) { setIsFullscreen(true); setFullscreenIndex(0); } }}> 
                       {Array.from({ length: displayCount }).map((_, domIndex) => {
                         const realIndex = displayCount - 1 - domIndex;
                         const item = deckItems[realIndex];
@@ -539,9 +540,9 @@ const MessageBubble = memo(function MessageBubble({
                         if (realIndex === 0) {
                           transforms = "rotate-0 translate-y-0 z-30 group-active:scale-95";
                         } else if (realIndex === 1) {
-                          transforms = "rotate-[8deg] translate-x-12 -translate-y-2 z-20 opacity-95 group-hover:rotate-[10deg] group-hover:translate-x-16 group-active:scale-95";
+                          transforms = "rotate-[7deg] translate-x-8 -translate-y-1 z-20 opacity-95 group-hover:rotate-[8deg] group-hover:translate-x-10 group-active:scale-95";
                         } else if (realIndex === 2) {
-                          transforms = "-rotate-[8deg] -translate-x-12 -translate-y-2 z-10 opacity-90 group-hover:-rotate-[10deg] group-hover:-translate-x-16 group-active:scale-95";
+                          transforms = "-rotate-[7deg] -translate-x-8 -translate-y-1 z-10 opacity-90 group-hover:-rotate-[8deg] group-hover:-translate-x-10 group-active:scale-95";
                         }
 
                         return (
