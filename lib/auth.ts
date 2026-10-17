@@ -19,6 +19,8 @@ const PIN_HASH_KEY  = "pin_lock_hash";
 const PIN_FAILS_KEY = "pin_lock_fails";
 const UNLOCKED_KEY  = "app_unlocked";
 const NOTICE_KEY    = "signin_notice";
+// Cached so the login screen can show "Día N" on the first frame; wiped on sign-out.
+const TOGETHER_SINCE_KEY = "together_since";
 
 export interface AppProfile {
   id: string;
@@ -143,6 +145,27 @@ export async function loadProfile(
 /** Marks onboarding finished on this device. */
 export const markSetupComplete = (): void => localStorage.setItem("setup_complete", "true");
 
+// ─── together_since cache (login screen day counter) ─────────────────────────
+
+/**
+ * Caches the relationship start date so the login screen can render "Día N"
+ * on its first frame instead of waiting on a network round-trip. Wiped on
+ * sign-out (see signOutAndWipe), so an account switch can't show a stale date.
+ */
+export function cacheTogetherSince(iso: string): void {
+  localStorage.setItem(TOGETHER_SINCE_KEY, iso);
+}
+export function loadCachedTogetherSince(): string | null {
+  return localStorage.getItem(TOGETHER_SINCE_KEY);
+}
+/** Days elapsed since `iso`, or null if it isn't a valid date. */
+export function dayCountSince(iso: string | null): number | null {
+  if (!iso) return null;
+  const t = new Date(iso).getTime();
+  if (Number.isNaN(t)) return null;
+  return Math.floor((Date.now() - t) / 86_400_000);
+}
+
 // ─── Sign out ─────────────────────────────────────────────────────────────────
 
 /** Signs THIS device out (the partner's device is unaffected) and wipes local state. */
@@ -154,5 +177,6 @@ export async function signOutAndWipe(): Promise<void> {
     "biometric_enabled", "biometric_credential_id",
     "user_id", "user_name", "avatar_color", "setup_complete",
     "partner_id", "partner_name", "partner_color",
+    TOGETHER_SINCE_KEY,
   ].forEach((k) => localStorage.removeItem(k));
 }

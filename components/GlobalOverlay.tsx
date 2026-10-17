@@ -1,17 +1,21 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
+import dynamic from "next/dynamic";
 import { usePathname, useRouter } from "next/navigation";
 import { Heart, MessageSquare } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "@/lib/supabase";
+
+// The nudge button needs framer-motion (drag), so it's loaded lazily and only
+// on routes that actually render the overlay. Keeping the import here would
+// pull framer-motion into the First Load JS of /login, /signin and onboarding.
+const NudgeButton = dynamic(() => import("@/components/NudgeButton"));
 
 export default function GlobalOverlay() {
   const pathname = usePathname();
   const router = useRouter();
   const [myId, setMyId] = useState<string | null>(null);
   const channelRef = useRef<any>(null);
-  const dragConstraintsRef = useRef<HTMLDivElement>(null);
   const pathnameRef = useRef(pathname);
   const toastTimersRef = useRef<NodeJS.Timeout[]>([]);
   
@@ -56,8 +60,8 @@ export default function GlobalOverlay() {
          if (preview.startsWith("IMAGE_URL:")) preview = "Sent an image";
          if (preview.startsWith("VIDEO_URL:")) preview = "Sent a video";
          if (preview.startsWith("AUDIO_URL:")) preview = "Sent a voice note";
-         addToast("New Message", preview, "message");
-         if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate([200]);
+        addToast("New Message", preview, "message");
+        if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate([200]);
       }
     });
 
@@ -101,7 +105,7 @@ export default function GlobalOverlay() {
     });
   };
 
-  if (!myId || pathname === "/login" || pathname === "/signin" || pathname === "/" || pathname?.startsWith("/onboarding")) {
+  if (!myId || isExcludedRoute) {
     return null;
   }
 
@@ -109,14 +113,10 @@ export default function GlobalOverlay() {
     <>
       {/* Toasts Container */}
       <div className="fixed top-0 left-0 right-0 z-[100] flex flex-col items-center gap-2 p-4 pointer-events-none pt-[max(env(safe-area-inset-top,0px),1rem)]">
-        <AnimatePresence>
-          {toasts.map((t) => (
-            <motion.div
+        {toasts.map((t) => (
+            <div
               key={t.id}
-              initial={{ opacity: 0, y: -50, scale: 0.9 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: -20, scale: 0.9 }}
-              className="bg-[#18181A]/90 backdrop-blur-xl border border-white/10 p-4 rounded-2xl shadow-2xl w-full max-w-sm pointer-events-auto flex items-center gap-4 cursor-pointer"
+              className="animate-toast-in bg-[#18181A]/90 backdrop-blur-xl border border-white/10 p-4 rounded-2xl shadow-2xl w-full max-w-sm pointer-events-auto flex items-center gap-4 cursor-pointer"
               onClick={() => router.push('/chat')}
             >
               <div className="h-10 w-10 rounded-full bg-white/10 flex items-center justify-center shrink-0">
@@ -126,25 +126,12 @@ export default function GlobalOverlay() {
                  <div className="text-white font-medium text-[15px]">{t.title}</div>
                  <div className="text-white/60 text-[13px] truncate">{t.body}</div>
               </div>
-            </motion.div>
+            </div>
           ))}
-        </AnimatePresence>
       </div>
 
-      {/* Floating Nudge Button & Constraints Area */}
-      <div ref={dragConstraintsRef} className="fixed inset-0 pointer-events-none z-[89]" />
-      <motion.button
-        drag
-        dragConstraints={dragConstraintsRef}
-        dragElastic={0.1}
-        dragMomentum={false}
-        whileTap={{ scale: 0.9 }}
-        whileDrag={{ scale: 1.1 }}
-        onClick={handleSendNudge}
-        className="fixed z-[90] bottom-[90px] right-5 h-14 w-14 rounded-full bg-[#18181A]/80 backdrop-blur-xl flex items-center justify-center shadow-[0_8px_30px_rgba(0,0,0,0.5)] border border-white/10 active:bg-white/10 transition-colors cursor-grab active:cursor-grabbing"
-      >
-        <Heart className="h-6 w-6 text-[var(--wine)] fill-current drop-shadow-[0_0_8px_rgba(188,21,41,0.5)]" />
-      </motion.button>
+      {/* Floating Nudge Button (framer-motion drag, loaded lazily) */}
+      <NudgeButton onSend={handleSendNudge} />
     </>
   );
 }

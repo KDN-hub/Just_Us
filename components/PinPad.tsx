@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { Delete, Fingerprint } from "lucide-react";
-import { motion } from "framer-motion";
 
 interface PinPadProps {
   /** Called with the full PIN string once all 4 digits are entered. */
@@ -77,10 +76,8 @@ export default function PinPad({
       <p className="text-[18px] font-semibold tracking-wide text-white/90">{label}</p>
 
       {/* Dot indicators */}
-      <motion.div
-        animate={shake ? { x: [-10, 10, -8, 8, -5, 5, 0] } : {}}
-        transition={{ duration: 0.4 }}
-        className="flex gap-6 transition-all mt-2"
+      <div
+        className={`flex gap-6 mt-2 ${shake ? "animate-shake" : ""}`}
       >
         {Array.from({ length }).map((_, i) => (
           <span
@@ -92,7 +89,7 @@ export default function PinPad({
             }`}
           />
         ))}
-      </motion.div>
+      </div>
 
       {/* Keypad grid */}
       <div className="grid w-fit grid-cols-[repeat(3,64px)] gap-4 mt-2">
@@ -100,29 +97,27 @@ export default function PinPad({
           if (key === "") {
             if (showBiometric && onBiometric) {
               return (
-                <motion.button
-                  whileTap={{ scale: 0.9, backgroundColor: "rgba(122,44,59,0.3)" }}
+                <button
                   key="biometric-btn"
                   type="button"
                   onClick={onBiometric}
-                  className="flex h-[64px] w-[64px] items-center justify-center rounded-full border border-[var(--border)] bg-[var(--surface)] text-[var(--gold)] transition-all hover:bg-white/5"
+                  className="flex h-[64px] w-[64px] items-center justify-center rounded-full border border-[var(--border)] bg-[var(--surface)] text-[var(--gold)] transition-all duration-100 hover:bg-white/5 active:scale-90 active:bg-[rgba(122,44,59,0.3)]"
                   aria-label="Unlock with Face ID or fingerprint"
                   title="Unlock with biometrics"
                 >
                   <Fingerprint className="h-6 w-6 text-[var(--gold)]" strokeWidth={1.8} />
-                </motion.button>
+                </button>
               );
             }
             return <div key={`empty-${i}`} className="h-[64px]" />;
           }
 
           return (
-            <motion.button
-              whileTap={{ scale: 0.9, backgroundColor: "rgba(122,44,59,0.3)" }}
+            <button
               key={key}
               type="button"
               onClick={() => handleKey(key)}
-              className="flex h-[64px] w-[64px] items-center justify-center rounded-full border border-[var(--border)] bg-[var(--surface)] text-[22px] font-medium text-[var(--cream)] transition-all hover:bg-white/5 shadow-sm"
+              className="flex h-[64px] w-[64px] items-center justify-center rounded-full border border-[var(--border)] bg-[var(--surface)] text-[22px] font-medium text-[var(--cream)] transition-all duration-100 hover:bg-white/5 active:scale-90 active:bg-[rgba(122,44,59,0.3)] shadow-sm"
               aria-label={key === "del" ? "Delete" : key}
             >
               {key === "del" ? (
@@ -130,7 +125,7 @@ export default function PinPad({
               ) : (
                 key
               )}
-            </motion.button>
+            </button>
           );
         })}
       </div>

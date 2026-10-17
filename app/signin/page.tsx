@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ChevronRight, ChevronLeft } from "lucide-react";
-import { motion } from "framer-motion";
 import { supabase } from "@/lib/supabase";
 import { clearLocalPin, hasLocalPin, lockApp, loadProfile, takeSignInNotice } from "@/lib/auth";
 
@@ -18,15 +17,14 @@ export default function SignIn() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
-  const [checking, setChecking] = useState(true);
 
   useEffect(() => {
     setNotice(takeSignInNotice() ?? "");
 
-    // Already signed in on this device? Skip straight on.
+    // Already signed in on this device? Skip straight on. This runs in the
+    // background — the form paints immediately instead of waiting on it.
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session) router.replace(hasLocalPin() ? "/login" : "/onboarding/pin-setup");
-      else setChecking(false);
     });
   }, [router]);
 
@@ -67,28 +65,20 @@ export default function SignIn() {
     router.replace("/onboarding/profile");
   }
 
-  if (checking) return null;
-
   return (
     <main className="shell-h relative mx-auto flex w-full max-w-md flex-col font-sans overflow-hidden">
       {/* Back button */}
-      <motion.button
-        initial={{ opacity: 0, scale: 0.8 }}
-        animate={{ opacity: 1, scale: 1 }}
-        transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
+      <button
         type="button"
         onClick={() => router.push("/onboarding/welcome")}
         aria-label="Go back"
         className="absolute top-[max(env(safe-area-inset-top,0px),1.5rem)] left-6 z-30 flex h-11 w-11 items-center justify-center rounded-full bg-[var(--wine)] shadow-[0_4px_12px_rgba(188,21,41,0.35)] transition-transform duration-200 hover:scale-105 active:scale-95"
       >
         <ChevronLeft className="h-5 w-5 stroke-[3] text-white mr-[2px]" />
-      </motion.button>
+      </button>
 
       {/* Blurred Background */}
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ duration: 0.6 }}
+      <div
         className="absolute inset-0 z-0 scale-[1.08] bg-cover bg-center bg-no-repeat blur-md"
         style={{ backgroundImage: "url('/images/welcome-couple.jpeg')" }}
       />
@@ -96,29 +86,20 @@ export default function SignIn() {
       <div className="absolute inset-0 z-0 bg-black/40" />
 
       <div className="relative z-10 flex flex-1 flex-col items-center justify-center gap-2.5 px-4 text-center">
-        <motion.p
-          initial={{ opacity: 0, y: 15, filter: "blur(6px)" }}
-          animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
-          transition={{ duration: 0.6, delay: 0.1, ease: [0.16, 1, 0.3, 1] }}
+        <p
           className="text-[38px] leading-tight text-[#F5F0E8] font-bold tracking-tight"
           style={{ fontFamily: "var(--font-fraunces), serif" }}
         >
           Sign in to Just Us
-        </motion.p>
-        <motion.p 
-          initial={{ opacity: 0, y: 15, filter: "blur(6px)" }}
-          animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
-          transition={{ duration: 0.6, delay: 0.25, ease: [0.16, 1, 0.3, 1] }}
+        </p>
+        <p
           className="max-w-[340px] text-[16px] leading-relaxed text-[#8A8177] px-2"
         >
           Only needed once on each device. After this you&apos;ll just use your PIN.
-        </motion.p>
+        </p>
       </div>
 
-      <motion.div
-        initial={{ opacity: 0, y: 70 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.6, delay: 0.15, ease: [0.16, 1, 0.3, 1] }}
+      <div
         className="relative z-10 flex flex-col gap-3.5 rounded-t-[36px] bg-[#26221E] px-6 pb-[calc(env(safe-area-inset-bottom,0px)+6rem)] pt-9 shadow-[0_-8px_30px_rgba(0,0,0,0.35)]"
       >
         {notice && <p className="text-[12px] text-[#C9A66B]">{notice}</p>}
@@ -166,7 +147,7 @@ export default function SignIn() {
             </div>
           </button>
         </div>
-      </motion.div>
+      </div>
     </main>
   );
 }

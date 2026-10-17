@@ -20,6 +20,10 @@ const MessageInfoModal = dynamic(() => import("@/components/chat/MessageInfoModa
 import { useChatStore, generateUUID, TimelineItem, Message } from "@/hooks/useChatStore";
 import { useShallow } from "zustand/react/shallow";
 import { useChatRealtime } from "@/hooks/useChatRealtime";
+import { useMessages } from "@/hooks/useMessages";
+import { useSyncEngine } from "@/hooks/useSyncEngine";
+import { getLatestEditContent, getLocalMessage } from "@/lib/db";
+import { sendLocalMessage } from "@/lib/sync";
 import { toggleFavoriteSticker, fetchFavoriteStickers } from "@/lib/stickers";
 
 const CONVERSATION_ID = "c0000000-0000-0000-0000-000000000003";
@@ -49,13 +53,12 @@ export default function Chat() {
   const msgElementsStaleRef = useRef(true);
 
   const {
-    myId, partner, messages, callLog, reconnecting,
+    myId, partner, callLog, reconnecting,
     partnerTyping, isOnline, daysTogether, incomingCall,
-    setIncomingCall, addOrUpdateMessage
+    setIncomingCall
   } = useChatStore(useShallow((s) => ({
     myId: s.myId,
     partner: s.partner,
-    messages: s.messages,
     callLog: s.callLog,
     reconnecting: s.reconnecting,
     partnerTyping: s.partnerTyping,
@@ -63,10 +66,13 @@ export default function Chat() {
     daysTogether: s.daysTogether,
     incomingCall: s.incomingCall,
     setIncomingCall: s.setIncomingCall,
-    addOrUpdateMessage: s.addOrUpdateMessage,
   })));
 
+  // Messages render from IndexedDB only — never from a network await.
+  const { messages: localMessages, ready: messagesReady } = useMessages(CONVERSATION_ID);
+
   useChatRealtime(signalChRef);
+  useSyncEngine(CONVERSATION_ID, myId);
 
   const [draft, setDraft] = useState("");
   const [editingMessage, setEditingMessage] = useState<string | null>(null);
@@ -207,67 +213,15 @@ export default function Chat() {
 
   const handleSendDirectURL = async (url: string, type: string) => {
     try {
-      const tempId = generateUUID();
-      const offline = !navigator.onLine;
-
-      addOrUpdateMessage({
-        id: tempId,
-        sender_id: myId,
-        content: url,
-        type: type,
-        status: 'sent',
-        created_at: new Date().toISOString(),
-        pending: true,
-        queued: offline,
-      });
       setShowEmojiPicker(false);
-      
-      if (!offline) {
-        let insertType = type;
-        let insertContent = url;
-
-        let { data: insertData, error: insertError } = await supabase
-          .from('messages')
-          .insert({
-            id: tempId,
-            conversation_id: CONVERSATION_ID,
-            sender_id: myId,
-            type: insertType,
-            content: insertContent,
-            status: 'sent',
-          })
-          .select('created_at')
-          .single();
-          
-        if (insertError && type === 'sticker') {
-          // Graceful fallback if Postgres constraint messages_type_check is not yet altered
-          const fallbackRes = await supabase
-            .from('messages')
-            .insert({
-              id: tempId,
-              conversation_id: CONVERSATION_ID,
-              sender_id: myId,
-              type: 'text',
-              content: `STICKER:${url}`,
-              status: 'sent',
-            })
-            .select('created_at')
-            .single();
-            
-          if (!fallbackRes.error) {
-            insertError = null;
-            insertData = fallbackRes.data;
-          }
-        }
-          
-        if (insertError) {
-          const m = useChatStore.getState().messages[tempId];
-          if (m) addOrUpdateMessage({ ...m, queued: true });
-        } else if (insertData) {
-          const m = useChatStore.getState().messages[tempId];
-          if (m) addOrUpdateMessage({ ...m, created_at: insertData.created_at, pending: false });
-        }
-      }
+      // Dexie first (instant bubble), Supabase in the background.
+      await sendLocalMessage({
+        id: generateUUID(),
+        conversation_id: CONVERSATION_ID,
+        sender_id: myId,
+        body: url,
+        type,
+      });
     } catch (err) {
       console.error(err);
     }
@@ -325,42 +279,14 @@ export default function Chat() {
         }
       }
       
-      const tempId = generateUUID();
-      const offline = !navigator.onLine;
-
-      addOrUpdateMessage({
-        id: tempId,
+      // The file is already in storage; the message row goes to Dexie first.
+      await sendLocalMessage({
+        id: generateUUID(),
+        conversation_id: CONVERSATION_ID,
         sender_id: myId,
-        content: dbContent,
+        body: dbContent,
         type: dbType,
-        status: 'sent',
-        created_at: new Date().toISOString(),
-        pending: true,
-        queued: offline,
       });
-      
-      if (!offline) {
-        const { data: insertData, error: insertError } = await supabase
-          .from('messages')
-          .insert({
-            id: tempId,
-            conversation_id: CONVERSATION_ID,
-            sender_id: myId,
-            type: dbType,
-            content: dbContent,
-            status: 'sent',
-          })
-          .select('created_at')
-          .single();
-          
-        if (insertError) {
-          const m = useChatStore.getState().messages[tempId];
-          if (m) addOrUpdateMessage({ ...m, queued: true });
-        } else if (insertData) {
-          const m = useChatStore.getState().messages[tempId];
-          if (m) addOrUpdateMessage({ ...m, created_at: insertData.created_at, pending: false });
-        }
-      }
     } catch (err) {
       console.error(err);
       alert('An error occurred during upload.');
@@ -488,9 +414,8 @@ export default function Chat() {
     if (!myId || !setupDone) router.replace("/onboarding/welcome");
   }, [myId, router]);
 
-  const messageList = useMemo(() => {
-    return Object.values(messages).sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
-  }, [messages]);
+  // Sorted oldest → newest already (Dexie compound index on [conversation_id+created_at]).
+  const messageList = localMessages;
 
   const callLogList = useMemo(() => {
     return Object.values(callLog).sort((a, b) => new Date(a.started_at).getTime() - new Date(b.started_at).getTime());
@@ -632,57 +557,15 @@ export default function Chat() {
     };
   }, [myId]);
 
-  useEffect(() => {
-    if (!isOnline) return;
-    const queued = messageList.filter((m) => m.queued && m.sender_id === myId);
-    if (queued.length === 0) return;
-    queued.forEach(async (msg) => {
-      let insertType = msg.type || 'text';
-      let insertContent = msg.content;
-      let { error } = await supabase
-        .from('messages')
-        .insert({
-          id: msg.id,
-          conversation_id: CONVERSATION_ID,
-          sender_id: myId,
-          type: insertType,
-          content: insertContent,
-          status: 'sent',
-        })
-        .select('id')
-        .single();
+  // (Pending sends are retried by the sync engine: online event, app open,
+  // and — from Phase 2 on — the outbox queue with backoff.)
 
-      if (error && msg.type === 'sticker') {
-        const fallbackRes = await supabase
-          .from('messages')
-          .insert({
-            id: msg.id,
-            conversation_id: CONVERSATION_ID,
-            sender_id: myId,
-            type: 'text',
-            content: `STICKER:${msg.content}`,
-            status: 'sent',
-          })
-          .select('id')
-          .single();
-        if (!fallbackRes.error) error = null;
-      }
-
-      if (!error) {
-        addOrUpdateMessage({ ...msg, queued: false, pending: true });
-      }
-    });
-  }, [isOnline, myId, messageList, addOrUpdateMessage]);
-
-  const handleSend = useCallback(async (overrideText?: string | React.MouseEvent | React.KeyboardEvent) => {
+  const handleSend = useCallback((overrideText?: string | React.MouseEvent | React.KeyboardEvent) => {
     const rawText = (typeof overrideText === 'string' ? overrideText : draft).trim();
     if (!rawText) return;
 
     if (typeof overrideText !== 'string') setDraft('');
 
-    const tempId = generateUUID();
-    const offline = !navigator.onLine;
-    
     let text = rawText;
     if (editingMessage) {
       text = `EDIT:${editingMessage}:${rawText}`;
@@ -692,15 +575,13 @@ export default function Chat() {
       setReplyingTo(null);
     }
 
-    addOrUpdateMessage({
-      id: tempId,
+    // Local write is what makes the bubble appear; the network push happens behind it.
+    void sendLocalMessage({
+      id: generateUUID(),
+      conversation_id: CONVERSATION_ID,
       sender_id: myId,
-      content: text,
+      body: text,
       type: 'text',
-      status: 'sent',
-      created_at: new Date().toISOString(),
-      pending: true,
-      queued: offline,
     });
     inputRef.current?.focus();
 
@@ -710,33 +591,9 @@ export default function Chat() {
       typingTimeoutRef.current = null;
     }
     signalChRef.current?.send({ type: "broadcast", event: "typing", payload: { userId: myId, isTyping: false } });
+  }, [draft, myId, editingMessage, replyingTo]);
 
-    if (offline) return;
-
-    const { data, error } = await supabase
-      .from('messages')
-      .insert({
-        id: tempId,
-        conversation_id: CONVERSATION_ID,
-        sender_id: myId,
-        type: 'text',
-        content: text,
-        status: 'sent',
-      })
-      .select('created_at')
-      .single();
-
-    if (error) {
-      console.error('[chat] send failed:', error.message);
-      const m = useChatStore.getState().messages[tempId];
-      if (m) addOrUpdateMessage({ ...m, queued: true });
-    } else if (data) {
-      const m = useChatStore.getState().messages[tempId];
-      if (m) addOrUpdateMessage({ ...m, created_at: data.created_at, pending: false });
-    }
-  }, [draft, myId, addOrUpdateMessage, editingMessage, replyingTo]);
-
-  const handleNudge = async () => {
+  const handleNudge = () => {
     if (!isOnline) return;
 
     signalChRef.current?.send({
@@ -748,43 +605,14 @@ export default function Chat() {
       },
     });
 
-    const tempId = generateUUID();
-    const offline = !navigator.onLine;
-
-    addOrUpdateMessage({
-      id: tempId,
+    void sendLocalMessage({
+      id: generateUUID(),
+      conversation_id: CONVERSATION_ID,
       sender_id: myId,
-      content: "NUDGE_PING_💖",
+      body: "NUDGE_PING_💖",
       type: 'text',
-      status: 'sent',
-      created_at: new Date().toISOString(),
-      pending: true,
-      queued: offline,
     });
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-
-    if (offline) return;
-
-    const { data, error } = await supabase
-      .from('messages')
-      .insert({
-        id: tempId,
-        conversation_id: CONVERSATION_ID,
-        sender_id: myId,
-        type: 'text',
-        content: "NUDGE_PING_💖",
-        status: 'sent',
-      })
-      .select('created_at')
-      .single();
-
-    if (error) {
-      const m = useChatStore.getState().messages[tempId];
-      if (m) addOrUpdateMessage({ ...m, queued: true });
-    } else if (data) {
-      const m = useChatStore.getState().messages[tempId];
-      if (m) addOrUpdateMessage({ ...m, created_at: data.created_at, pending: false });
-    }
   };
 
   const handleAcceptCall = useCallback(() => {
@@ -817,34 +645,17 @@ export default function Chat() {
     scrollToAndHighlightMessage(msgId);
   }, [scrollToAndHighlightMessage]);
 
-  const handlePin = useCallback(async (messageId: string, isCurrentlyPinned: boolean) => {
-    const tempId = generateUUID();
+  const handlePin = useCallback((messageId: string, isCurrentlyPinned: boolean) => {
     const action = isCurrentlyPinned ? 'UNPIN' : 'PIN';
-    addOrUpdateMessage({ 
-      id: tempId, 
-      sender_id: myId, 
-      content: `${action}:${messageId}`, 
-      type: 'text', 
-      status: 'sent', 
-      created_at: new Date().toISOString(), 
-      pending: true 
+    void sendLocalMessage({
+      id: generateUUID(),
+      conversation_id: CONVERSATION_ID,
+      sender_id: myId,
+      body: `${action}:${messageId}`,
+      type: 'text',
     });
     showToast(isCurrentlyPinned ? "Message unpinned" : "Message pinned 📌", "success");
-
-    if (!navigator.onLine) return;
-    const { error } = await supabase.from('messages').insert({ 
-      id: tempId, 
-      conversation_id: CONVERSATION_ID, 
-      sender_id: myId, 
-      type: 'text', 
-      content: `${action}:${messageId}`, 
-      status: 'sent' 
-    });
-    if (error) {
-      useChatStore.getState().removeMessage(tempId);
-      showToast("Couldn't update pin. Try again.", "error");
-    }
-  }, [myId, showToast, addOrUpdateMessage]);
+  }, [myId, showToast]);
 
   const handleForward = useCallback((content: string) => {
     if (navigator.share) {
@@ -872,17 +683,17 @@ export default function Chat() {
     inputRef.current?.focus();
   }, []);
 
-  const handleEdit = useCallback((messageId: string) => {
-    const msg = useChatStore.getState().messages[messageId];
+  const handleEdit = useCallback(async (messageId: string) => {
+    const msg = await getLocalMessage(messageId);
     if (msg && msg.type === 'text') {
-      let content = msg.content;
+      let content = msg.body;
       if (content.startsWith('REPLY:')) content = content.split(':').slice(2).join(':');
-      
-      const latestEdit = Object.values(useChatStore.getState().messages).filter(m => m.type === 'text' && m.content.startsWith('EDIT:' + messageId + ':')).pop();
-      if (latestEdit) {
-         content = latestEdit.content.split(':').slice(2).join(':');
+
+      const latestEdit = await getLatestEditContent(CONVERSATION_ID, messageId);
+      if (latestEdit !== null) {
+         content = latestEdit;
       }
-      
+
       setDraft(content);
       setEditingMessage(messageId);
       setReplyingTo(null);
@@ -890,8 +701,8 @@ export default function Chat() {
     }
   }, []);
 
-  const handleDeleteClick = useCallback((messageId: string) => {
-    const msg = useChatStore.getState().messages[messageId];
+  const handleDeleteClick = useCallback(async (messageId: string) => {
+    const msg = await getLocalMessage(messageId);
     const isMine = msg?.sender_id === myId;
     setDeleteModalState({
       isOpen: true,
@@ -913,40 +724,17 @@ export default function Chat() {
     showToast(ids.length > 1 ? `${ids.length} messages deleted for you` : "Message deleted for you", "info");
   }, [myId, showToast]);
 
-  const handleDeleteForEveryone = useCallback(async (messageId: string) => {
-    const offline = !navigator.onLine;
-    const tempId = generateUUID();
-    const dbContent = `DELETE:${messageId}`;
-
-    addOrUpdateMessage({
-      id: tempId,
+  const handleDeleteForEveryone = useCallback((messageId: string) => {
+    void sendLocalMessage({
+      id: generateUUID(),
+      conversation_id: CONVERSATION_ID,
       sender_id: myId,
-      content: dbContent,
+      body: `DELETE:${messageId}`,
       type: 'text',
-      status: 'sent',
-      created_at: new Date().toISOString(),
-      pending: true,
-      queued: offline,
     });
 
     showToast("Message deleted for everyone", "success");
-
-    if (offline) return;
-
-    const { error } = await supabase.from('messages').insert({
-      id: tempId,
-      conversation_id: CONVERSATION_ID,
-      sender_id: myId,
-      type: 'text',
-      content: dbContent,
-      status: 'sent',
-    });
-
-    if (error) {
-      useChatStore.getState().removeMessage(tempId);
-      showToast("Couldn't delete message. Try again.", "error");
-    }
-  }, [myId, showToast, addOrUpdateMessage]);
+  }, [myId, showToast]);
 
   const handleSelectMessage = useCallback((id: string) => {
     setSelectionMode(true);
@@ -969,38 +757,15 @@ export default function Chat() {
     setSelectedMessageIds([]);
   }, []);
 
-  const handleReaction = useCallback(async (messageId: string, emoji: string) => {
-    const tempId = generateUUID();
-    const dbContent = `REACTION:${messageId}:${emoji}`;
-    const offline = !navigator.onLine;
-
-    addOrUpdateMessage({
-      id: tempId,
-      sender_id: myId,
-      content: dbContent,
-      type: 'text',
-      status: 'sent',
-      created_at: new Date().toISOString(),
-      pending: true,
-      queued: offline,
-    });
-
-    if (offline) return;
-
-    const { error } = await supabase.from('messages').insert({
-      id: tempId,
+  const handleReaction = useCallback((messageId: string, emoji: string) => {
+    void sendLocalMessage({
+      id: generateUUID(),
       conversation_id: CONVERSATION_ID,
       sender_id: myId,
+      body: `REACTION:${messageId}:${emoji}`,
       type: 'text',
-      content: dbContent,
-      status: 'sent',
     });
-
-    if (error) {
-      useChatStore.getState().removeMessage(tempId);
-      showToast("Couldn't add reaction. Try again.", "error");
-    }
-  }, [myId, showToast, addOrUpdateMessage]);
+  }, [myId]);
 
   const { realMessages, pinnedMessages, timeline, pinsMap, getMessageSnippet } = useMemo(() => {
   let _realMessages: Message[] = [];
@@ -1417,6 +1182,7 @@ export default function Chat() {
         <MessageList
           timeline={timeline}
           myId={myId}
+          showEmptyState={messagesReady}
           partnerName={partnerDisplay}
           handleReaction={handleReaction}
           onReply={handleReply}

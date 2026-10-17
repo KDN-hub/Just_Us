@@ -1,17 +1,19 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useLayoutEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import "@fontsource/stack-sans-notch/400.css";
 import "@fontsource/stack-sans-notch/700.css";
 import { Lock, ChevronRight, ChevronLeft } from "lucide-react";
-import { motion, useAnimation, useMotionValue, useTransform, AnimatePresence } from "framer-motion";
 import { supabase } from "@/lib/supabase";
 import PinPad from "@/components/PinPad";
 import {
   CONVERSATION_ID,
+  cacheTogetherSince,
+  dayCountSince,
   hasLocalPin,
+  loadCachedTogetherSince,
   loadProfile,
   setSignInNotice,
   setUnlocked,
@@ -24,21 +26,52 @@ import {
   isBiometricsSupported,
 } from "@/lib/biometrics";
 
+// This page is prerendered on the server, where useLayoutEffect only logs a
+// warning; the browser variant runs before paint, which is what we want.
+const useIsoLayoutEffect = typeof window !== "undefined" ? useLayoutEffect : useEffect;
+
+function pickGreeting(name: string): string {
+  const isNono = name.toLowerCase().includes("nono");
+  const nonoGreetings = ["Heyy Cupcake🤍", "Finallyy she is here😩", "My babbyyy🥹", "Heyyy mama ❤️"];
+  const myGreetings = ["Hey Bubba🤍", "Finallyy He is here😩", "My babbyyy🥹"];
+  const pool = isNono ? nonoGreetings : myGreetings;
+  return pool[Math.floor(Math.random() * pool.length)];
+}
+
 export default function Login() {
   const router = useRouter();
   const [dayCount, setDayCount] = useState<number | null>(null);
   const [pinError, setPinError] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
-  const [ready, setReady] = useState(false);
   const [userName, setUserName] = useState("?");
   const [avatarColor, setAvatarColor] = useState("#7A2C3B");
   const [greeting, setGreeting] = useState("");
   const [bioAvailable, setBioAvailable] = useState(false);
-  const autoPromptedRef = useRef(false);
+  const greetingSeededRef = useRef(false);
 
   const [showPinPad, setShowPinPad] = useState(false);
 
+  // ── Paint from the device cache immediately ────────────────────────────────
+  // The screen must never wait on an auth round-trip: name/avatar/greeting and
+  // the day counter all come straight off localStorage (written by loadProfile
+  // and the calendar on previous visits), so the lock UI is up on the first
+  // frame. useLayoutEffect applies it before paint, so there's no flash.
+  useIsoLayoutEffect(() => {
+    const cachedName = localStorage.getItem("user_name");
+    if (cachedName) {
+      setUserName(cachedName);
+      setAvatarColor(localStorage.getItem("avatar_color") ?? "#7A2C3B");
+      setGreeting(pickGreeting(cachedName));
+      greetingSeededRef.current = true;
+    }
+    const cachedDays = dayCountSince(loadCachedTogetherSince());
+    if (cachedDays !== null) setDayCount(cachedDays);
+  }, []);
+
   // ── Guard: needs a real session; a device without a PIN must set one first ──
+  // Runs in the background and only ever *redirects* on failure — it never
+  // blocks or blanks the lock screen (previously this returned null until
+  // getSession() resolved, which is the slow, empty screen users noticed).
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -50,36 +83,25 @@ export default function Login() {
       const name = profile.nickname ?? profile.name;
       setUserName(name);
       setAvatarColor(profile.avatar_color ?? "#7A2C3B");
+      if (!greetingSeededRef.current) {
+        greetingSeededRef.current = true;
+        setGreeting(pickGreeting(name));
+      }
 
-      const isNono = name.toLowerCase().includes("nono");
-      const nonoGreetings = ["Heyy Cupcake🤍", "Finallyy she is here😩", "My babbyyy🥹", "Heyyy mama ❤️"];
-      const myGreetings = ["Hey Bubba🤍", "Finallyy He is here😩", "My babbyyy🥹"];
-      const pool = isNono ? nonoGreetings : myGreetings;
-      setGreeting(pool[Math.floor(Math.random() * pool.length)]);
-
-      setReady(true);
+      // ── Fetch together_since → day count (cache-first, then revalidate) ──
+      const { data } = await supabase
+        .from("conversation")
+        .select("together_since")
+        .eq("id", CONVERSATION_ID)
+        .maybeSingle();
+      if (cancelled || !data?.together_since) return;
+      cacheTogetherSince(data.together_since);
+      setDayCount(dayCountSince(data.together_since));
     })();
     return () => { cancelled = true; };
   }, [router]);
 
   const initial = userName[0]?.toUpperCase() ?? "?";
-
-  // ── Fetch together_since → day count ──────────────────────────────────────
-  useEffect(() => {
-    if (!ready) return;
-    supabase
-      .from("conversation")
-      .select("together_since")
-      .eq("id", CONVERSATION_ID)
-      .maybeSingle()
-      .then(({ data }) => {
-        if (data?.together_since) {
-          setDayCount(
-            Math.floor((Date.now() - new Date(data.together_since).getTime()) / 86_400_000),
-          );
-        }
-      });
-  }, [ready]);
 
   const failSignOut = useCallback(
     async (notice: string) => {
@@ -92,7 +114,6 @@ export default function Login() {
 
   // ── Biometrics check & fast-path prompt ──────────────────────────────────
   useEffect(() => {
-    if (!ready) return;
     if (!isBiometricsEnabled()) return;
 
     let active = true;
@@ -105,7 +126,7 @@ export default function Login() {
     return () => {
       active = false;
     };
-  }, [ready]);
+  }, []);
 
   const handleBiometrics = useCallback(async () => {
     const result = await authenticateBiometrics();
@@ -155,30 +176,22 @@ export default function Login() {
     [router, failSignOut],
   );
 
-  if (!ready) return null;
-
   return (
     <main className="shell-h relative mx-auto flex w-full max-w-md flex-col font-notch overflow-hidden">
       {/* Back button */}
       {showPinPad && (
-        <motion.button
-          initial={{ opacity: 0, scale: 0.8 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
+        <button
           type="button"
           onClick={() => setShowPinPad(false)}
           aria-label="Go back"
           className="absolute top-[max(env(safe-area-inset-top,0px),1.5rem)] left-6 z-30 flex h-11 w-11 items-center justify-center rounded-full bg-[var(--wine)] shadow-[0_4px_12px_rgba(188,21,41,0.35)] transition-transform duration-200 hover:scale-105 active:scale-95"
         >
           <ChevronLeft className="h-5 w-5 stroke-[3] text-white mr-[2px]" />
-        </motion.button>
+        </button>
       )}
 
       {/* Blurred Background */}
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ duration: 0.6 }}
+      <div
         className="absolute inset-0 z-0 scale-[1.08] bg-cover bg-center bg-no-repeat blur-md"
         style={{ backgroundImage: "url('/images/welcome-couple.jpeg')" }}
       />
@@ -191,19 +204,12 @@ export default function Login() {
           className="text-[52px] font-normal leading-none text-[var(--cream)] flex items-center justify-center"
           style={{ fontFamily: "var(--font-fraunces), serif" }}
         >
-          <motion.span
-            initial={{ opacity: 0, y: 15, filter: "blur(8px)" }}
-            animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
-            transition={{ duration: 0.7, delay: 0.15, ease: [0.16, 1, 0.3, 1] }}
-          >
+          <span>
             {dayCount !== null ? `Día ${dayCount}` : "—"}
-          </motion.span>
+          </span>
 
-          <motion.div 
-            initial={{ opacity: 0, scale: 0.6, filter: "blur(8px)" }}
-            animate={{ opacity: 1, scale: 1, filter: "blur(0px)" }}
-            transition={{ duration: 0.7, delay: 0.35, ease: [0.16, 1, 0.3, 1] }}
-            aria-hidden 
+          <div
+            aria-hidden
             className="ml-3 flex items-center gap-2"
           >
             <div className="relative h-[38px] w-[38px]">
@@ -212,37 +218,26 @@ export default function Login() {
             <div className="relative h-[38px] w-[38px]">
               <Image src="/images/locked_with_key_3d.png" alt="Locked" fill className="object-contain" />
             </div>
-          </motion.div>
+          </div>
         </div>
       </div>
 
-      <AnimatePresence mode="wait">
-        {!showPinPad ? (
-          <motion.div
+      {!showPinPad ? (
+          <div
             key="unlock-card"
-            initial={{ opacity: 0, y: 70 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 70 }}
-            transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
             className="relative z-10 flex flex-col items-center gap-6 rounded-t-[36px] border-t border-white/10 bg-[#18181A]/90 px-6 backdrop-blur-2xl pb-[calc(env(safe-area-inset-bottom,0px)+4rem)] pt-10 shadow-[0_-8px_30px_rgba(0,0,0,0.35)]"
           >
-            <motion.div 
-              initial={{ opacity: 0, scale: 0.5, filter: "blur(10px)" }}
-              animate={{ opacity: 1, scale: 1, filter: "blur(0px)" }}
-              transition={{ duration: 0.5, delay: 0.2, ease: [0.16, 1, 0.3, 1] }}
+            <div
               className="flex h-[72px] w-[72px] items-center justify-center rounded-2xl"
             >
               <Lock className="h-[60px] w-[60px] text-[var(--gold)]" strokeWidth={2} />
-            </motion.div>
+            </div>
 
-            <motion.p 
-              initial={{ opacity: 0, y: 10, filter: "blur(6px)" }}
-              animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
-              transition={{ duration: 0.5, delay: 0.35, ease: [0.16, 1, 0.3, 1] }}
+            <p
               className="mt-1 text-[26px] font-bold text-[var(--cream)] text-center font-notch tracking-tight px-2"
             >
               {greeting}
-            </motion.p>
+            </p>
 
             <SlideButton onUnlock={handleUnlockClick} />
 
@@ -257,14 +252,10 @@ export default function Login() {
             >
               Use PIN instead
             </button>
-          </motion.div>
+          </div>
         ) : (
-          <motion.div
+          <div
             key="pin-card"
-            initial={{ opacity: 0, y: 70 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 70 }}
-            transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
             className="relative z-10 flex flex-col items-center gap-5 rounded-t-[36px] border-t border-white/10 bg-[#18181A]/90 px-6 backdrop-blur-2xl pb-[calc(env(safe-area-inset-bottom,0px)+6rem)] pt-8 shadow-[0_-8px_30px_rgba(0,0,0,0.35)]"
           >
             {/* Avatar */}
@@ -294,9 +285,8 @@ export default function Login() {
             >
               Forgot PIN?
             </button>
-          </motion.div>
+          </div>
         )}
-      </AnimatePresence>
     </main>
   );
 }
@@ -306,56 +296,84 @@ function SlideButton({ onUnlock }: { onUnlock: () => void }) {
   const knobWidth = 48; 
   const maxDrag = containerWidth - knobWidth - 16; 
 
-  const x = useMotionValue(0);
-  const controls = useAnimation();
-  
-  const textOpacity = useTransform(x, [0, maxDrag * 0.5], [1, 0]);
-  
-  const handleDragEnd = async () => {
-    if (x.get() > maxDrag * 0.65) {
+  // Pointer-event drag instead of framer-motion: the knob and label are moved
+  // by writing their styles directly (no React re-render per move), and the
+  // snap animations are plain CSS transitions on transform/opacity.
+  const knobRef = useRef<HTMLDivElement>(null);
+  const labelRef = useRef<HTMLDivElement>(null);
+  const dragStateRef = useRef<{ pointerId: number; startX: number; startOffset: number } | null>(null);
+  const offsetRef = useRef(0);
+
+  const applyOffset = useCallback((offset: number, transition: string) => {
+    offsetRef.current = offset;
+    const knob = knobRef.current;
+    if (knob) {
+      knob.style.transition = transition;
+      knob.style.transform = `translateX(${offset}px)`;
+    }
+    const label = labelRef.current;
+    if (label) {
+      label.style.opacity = String(Math.max(0, 1 - offset / (maxDrag * 0.5)));
+    }
+  }, [maxDrag]);
+
+  const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    dragStateRef.current = {
+      pointerId: e.pointerId,
+      startX: e.clientX,
+      startOffset: offsetRef.current,
+    };
+    e.currentTarget.setPointerCapture(e.pointerId);
+    // Kill any in-flight snap so the knob tracks the finger exactly.
+    applyOffset(offsetRef.current, "none");
+  };
+
+  const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    const drag = dragStateRef.current;
+    if (!drag || e.pointerId !== drag.pointerId) return;
+    const next = Math.min(maxDrag, Math.max(0, drag.startOffset + (e.clientX - drag.startX)));
+    applyOffset(next, "none");
+  };
+
+  const handlePointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
+    const drag = dragStateRef.current;
+    if (!drag || e.pointerId !== drag.pointerId) return;
+    dragStateRef.current = null;
+
+    if (offsetRef.current > maxDrag * 0.65) {
       // Fire functional unlock immediately
       onUnlock();
       // Zip to the very end instantly
-      await controls.start({ 
-        x: maxDrag,
-        transition: { type: "tween", duration: 0.05, ease: "linear" }
-      });
+      applyOffset(maxDrag, "transform 0.05s linear");
       // Whip back to the start smoothly but very fast
-      controls.start({ 
-        x: 0,
-        transition: { type: "tween", duration: 0.15, ease: "circOut" }
-      });
+      window.setTimeout(() => applyOffset(0, "transform 0.15s cubic-bezier(0.32, 0.72, 0, 1)"), 60);
     } else {
       // Return to start if let go early
-      controls.start({ 
-        x: 0,
-        transition: { type: "tween", duration: 0.15, ease: "circOut" } 
-      });
+      applyOffset(0, "transform 0.15s cubic-bezier(0.32, 0.72, 0, 1)");
     }
   };
 
   return (
     <div className="relative mt-4 flex h-[64px] w-[260px] items-center rounded-full bg-white/[0.85] backdrop-blur-xl border border-white/60 p-2 shadow-[inset_0_1.5px_2px_rgba(255,255,255,0.85),0_10px_24px_-6px_rgba(188,21,41,0.4)] overflow-hidden">
-      <motion.div 
-        style={{ opacity: textOpacity }}
+      <div
+        ref={labelRef}
         className="absolute inset-0 z-0 flex items-center justify-center pl-6 pointer-events-none"
       >
         <span className="text-[17px] font-semibold tracking-wide text-[var(--wine)]">
           Slide to unlock
         </span>
-      </motion.div>
+      </div>
 
-      <motion.div
-        drag="x"
-        dragConstraints={{ left: 0, right: maxDrag }}
-        dragElastic={0.05}
-        onDragEnd={handleDragEnd}
-        animate={controls}
-        style={{ x }}
-        className="relative z-10 flex h-[48px] w-[48px] cursor-grab active:cursor-grabbing items-center justify-center rounded-full bg-[var(--wine)] shadow-[0_4px_12px_rgba(188,21,41,0.35)]"
+      <div
+        ref={knobRef}
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={handlePointerUp}
+        onPointerCancel={handlePointerUp}
+        className="relative z-10 flex h-[48px] w-[48px] cursor-grab active:cursor-grabbing touch-none select-none items-center justify-center rounded-full bg-[var(--wine)] shadow-[0_4px_12px_rgba(188,21,41,0.35)]"
       >
         <ChevronRight className="h-6 w-6 stroke-[3] text-white ml-[2px]" />
-      </motion.div>
+      </div>
     </div>
   );
 }

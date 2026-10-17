@@ -1,10 +1,19 @@
 import { create } from 'zustand';
 import { supabase } from '@/lib/supabase';
+import {
+  getOldestLocalMessage,
+  mergeRemoteMessages,
+  type SupabaseMessageRow,
+} from '@/lib/db';
 
 const CONVERSATION_ID = "c0000000-0000-0000-0000-000000000003";
 
 export type MessageStatus = "sent" | "delivered" | "read";
 
+/**
+ * UI-facing message shape (built by useMessages from the Dexie `LocalMessage`
+ * rows). Screens and bubbles keep consuming this exact shape.
+ */
 export interface Message {
   id: string;
   sender_id: string;
@@ -52,41 +61,6 @@ export interface IncomingCall {
   callerId: string;
 }
 
-const STATUS_RANK: Record<MessageStatus, number> = { sent: 0, delivered: 1, read: 2 };
-
-export function higherStatus(a: MessageStatus, b: MessageStatus): MessageStatus {
-  return STATUS_RANK[b] > STATUS_RANK[a] ? b : a;
-}
-
-const MSG_CACHE_KEY = `msg_cache_c0000000-0000-0000-0000-000000000003`;
-const MSG_CACHE_LIMIT = 100;
-
-function loadMsgCache(): Record<string, Message> {
-  try {
-    const raw = typeof window !== 'undefined' ? localStorage.getItem(MSG_CACHE_KEY) : null;
-    if (raw) {
-      const arr = JSON.parse(raw) as Message[];
-      const map: Record<string, Message> = {};
-      for (const m of arr) map[m.id] = m;
-      return map;
-    }
-  } catch {}
-  return {};
-}
-
-let saveCacheTimeout: NodeJS.Timeout | null = null;
-function saveMsgCache(messages: Record<string, Message>) {
-  try {
-    if (saveCacheTimeout) clearTimeout(saveCacheTimeout);
-    saveCacheTimeout = setTimeout(() => {
-      if (typeof window === "undefined") return;
-      const arr = Object.values(messages).sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
-      const toSave = arr.filter(m => !m.pending && !m.queued).slice(-MSG_CACHE_LIMIT);
-      localStorage.setItem(MSG_CACHE_KEY, JSON.stringify(toSave));
-    }, 500);
-  } catch {}
-}
-
 export function generateUUID(): string {
   if (typeof crypto !== "undefined" && crypto.randomUUID) return crypto.randomUUID();
   return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
@@ -112,7 +86,6 @@ export function formatLastSeen(iso: string | null, now: number): string {
 interface ChatState {
   myId: string;
   partner: UserRow | null;
-  messages: Record<string, Message>;
   callLog: Record<string, CallLogEntry>;
   reconnecting: boolean;
   partnerTyping: boolean;
@@ -121,7 +94,7 @@ interface ChatState {
   incomingCall: IncomingCall | null;
   hasMoreMessages: boolean;
   isLoadingOlder: boolean;
-  
+
   setMyId: (id: string) => void;
   setPartner: (partner: Partial<UserRow>) => void;
   setReconnecting: (reconnecting: boolean) => void;
@@ -130,14 +103,10 @@ interface ChatState {
   setDaysTogether: (days: number) => void;
   setIncomingCall: (call: IncomingCall | null) => void;
   loadOlderMessages: () => Promise<void>;
-  
-  addOrUpdateMessage: (msg: Message) => void;
-  addOrUpdateMessages: (msgs: Message[]) => void;
-  removeMessage: (id: string) => void;
+
   addOrUpdateCallLog: (call: CallLogEntry) => void;
   addOrUpdateCallLogs: (calls: CallLogEntry[]) => void;
-  
-  getMessageList: () => Message[];
+
   getCallLogList: () => CallLogEntry[];
 }
 
@@ -151,7 +120,6 @@ export const useChatStore = create<ChatState>((set, get) => ({
     if (!id || !name) return null;
     return { id, name, nickname: name, avatar_color: color, is_online: false, last_seen: null };
   })(),
-  messages: loadMsgCache(),
   callLog: {},
   reconnecting: false,
   partnerTyping: false,
@@ -160,7 +128,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
   incomingCall: null,
   hasMoreMessages: true,
   isLoadingOlder: false,
-  
+
   setMyId: (id) => set({ myId: id }),
   setPartner: (partnerInfo) => set((state) => ({
     partner: state.partner ? { ...state.partner, ...partnerInfo } : partnerInfo as UserRow
@@ -170,83 +138,49 @@ export const useChatStore = create<ChatState>((set, get) => ({
   setIsOnline: (online) => set({ isOnline: online }),
   setDaysTogether: (days) => set({ daysTogether: days }),
   setIncomingCall: (call) => set({ incomingCall: call }),
-  
+
+  // Paging backwards is still a Supabase fetch, but it's background work:
+  // results land in Dexie and the timeline re-renders from there.
   loadOlderMessages: async () => {
-    const { messages, isLoadingOlder, hasMoreMessages } = get();
+    const { isLoadingOlder, hasMoreMessages } = get();
     if (isLoadingOlder || !hasMoreMessages) return;
-    
+
     set({ isLoadingOlder: true });
-    
-    const msgList = Object.values(messages).sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
-    const oldestMessage = msgList[0];
-    
-    if (!oldestMessage) {
+
+    const oldest = await getOldestLocalMessage(CONVERSATION_ID);
+    if (!oldest) {
       set({ isLoadingOlder: false, hasMoreMessages: false });
       return;
     }
-    
+
     const { data, error } = await supabase
       .from("messages")
-      .select("id, sender_id, content, type, status, created_at")
+      .select("id, conversation_id, sender_id, content, type, status, created_at")
       .eq("conversation_id", CONVERSATION_ID)
-      .lt("created_at", oldestMessage.created_at)
+      .lt("created_at", oldest.created_at)
       .order("created_at", { ascending: false })
       .limit(50);
-      
+
     if (error) {
       console.error("[chat] Failed to load older messages:", error.message);
       set({ isLoadingOlder: false });
       return;
     }
-    
-    if (data && data.length > 0) {
-      get().addOrUpdateMessages(data as Message[]);
-      set({ isLoadingOlder: false, hasMoreMessages: data.length === 50 });
-    } else {
-      set({ isLoadingOlder: false, hasMoreMessages: false });
-    }
-  },
-  
-  addOrUpdateMessage: (msg) => set((state) => {
-    const existing = state.messages[msg.id];
-    const newMessages = {
-      ...state.messages,
-      [msg.id]: existing
-        ? { ...existing, ...msg, status: higherStatus(existing.status, msg.status) }
-        : msg
-    };
-    saveMsgCache(newMessages);
-    return { messages: newMessages };
-  }),
 
-  addOrUpdateMessages: (msgs) => set((state) => {
-    const newMessages = { ...state.messages };
-    for (const msg of msgs) {
-      const existing = newMessages[msg.id];
-      newMessages[msg.id] = existing
-        ? { ...existing, ...msg, status: higherStatus(existing.status, msg.status) }
-        : msg;
-    }
-    saveMsgCache(newMessages);
-    return { messages: newMessages };
-  }),
-  
-  removeMessage: (id) => set((state) => {
-    const { [id]: _, ...remaining } = state.messages;
-    saveMsgCache(remaining);
-    return { messages: remaining };
-  }),
-  
+    const rows = (data ?? []) as unknown as SupabaseMessageRow[];
+    await mergeRemoteMessages(rows);
+    set({ isLoadingOlder: false, hasMoreMessages: rows.length === 50 });
+  },
+
   addOrUpdateCallLog: (call) => set((state) => ({
     callLog: { ...state.callLog, [call.id]: call }
   })),
-  
+
   addOrUpdateCallLogs: (calls) => set((state) => {
     const newCallLog = { ...state.callLog };
     for (const call of calls) newCallLog[call.id] = call;
     return { callLog: newCallLog };
   }),
-  
-  getMessageList: () => Object.values(get().messages).sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()),
+
   getCallLogList: () => Object.values(get().callLog).sort((a, b) => new Date(a.started_at).getTime() - new Date(b.started_at).getTime()),
 }));

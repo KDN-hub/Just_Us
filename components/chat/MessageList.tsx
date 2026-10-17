@@ -33,6 +33,8 @@ interface MessageListProps {
   onEditMedia?: (url: string, type: string) => void;
   onToggleFavoriteSticker?: (url: string) => void;
   favoriteStickers?: string[];
+  /** False while the local DB hasn't produced its first result yet — avoids an empty-state flash. */
+  showEmptyState?: boolean;
 }
 
 export function formatDateSeparator(dateStr: string): string | null {
@@ -215,6 +217,7 @@ const MessageList = memo(function MessageList({
   onEditMedia,
   onToggleFavoriteSticker,
   favoriteStickers = [],
+  showEmptyState = true,
 }: MessageListProps) {
   
   const clusteredTimeline = useMemo(() => {
@@ -299,7 +302,7 @@ const MessageList = memo(function MessageList({
       onScroll={onScrollContainer}
       className="relative z-10 flex flex-1 min-h-0 flex-col overflow-y-auto overflow-x-hidden px-3 sm:px-4 pt-3 pb-6"
     >
-      {timeline.length === 0 && (
+      {showEmptyState && timeline.length === 0 && (
         <div className="flex-1 flex flex-col items-center justify-center my-auto p-6 text-center select-none animate-in fade-in zoom-in-95 duration-500">
           <div className="w-16 h-16 rounded-full bg-[var(--wine)]/20 border border-[var(--wine)]/30 flex items-center justify-center text-[var(--gold)] mb-4 shadow-xl">
             <Heart className="w-8 h-8 fill-[var(--wine)] text-[var(--gold)]" />

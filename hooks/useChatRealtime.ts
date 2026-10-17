@@ -2,7 +2,13 @@ import { useEffect, useRef } from "react";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 import { useShallow } from "zustand/react/shallow";
 import { supabase } from "@/lib/supabase";
-import { useChatStore, Message, CallLogEntry } from "./useChatStore";
+import { useChatStore, CallLogEntry } from "./useChatStore";
+import {
+  listUnreadFromPartner,
+  mergeRemoteMessages,
+  type SupabaseMessageRow,
+} from "@/lib/db";
+import { flushPendingMessages, syncConversation } from "@/lib/sync";
 
 const CONVERSATION_ID = "c0000000-0000-0000-0000-000000000003";
 const SIGNAL_CHANNEL  = `call-signal-${CONVERSATION_ID}`;
@@ -15,8 +21,6 @@ export function useChatRealtime(signalChRef: React.MutableRefObject<ReturnType<t
     setPartnerTyping,
     setDaysTogether,
     setIncomingCall,
-    addOrUpdateMessage,
-    addOrUpdateMessages,
     addOrUpdateCallLog,
     addOrUpdateCallLogs
   } = useChatStore(useShallow((s) => ({
@@ -26,8 +30,6 @@ export function useChatRealtime(signalChRef: React.MutableRefObject<ReturnType<t
     setPartnerTyping: s.setPartnerTyping,
     setDaysTogether: s.setDaysTogether,
     setIncomingCall: s.setIncomingCall,
-    addOrUpdateMessage: s.addOrUpdateMessage,
-    addOrUpdateMessages: s.addOrUpdateMessages,
     addOrUpdateCallLog: s.addOrUpdateCallLog,
     addOrUpdateCallLogs: s.addOrUpdateCallLogs,
   })));
@@ -138,45 +140,22 @@ export function useChatRealtime(signalChRef: React.MutableRefObject<ReturnType<t
       receiptFlushTimeout = setTimeout(flushReceipts, 250);
     };
 
-    const markPartnerMessagesRead = () => {
+    // Reads the partner's unread ids from Dexie (background-safe, never blocks render).
+    const markPartnerMessagesRead = async () => {
       if (!partnerId) return;
 
-      const { messages } = useChatStore.getState();
-      const unreadIds = Object.values(messages)
-        .filter((m) => m.sender_id === partnerId && m.status !== "read")
-        .map((m) => m.id);
+      const unread = await listUnreadFromPartner(CONVERSATION_ID, partnerId);
+      if (unread.length === 0) return;
 
-      if (unreadIds.length === 0) return;
-
-      for (const id of unreadIds) {
-        pendingReadIds.add(id);
-        pendingDeliveredIds.delete(id);
+      for (const m of unread) {
+        pendingReadIds.add(m.id);
+        pendingDeliveredIds.delete(m.id);
       }
       scheduleReceiptFlush();
     };
 
     const resync = async () => {
       if (!partnerId) return;
-      
-      const { messages } = useChatStore.getState();
-      const existingMsgArray = Object.values(messages);
-      const latestMessage = existingMsgArray.reduce((latest, msg) => {
-        if (!msg.pending && !msg.queued) {
-           return !latest || new Date(msg.created_at) > new Date(latest.created_at) ? msg : latest;
-        }
-        return latest;
-      }, null as Message | null);
-      
-      let msgQuery = supabase
-        .from("messages")
-        .select("id, sender_id, content, type, status, created_at")
-        .eq("conversation_id", CONVERSATION_ID);
-        
-      if (latestMessage) {
-        msgQuery = msgQuery.gt("created_at", latestMessage.created_at).order("created_at", { ascending: true });
-      } else {
-        msgQuery = msgQuery.order("created_at", { ascending: false }).limit(50);
-      }
 
       let callQuery = supabase
         .from("call_log")
@@ -195,8 +174,10 @@ export function useChatRealtime(signalChRef: React.MutableRefObject<ReturnType<t
         callQuery = callQuery.order("started_at", { ascending: false }).limit(50);
       }
 
-      const [msgRes, callRes, partnerRes] = await Promise.all([
-        msgQuery,
+      // Message catch-up is cursor-based and lands in Dexie; the call log and
+      // partner row are small and still live in the store.
+      const [, callRes, partnerRes] = await Promise.all([
+        syncConversation(CONVERSATION_ID),
         callQuery,
         supabase
           .from("users")
@@ -206,10 +187,6 @@ export function useChatRealtime(signalChRef: React.MutableRefObject<ReturnType<t
       ]);
       if (cancelled) return;
 
-      if (msgRes.data && msgRes.data.length > 0) {
-        addOrUpdateMessages(msgRes.data as Message[]);
-      }
-      
       if (callRes.data && callRes.data.length > 0) {
         addOrUpdateCallLogs(callRes.data as CallLogEntry[]);
       }
@@ -222,7 +199,7 @@ export function useChatRealtime(signalChRef: React.MutableRefObject<ReturnType<t
         localStorage.setItem("partner_id",    p.id);
       }
 
-      if (!document.hidden) markPartnerMessagesRead();
+      if (!document.hidden) void markPartnerMessagesRead();
     };
 
     if (typeof window !== "undefined" && "Notification" in window) {
@@ -236,8 +213,9 @@ export function useChatRealtime(signalChRef: React.MutableRefObject<ReturnType<t
         const now = Date.now();
         if (now - lastResyncAt > RESYNC_THROTTLE_MS) {
           lastResyncAt = now;
-          resync();
+          void resync();
         }
+        void flushPendingMessages(CONVERSATION_ID, myId);
         flushReceipts();
       } else {
         flushReceipts();
@@ -284,17 +262,17 @@ export function useChatRealtime(signalChRef: React.MutableRefObject<ReturnType<t
           { event: "INSERT", schema: "public", table: "messages", filter: `conversation_id=eq.${CONVERSATION_ID}` },
           (payload) => {
             if (cancelled) return;
-            const msg = payload.new as Message;
-            addOrUpdateMessage({ ...msg, pending: false, queued: false });
+            const row = payload.new as SupabaseMessageRow;
+            void mergeRemoteMessages([row]);
 
-            if (msg.sender_id !== myId) {
+            if (row.sender_id !== myId) {
               const isVisible = typeof document !== "undefined" ? !document.hidden : true;
               if (isVisible) {
-                pendingReadIds.add(msg.id);
-                pendingDeliveredIds.delete(msg.id);
+                pendingReadIds.add(row.id);
+                pendingDeliveredIds.delete(row.id);
               } else {
-                pendingDeliveredIds.add(msg.id);
-                pendingReadIds.delete(msg.id);
+                pendingDeliveredIds.add(row.id);
+                pendingReadIds.delete(row.id);
               }
               scheduleReceiptFlush();
             }
@@ -305,7 +283,7 @@ export function useChatRealtime(signalChRef: React.MutableRefObject<ReturnType<t
           { event: "UPDATE", schema: "public", table: "messages", filter: `conversation_id=eq.${CONVERSATION_ID}` },
           (payload) => {
             if (cancelled) return;
-            addOrUpdateMessage(payload.new as Message);
+            void mergeRemoteMessages([payload.new as SupabaseMessageRow]);
           },
         )
         .on(
@@ -332,7 +310,7 @@ export function useChatRealtime(signalChRef: React.MutableRefObject<ReturnType<t
             addOrUpdateCallLog(payload.new as CallLogEntry);
           },
         )
-        .subscribe((status, err) => {
+        .subscribe((status) => {
           if (cancelled) return;
           if (status === "SUBSCRIBED") {
             hasConnectedRef.current = true;
@@ -340,7 +318,7 @@ export function useChatRealtime(signalChRef: React.MutableRefObject<ReturnType<t
             const now = Date.now();
             if (now - lastResyncAt > RESYNC_THROTTLE_MS) {
               lastResyncAt = now;
-              resync();
+              void resync();
             }
           } else if (status === "CHANNEL_ERROR") {
             if (hasConnectedRef.current) setReconnecting(true);
@@ -365,7 +343,7 @@ export function useChatRealtime(signalChRef: React.MutableRefObject<ReturnType<t
       document.removeEventListener("visibilitychange", handleVisibility);
       if (channel) supabase.removeChannel(channel);
     };
-  }, [myId, setPartner, setReconnecting, setDaysTogether, addOrUpdateMessage, addOrUpdateMessages, addOrUpdateCallLog, addOrUpdateCallLogs]);
+  }, [myId, setPartner, setReconnecting, setDaysTogether, addOrUpdateCallLog, addOrUpdateCallLogs]);
 
   // Incoming call & signaling
   useEffect(() => {
