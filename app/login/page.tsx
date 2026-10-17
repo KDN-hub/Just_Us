@@ -223,70 +223,64 @@ export default function Login() {
       </div>
 
       {!showPinPad ? (
-          <div
-            key="unlock-card"
-            className="relative z-10 flex flex-col items-center gap-6 rounded-t-[36px] border-t border-white/10 bg-[#18181A]/90 px-6 backdrop-blur-2xl pb-[calc(env(safe-area-inset-bottom,0px)+4rem)] pt-10 shadow-[0_-8px_30px_rgba(0,0,0,0.35)]"
-          >
-            <div
-              className="flex h-[72px] w-[72px] items-center justify-center rounded-2xl"
-            >
-              <Lock className="h-[60px] w-[60px] text-[var(--gold)]" strokeWidth={2} />
-            </div>
-
-            <p
-              className="mt-1 text-[26px] font-bold text-[var(--cream)] text-center font-notch tracking-tight px-2"
-            >
-              {greeting}
-            </p>
-
-            <SlideButton onUnlock={handleUnlockClick} />
-
-            {errorMsg && !showPinPad && (
-              <p className="text-[15px] text-red-400">{errorMsg}</p>
-            )}
-
-            <button
-              type="button"
-              onClick={() => setShowPinPad(true)}
-              className="py-3 text-[15px] text-white/60 transition-colors hover:text-white"
-            >
-              Use PIN instead
-            </button>
+        <div
+          className="relative z-10 flex flex-col items-center gap-6 rounded-t-[36px] border-t border-white/10 bg-[#18181A]/90 px-6 backdrop-blur-2xl pb-[calc(env(safe-area-inset-bottom,0px)+4rem)] pt-10 shadow-[0_-8px_30px_rgba(0,0,0,0.35)]"
+        >
+          <div className="flex h-[72px] w-[72px] items-center justify-center rounded-2xl">
+            <Lock className="h-[60px] w-[60px] text-[var(--gold)]" strokeWidth={2} />
           </div>
-        ) : (
-          <div
-            key="pin-card"
-            className="relative z-10 flex flex-col items-center gap-5 rounded-t-[36px] border-t border-white/10 bg-[#18181A]/90 px-6 backdrop-blur-2xl pb-[calc(env(safe-area-inset-bottom,0px)+6rem)] pt-8 shadow-[0_-8px_30px_rgba(0,0,0,0.35)]"
+
+          <p className="mt-1 text-[26px] font-bold text-[var(--cream)] text-center font-notch tracking-tight px-2">
+            {greeting}
+          </p>
+
+          <SlideButton onUnlock={handleUnlockClick} />
+
+          {errorMsg && !showPinPad && (
+            <p className="text-[15px] text-red-400">{errorMsg}</p>
+          )}
+
+          <button
+            type="button"
+            onClick={() => setShowPinPad(true)}
+            className="py-3 text-[15px] text-white/60 transition-colors hover:text-white"
           >
-            {/* Avatar */}
-            <div
-              className="flex h-[52px] w-[52px] items-center justify-center rounded-full text-[18px] font-semibold text-[var(--cream)] shadow-md mt-6"
-              style={{ backgroundColor: avatarColor }}
-            >
-              {initial}
-            </div>
-
-            <PinPad
-              onComplete={handlePinComplete}
-              error={pinError}
-              label="Enter PIN"
-              showBiometric={bioAvailable}
-              onBiometric={handleBiometrics}
-            />
-
-            {errorMsg && (
-              <p className="text-[14px] text-red-400">{errorMsg}</p>
-            )}
-
-            <button
-              type="button"
-              onClick={() => router.push("/onboarding/pin-setup")}
-              className="text-[14px] text-white/60 underline-offset-2 active:underline hover:text-white transition-colors"
-            >
-              Forgot PIN?
-            </button>
+            Use PIN instead
+          </button>
+        </div>
+      ) : (
+        <div
+          className="relative z-10 flex flex-col items-center gap-5 rounded-t-[36px] border-t border-white/10 bg-[#18181A]/90 px-6 backdrop-blur-2xl pb-[calc(env(safe-area-inset-bottom,0px)+6rem)] pt-8 shadow-[0_-8px_30px_rgba(0,0,0,0.35)]"
+        >
+          {/* Avatar */}
+          <div
+            className="flex h-[52px] w-[52px] items-center justify-center rounded-full text-[18px] font-semibold text-[var(--cream)] shadow-md mt-6"
+            style={{ backgroundColor: avatarColor }}
+          >
+            {initial}
           </div>
-        )}
+
+          <PinPad
+            onComplete={handlePinComplete}
+            error={pinError}
+            label="Enter PIN"
+            showBiometric={bioAvailable}
+            onBiometric={handleBiometrics}
+          />
+
+          {errorMsg && (
+            <p className="text-[14px] text-red-400">{errorMsg}</p>
+          )}
+
+          <button
+            type="button"
+            onClick={() => router.push("/onboarding/pin-setup")}
+            className="text-[14px] text-white/60 underline-offset-2 active:underline hover:text-white transition-colors"
+          >
+            Forgot PIN?
+          </button>
+        </div>
+      )}
     </main>
   );
 }
