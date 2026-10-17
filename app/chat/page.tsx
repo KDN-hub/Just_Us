@@ -548,7 +548,7 @@ export default function Chat() {
 
     if (activeTime) {
       const formatted = formatDateSeparator(activeTime);
-      if (formatted !== lastFloatingDateRef.current) {
+      if (formatted !== null && formatted !== lastFloatingDateRef.current) {
         lastFloatingDateRef.current = formatted;
         setFloatingDateText(formatted);
       }

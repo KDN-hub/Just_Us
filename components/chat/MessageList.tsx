@@ -35,8 +35,12 @@ interface MessageListProps {
   favoriteStickers?: string[];
 }
 
-export function formatDateSeparator(dateStr: string): string {
+export function formatDateSeparator(dateStr: string): string | null {
   const date = new Date(dateStr);
+
+  // Guard against invalid/undefined timestamps (e.g. "NaN Invalid Date NaN" pills)
+  if (isNaN(date.getTime())) return null;
+
   const now = new Date();
   
   if (date.toDateString() === now.toDateString()) return "TODAY";
@@ -114,12 +118,13 @@ const MessageRow = memo(function MessageRow({
   onToggleFavoriteSticker,
 }: MessageRowProps) {
   const msgId = data.id;
+  const dayLabel = isNewDay ? formatDateSeparator(time) : null;
   return (
     <div>
-      {isNewDay && (
+      {dayLabel && (
         <div className="flex items-center justify-center my-4 select-none">
           <span className="bg-[#18181A]/80 backdrop-blur-md border border-white/10 text-white/70 text-[11px] font-semibold px-3 py-1 rounded-full uppercase tracking-wider shadow-sm">
-            {formatDateSeparator(time)}
+            {dayLabel}
           </span>
         </div>
       )}
@@ -270,6 +275,7 @@ const MessageList = memo(function MessageList({
           });
           clustered.push({
             kind: "message",
+            time: item.time,
             data: {
               ...item.data,
               type: "image_group",
