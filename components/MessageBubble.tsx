@@ -291,7 +291,12 @@ const MessageBubble = memo(function MessageBubble({
     if (selectionMode) return;
     if (containerRef.current) {
       const rect = containerRef.current.getBoundingClientRect();
-      if (rect.bottom + 280 > window.innerHeight) {
+      // The open menu (reaction bar + full action list) is ~560px tall — using a
+      // real estimate keeps it from spilling under/over rows below the message.
+      const menuHeightEstimate = 560;
+      const fitsBelow = rect.bottom + menuHeightEstimate <= window.innerHeight;
+      const fitsAbove = rect.top - menuHeightEstimate >= 0;
+      if (!fitsBelow && (fitsAbove || rect.top > rect.bottom / 2)) {
         setMenuPlacement('top');
       } else {
         setMenuPlacement('bottom');
@@ -492,13 +497,21 @@ const MessageBubble = memo(function MessageBubble({
         />
       )}
 
+      {/* Phase-out layer: dims + blurs the whole screen; the tapped message stays
+          focused because the bubble root sits at z-[110], above this z-[100] layer */}
+      <AnimatePresence>
       {showReactionMenu && !showFullPicker && (
-        <div 
-          className="fixed inset-0 z-[100] bg-black/50 transition-opacity" 
-          onClick={() => setShowReactionMenu(false)} 
-          onContextMenu={(e) => { e.preventDefault(); setShowReactionMenu(false); }} 
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.15 }}
+          className="fixed inset-0 z-[100] bg-black/60 backdrop-blur-sm"
+          onClick={() => setShowReactionMenu(false)}
+          onContextMenu={(e) => { e.preventDefault(); setShowReactionMenu(false); }}
         />
       )}
+      </AnimatePresence>
 
       {isPinned && !isActuallyDeleted && (
         <div className={`flex items-center gap-1.5 mb-1 ${isMine ? "justify-end mr-4" : "justify-start ml-12"}`}>
@@ -808,7 +821,7 @@ const MessageBubble = memo(function MessageBubble({
                   initial={{ opacity: 0, scale: 0.8, y: menuPlacement === 'top' ? 10 : -10 }}
                   animate={{ opacity: 1, scale: 1, y: 0 }}
                   exit={{ opacity: 0, scale: 0.8, y: menuPlacement === 'top' ? 10 : -10 }}
-                  className="flex flex-col bg-[#121212] rounded-2xl shadow-[0_10px_40px_rgba(0,0,0,0.6)] border-[#2C2C2E] overflow-hidden py-1 divide-y divide-[#2C2C2E]"
+                  className="flex flex-col bg-[#121212] rounded-2xl shadow-[0_10px_40px_rgba(0,0,0,0.6)] border-[#2C2C2E] overflow-hidden py-1 divide-y divide-[#2C2C2E] max-h-[52vh] overflow-y-auto"
                 >
                   {/* Actions for regular messages */}
                   {!isActuallyDeleted && (

@@ -58,7 +58,14 @@ const config: Config = {
       animation: {
         shake: "shake 0.5s ease-in-out",
         float: "float 3s ease-in-out infinite",
-        "msg-in": "msg-in 0.25s cubic-bezier(0.2, 0.9, 0.3, 1) both",
+        // NOTE: no fill-mode ("both") here on purpose. A retained transform
+        // (fill-mode keeps the final keyframe forever) permanently turns every
+        // message row into a stacking context and a fixed-position containing
+        // block — which trapped the long-press dim backdrop inside its own row
+        // (no full-screen phase-out) and let later rows paint over the open
+        // action menu (options appearing under photo/video decks). Without it
+        // rows revert to base styles (transform:none) once the entrance ends.
+        "msg-in": "msg-in 0.25s cubic-bezier(0.2, 0.9, 0.3, 1)",
         "toast-in": "toast-in 0.2s cubic-bezier(0.2, 0.9, 0.3, 1) both",
       },
     },
