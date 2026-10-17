@@ -42,3 +42,6 @@ public/fallback-*.js.map
 
 # leftover nested duplicate (safe to delete manually if still present)
 /just-us
+
+.vercel
+.env*
