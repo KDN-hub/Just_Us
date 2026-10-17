@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, CheckCheck, Clock, Play, Pause, X, Download, Mic, Plus, Reply, Copy, Pencil, Trash2, Share2, Pin, Info, CheckSquare, Ban, MessageSquare, Crop, ArrowLeft, Star } from "lucide-react";
+import { Check, CheckCheck, Clock, RotateCcw, Play, Pause, X, Download, Mic, Plus, Reply, Copy, Pencil, Trash2, Share2, Pin, Info, CheckSquare, Ban, MessageSquare, Crop, ArrowLeft, Star } from "lucide-react";
 import { useState, useRef, useEffect, useMemo, memo } from "react";
 import dynamic from "next/dynamic";
 const EmojiPicker = dynamic(() => import('emoji-picker-react'), { ssr: false });
@@ -20,6 +20,10 @@ interface MessageBubbleProps {
   /** Only passed for own messages — drives the tick indicator. */
   status?: "sent" | "delivered" | "read";
   queued?: boolean;
+  /** Send failed after a real attempt — shows a tap-to-retry icon instead of ticks. */
+  failed?: boolean;
+  /** Called when the user taps the retry icon on a failed message. */
+  onRetry?: () => void;
   type?: string;
   onReact?: (emoji: string) => void;
   reactions?: Record<string, string>;
@@ -53,14 +57,27 @@ interface MessageBubbleProps {
   partnerName?: string;
 }
 
-const MessageStatusTicks = ({ status, queued, className = "" }: { status?: string, queued?: boolean, className?: string }) => {
+const MessageStatusTicks = ({ status, queued, failed, onRetry, className = "" }: { status?: string, queued?: boolean, failed?: boolean, onRetry?: () => void, className?: string }) => {
+  if (failed) {
+    return (
+      <button
+        type="button"
+        onClick={(e) => { e.stopPropagation(); onRetry?.(); }}
+        aria-label="Message not sent — tap to retry"
+        title="Tap to retry"
+        className="-m-1.5 inline-flex items-center justify-center rounded-full p-1.5 text-red-300 transition-transform active:scale-90"
+      >
+        <RotateCcw className={className} strokeWidth={2.5} />
+      </button>
+    );
+  }
   if (queued) return <Clock className={`h-[14px] w-[14px] text-white/60 ${className}`} strokeWidth={2} />;
   if (status === "read") return <CheckCheck className={`h-[16px] w-[16px] text-[#F5C842] ${className}`} strokeWidth={2.5} />;
   if (status === "delivered") return <CheckCheck className={`h-[16px] w-[16px] text-white/80 ${className}`} strokeWidth={2.5} />;
   return <Check className={`h-[16px] w-[16px] text-white/80 ${className}`} strokeWidth={2.5} />;
 };
 
-const AudioPlayer = ({ url, isMine, timestamp, status, queued, myAvatarUrl, partnerAvatarUrl, partnerInitial, partnerColor }: { url: string, isMine: boolean, timestamp: string, status?: string, queued?: boolean, myAvatarUrl?: string | null, partnerAvatarUrl?: string | null, partnerInitial?: string, partnerColor?: string }) => {
+const AudioPlayer = ({ url, isMine, timestamp, status, queued, failed, onRetry, myAvatarUrl, partnerAvatarUrl, partnerInitial, partnerColor }: { url: string, isMine: boolean, timestamp: string, status?: string, queued?: boolean, failed?: boolean, onRetry?: () => void, myAvatarUrl?: string | null, partnerAvatarUrl?: string | null, partnerInitial?: string, partnerColor?: string }) => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [progress, setProgress] = useState(0);
   const [duration, setDuration] = useState(0);
@@ -167,7 +184,7 @@ const AudioPlayer = ({ url, isMine, timestamp, status, queued, myAvatarUrl, part
           <div className="flex items-center gap-1 shrink-0">
             <span>{formatTimeLocal(timestamp)}</span>
             {isMine && status && (
-              <MessageStatusTicks status={status} queued={queued} className="h-3.5 w-3.5" />
+              <MessageStatusTicks status={status} queued={queued} failed={failed} onRetry={onRetry} className="h-3.5 w-3.5" />
             )}
           </div>
         </div>
@@ -214,6 +231,8 @@ const MessageBubble = memo(function MessageBubble({
   timestamp,
   status,
   queued = false,
+  failed = false,
+  onRetry,
   type = "text",
   onReact,
   reactions,
@@ -572,7 +591,7 @@ const MessageBubble = memo(function MessageBubble({
                       <div className="bg-[#121212] text-white px-2 py-0.5 rounded-full text-[11.5px] absolute -bottom-1.5 -right-1.5 flex items-center gap-1 z-40 pointer-events-none shadow-lg">
                         <span>{formatTime(timestamp)}</span>
                         {isMine && status && (
-                          <MessageStatusTicks status={status} queued={queued} className="h-3.5 w-3.5" />
+                          <MessageStatusTicks status={status} queued={queued} failed={failed} onRetry={onRetry} className="h-3.5 w-3.5" />
                         )}
                       </div>
                     </div>
@@ -598,7 +617,7 @@ const MessageBubble = memo(function MessageBubble({
                   <div className="bg-[#121212] text-white px-2 py-0.5 rounded-full text-[11px] absolute bottom-1.5 right-1.5 flex items-center gap-1 z-10 pointer-events-none shadow-md">
                     <span>{formatTime(timestamp)}</span>
                     {isMine && status && (
-                      <MessageStatusTicks status={status} queued={queued} className="h-3.5 w-3.5" />
+                      <MessageStatusTicks status={status} queued={queued} failed={failed} onRetry={onRetry} className="h-3.5 w-3.5" />
                     )}
                   </div>
                 </div>
@@ -627,7 +646,7 @@ const MessageBubble = memo(function MessageBubble({
                     )}
                     <span className={`text-[11.5px] font-medium tracking-tight ${isMine ? 'text-white/70' : 'text-[#7FE283]'}`}>{formatTime(timestamp)}</span>
                     {isMine && status && !isActuallyDeleted && (
-                      <MessageStatusTicks status={status} queued={queued} className="h-3.5 w-3.5 shrink-0" />
+                      <MessageStatusTicks status={status} queued={queued} failed={failed} onRetry={onRetry} className="h-3.5 w-3.5 shrink-0" />
                     )}
                   </span>
                 </div>
@@ -648,7 +667,7 @@ const MessageBubble = memo(function MessageBubble({
                     <div className="bg-[#121212] text-white px-2 py-0.5 rounded-full text-[11.5px] absolute bottom-1.5 right-1.5 flex items-center gap-1 z-10 pointer-events-none">
                       <span>{formatTime(timestamp)}</span>
                       {isMine && status && (
-                        <MessageStatusTicks status={status} queued={queued} className="h-3.5 w-3.5" />
+                        <MessageStatusTicks status={status} queued={queued} failed={failed} onRetry={onRetry} className="h-3.5 w-3.5" />
                       )}
                     </div>
                   </div>
@@ -669,7 +688,7 @@ const MessageBubble = memo(function MessageBubble({
                     )}
                     <span className={`text-[11.5px] font-medium tracking-tight ${isMine ? 'text-white/70' : 'text-[#7FE283]'}`}>{formatTime(timestamp)}</span>
                     {isMine && status && !isActuallyDeleted && (
-                      <MessageStatusTicks status={status} queued={queued} className="h-3.5 w-3.5 shrink-0" />
+                      <MessageStatusTicks status={status} queued={queued} failed={failed} onRetry={onRetry} className="h-3.5 w-3.5 shrink-0" />
                     )}
                   </span>
                 </div>
@@ -680,7 +699,7 @@ const MessageBubble = memo(function MessageBubble({
                     <div className="bg-[#121212] text-white px-2 py-0.5 rounded-full text-[11.5px] absolute bottom-1.5 right-1.5 flex items-center gap-1 z-10 pointer-events-none">
                       <span>{formatTime(timestamp)}</span>
                       {isMine && status && (
-                        <MessageStatusTicks status={status} queued={queued} className="h-3.5 w-3.5" />
+                        <MessageStatusTicks status={status} queued={queued} failed={failed} onRetry={onRetry} className="h-3.5 w-3.5" />
                       )}
                     </div>
                   </VideoPlayer>
@@ -700,14 +719,14 @@ const MessageBubble = memo(function MessageBubble({
                   <span className="absolute bottom-[4px] right-[7px] flex items-center gap-1 select-none pointer-events-none">
                     {isEdited && <span className="text-[10.5px] text-white/45 italic mr-0.5">Edited</span>}
                     <span className={`text-[11.5px] font-medium tracking-tight ${isMine ? 'text-white/70' : 'text-[#7FE283]'}`}>{formatTime(timestamp)}</span>
-                    {isMine && status && <MessageStatusTicks status={status} queued={queued} className="h-3.5 w-3.5 shrink-0" />}
+                    {isMine && status && <MessageStatusTicks status={status} queued={queued} failed={failed} onRetry={onRetry} className="h-3.5 w-3.5 shrink-0" />}
                   </span>
                 </a>
               </div>
             ) : actualType === "audio" ? (
               <div className={`flex flex-col w-[240px] xs:w-[255px] sm:w-[270px] max-w-[calc(100vw-65px)] min-w-0 ${replyToText && !isActuallyDeleted ? (isMine ? 'bg-[#bc1529] text-white border-[#bc1529]' : 'bg-[#1C1C1E] text-white border-[#2C2C2E]') + ' p-1 rounded-[10px] border shadow-[0_4px_16px_rgba(0,0,0,0.22)]' : ''}`}>
                 {renderQuotedReply("w-full")}
-                <AudioPlayer url={actualContent} isMine={isMine} timestamp={timestamp} status={status} queued={queued} myAvatarUrl={myAvatarUrl} partnerAvatarUrl={partnerAvatarUrl} partnerInitial={partnerInitial} partnerColor={partnerColor} />
+                <AudioPlayer url={actualContent} isMine={isMine} timestamp={timestamp} status={status} queued={queued} failed={failed} onRetry={onRetry} myAvatarUrl={myAvatarUrl} partnerAvatarUrl={partnerAvatarUrl} partnerInitial={partnerInitial} partnerColor={partnerColor} />
               </div>
             ) : (
               <div
@@ -738,7 +757,7 @@ const MessageBubble = memo(function MessageBubble({
                   )}
                   <span className={`text-[11.5px] font-medium tracking-tight ${isMine ? 'text-white/70' : 'text-[#7FE283]'}`}>{formatTime(timestamp)}</span>
                   {isMine && status && !isActuallyDeleted && (
-                    <MessageStatusTicks status={status} queued={queued} className="h-3.5 w-3.5 shrink-0" />
+                    <MessageStatusTicks status={status} queued={queued} failed={failed} onRetry={onRetry} className="h-3.5 w-3.5 shrink-0" />
                   )}
                 </span>
               </div>
@@ -872,7 +891,7 @@ const MessageBubble = memo(function MessageBubble({
                     openActionMenu();
                   }
                 }}
-                className={`absolute bottom-[-4px] ${isMine ? 'right-2' : 'left-2'} flex items-center gap-1 border ${myReaction ? 'bg-[#bc1529] border-[#bc1529]' : 'bg-[#121212] border-[#2C2C2E]'} rounded-full px-3 py-1 shadow-lg z-30 cursor-pointer active:scale-95 transition-all`}
+                className={`absolute top-[100%] mt-1 ${isMine ? 'right-2' : 'left-2'} flex items-center gap-1 border ${myReaction ? 'bg-[#bc1529] border-[#bc1529]' : 'bg-[#121212] border-[#2C2C2E]'} rounded-full px-3 py-1 shadow-lg z-30 cursor-pointer active:scale-95 transition-all`}
               >
                 {Array.from(new Set(Object.values(reactions))).map((emoji, idx) => (
                   <span key={idx} className="text-[14px]">{emoji}</span>
