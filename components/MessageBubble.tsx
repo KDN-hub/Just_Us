@@ -872,13 +872,13 @@ const MessageBubble = memo(function MessageBubble({
                     openActionMenu();
                   }
                 }}
-                className={`absolute -bottom-3 ${isMine ? 'right-4' : 'left-4'} flex items-center border ${myReaction ? 'bg-[#bc1529] border-[#bc1529]' : 'bg-[#18181A] border-[#2C2C2E]'} rounded-full px-2 py-0.5 shadow-md z-20 cursor-pointer active:scale-95 transition-all`}
+                className={`absolute bottom-2 ${isMine ? 'right-2' : 'left-2'} flex items-center gap-1 border ${myReaction ? 'bg-[#bc1529] border-[#bc1529]' : 'bg-[#121212] border-[#2C2C2E]'} rounded-full px-3 py-1 shadow-lg z-30 cursor-pointer active:scale-95 transition-all`}
               >
                 {Array.from(new Set(Object.values(reactions))).map((emoji, idx) => (
-                  <span key={idx} className="text-[12px]">{emoji}</span>
+                  <span key={idx} className="text-[14px]">{emoji}</span>
                 ))}
                 {Object.keys(reactions).length > 1 && (
-                  <span className="text-[10px] text-white/70 ml-1 font-medium">{Object.keys(reactions).length}</span>
+                  <span className="text-[11px] text-white font-bold ml-1">{Object.keys(reactions).length}</span>
                 )}
               </div>
             )}
