@@ -5,8 +5,37 @@ import { Check, ChevronLeft, Loader2 } from "lucide-react";
 
 const MIN_ZOOM = 1;
 const MAX_ZOOM = 4;
-/** Square output resolution for the saved avatar (JPEG q0.85 ≈ 40–90 KB). */
-const OUTPUT_SIZE = 512;
+/** Square output resolution for the saved avatar. High enough that the
+ *  full-screen preview stays sharp on DPR-3 phones (~1170 physical px wide). */
+const OUTPUT_SIZE = 1024;
+/** JPEG quality fallback for engines that can't encode WebP from canvas. */
+const JPEG_QUALITY = 0.92;
+
+/** Feature-detect canvas WebP encoding (Safari got it in 17; older engines
+ *  silently return a JPEG data URL, which is exactly our fallback anyway). */
+let webpEncodes: boolean | null = null;
+function supportsWebpEncoding(): boolean {
+  if (webpEncodes !== null) return webpEncodes;
+  try {
+    const canvas = document.createElement("canvas");
+    canvas.width = 1;
+    canvas.height = 1;
+    webpEncodes = canvas.toDataURL("image/webp").startsWith("data:image/webp");
+  } catch {
+    webpEncodes = false;
+  }
+  return webpEncodes;
+}
+
+/** Re-encode the drawn canvas as WebP when the engine supports it (sharper at
+ *  far smaller sizes — important for the localStorage avatar budget), else JPEG. */
+function encodeAvatar(canvas: HTMLCanvasElement): string {
+  if (supportsWebpEncoding()) {
+    const dataUrl = canvas.toDataURL("image/webp", 0.9);
+    if (dataUrl.startsWith("data:image/webp")) return dataUrl;
+  }
+  return canvas.toDataURL("image/jpeg", JPEG_QUALITY);
+}
 
 interface PhotoCropEditorProps {
   /** Decoded source image, owned by the parent editing session. */
@@ -206,15 +235,19 @@ export default function PhotoCropEditor({
     sx = Math.min(Math.max(0, sx), Math.max(0, nw - sw));
     sy = Math.min(Math.max(0, sy), Math.max(0, nh - sh));
 
+    // Never upscale: if the cropped source region is smaller than the target
+    // resolution, render at its native size instead of adding interpolation blur.
+    const outSize = Math.max(1, Math.min(OUTPUT_SIZE, Math.floor(Math.min(sw, sh))));
+
     const canvas = document.createElement("canvas");
-    canvas.width = OUTPUT_SIZE;
-    canvas.height = OUTPUT_SIZE;
+    canvas.width = outSize;
+    canvas.height = outSize;
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
     ctx.imageSmoothingEnabled = true;
     ctx.imageSmoothingQuality = "high";
-    ctx.drawImage(image, sx, sy, sw, sh, 0, 0, OUTPUT_SIZE, OUTPUT_SIZE);
-    onConfirm(canvas.toDataURL("image/jpeg", 0.85));
+    ctx.drawImage(image, sx, sy, sw, sh, 0, 0, outSize, outSize);
+    onConfirm(encodeAvatar(canvas));
   };
 
   return (
