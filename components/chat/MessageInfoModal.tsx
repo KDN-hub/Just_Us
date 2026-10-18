@@ -1,6 +1,6 @@
 "use client";
 
-import { motion } from "framer-motion";
+import { m } from "framer-motion";
 import { Info, Check, CheckCheck, Clock, X } from "lucide-react";
 import { Message } from "@/hooks/useChatStore";
 
@@ -47,7 +47,7 @@ export default function MessageInfoModal({
       className="fixed inset-0 z-[120] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200"
       onClick={onClose}
     >
-      <motion.div
+      <m.div
         initial={{ opacity: 0, scale: 0.95, y: 15 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.95, y: 15 }}
@@ -62,7 +62,7 @@ export default function MessageInfoModal({
           </div>
           <button 
             onClick={onClose} 
-            className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center text-white/70 hover:text-white transition-colors"
+            className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center text-white/70 hover:text-white"
           >
             <X className="w-4 h-4" />
           </button>
@@ -119,11 +119,11 @@ export default function MessageInfoModal({
 
         <button 
           onClick={onClose} 
-          className="w-full mt-6 py-3 rounded-xl bg-white/10 hover:bg-white/15 text-white font-medium text-[14px] transition-colors active:scale-[0.98]"
+          className="w-full mt-6 py-3 rounded-xl bg-white/10 hover:bg-white/15 text-white font-medium text-[14px] active:scale-[0.98]"
         >
           Close
         </button>
-      </motion.div>
+      </m.div>
     </div>
   );
 }

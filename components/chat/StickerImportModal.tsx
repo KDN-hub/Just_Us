@@ -2,7 +2,7 @@
 
 import React, { useState, useRef } from "react";
 import { X, Upload, Plus, Trash2, Check, Loader2, Image as ImageIcon } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
+import { m, AnimatePresence } from "framer-motion";
 import { validateStickerFile, createStickerPack, StickerPack } from "@/lib/stickers";
 
 interface StickerImportModalProps {
@@ -111,13 +111,13 @@ export default function StickerImportModal({
 
   return (
     <AnimatePresence>
-      <motion.div
+      <m.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
         className="fixed inset-0 z-[120] bg-black/80 backdrop-blur-md flex items-center justify-center p-4 select-none"
       >
-        <motion.div
+        <m.div
           initial={{ scale: 0.95, y: 15 }}
           animate={{ scale: 1, y: 0 }}
           exit={{ scale: 0.95, y: 15 }}
@@ -134,7 +134,7 @@ export default function StickerImportModal({
             <button
               onClick={handleClose}
               disabled={isUploading}
-              className="w-8 h-8 rounded-full bg-white/5 hover:bg-white/15 flex items-center justify-center text-white/60 hover:text-white transition-colors"
+              className="w-8 h-8 rounded-full bg-white/5 hover:bg-white/15 flex items-center justify-center text-white/60 hover:text-white"
             >
               <X className="w-4 h-4" />
             </button>
@@ -154,7 +154,7 @@ export default function StickerImportModal({
                 placeholder="e.g. Baby & Me ❤️"
                 disabled={isUploading}
                 maxLength={40}
-                className="w-full bg-black/40 border border-white/10 rounded-xl px-3.5 py-2.5 text-white placeholder:text-white/30 text-[14.5px] focus:outline-none focus:border-[var(--wine)] transition-colors"
+                className="w-full bg-black/40 border border-white/10 rounded-xl px-3.5 py-2.5 text-white placeholder:text-white/30 text-[14.5px] focus:outline-none focus:border-[var(--wine)]"
               />
             </div>
 
@@ -186,7 +186,7 @@ export default function StickerImportModal({
               {items.length === 0 ? (
                 <div
                   onClick={() => fileInputRef.current?.click()}
-                  className="border-2 border-dashed border-white/15 hover:border-[var(--wine)]/50 rounded-2xl p-8 flex flex-col items-center justify-center text-center cursor-pointer transition-colors bg-white/[0.02]"
+                  className="border-2 border-dashed border-white/15 hover:border-[var(--wine)]/50 rounded-2xl p-8 flex flex-col items-center justify-center text-center cursor-pointer bg-white/[0.02]"
                 >
                   <div className="w-12 h-12 rounded-full bg-white/5 flex items-center justify-center text-white/60 mb-2.5">
                     <Upload className="w-6 h-6" />
@@ -208,7 +208,7 @@ export default function StickerImportModal({
                         <button
                           type="button"
                           onClick={() => handleRemoveItem(it.id)}
-                          className="absolute top-1 right-1 p-1 rounded-full bg-black/70 text-white/70 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity"
+                          className="absolute top-1 right-1 p-1 rounded-full bg-black/70 text-white/70 hover:text-red-400 opacity-0 group-hover:opacity-100"
                         >
                           <Trash2 className="w-3 h-3" />
                         </button>
@@ -225,7 +225,7 @@ export default function StickerImportModal({
                     type="button"
                     onClick={() => fileInputRef.current?.click()}
                     disabled={isUploading}
-                    className="aspect-square rounded-xl border border-dashed border-white/20 hover:border-white/40 flex flex-col items-center justify-center text-white/50 hover:text-white transition-colors"
+                    className="aspect-square rounded-xl border border-dashed border-white/20 hover:border-white/40 flex flex-col items-center justify-center text-white/50 hover:text-white"
                   >
                     <Plus className="w-5 h-5" />
                     <span className="text-[10px] mt-0.5">Add</span>
@@ -247,7 +247,7 @@ export default function StickerImportModal({
               type="button"
               onClick={handleClose}
               disabled={isUploading}
-              className="flex-1 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-white/80 font-medium text-[14px] transition-colors active:scale-[0.98]"
+              className="flex-1 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-white/80 font-medium text-[14px] active:scale-[0.98]"
             >
               Cancel
             </button>
@@ -255,7 +255,7 @@ export default function StickerImportModal({
               type="button"
               onClick={handleImport}
               disabled={isUploading || items.length === 0}
-              className="flex-1 py-2.5 rounded-xl bg-[var(--wine)] hover:brightness-110 text-white font-medium text-[14px] transition-all shadow-lg active:scale-[0.98] flex items-center justify-center gap-1.5 disabled:opacity-40"
+              className="flex-1 py-2.5 rounded-xl bg-[var(--wine)] hover:brightness-110 text-white font-medium text-[14px] shadow-lg active:scale-[0.98] flex items-center justify-center gap-1.5 disabled:opacity-40"
             >
               {isUploading ? (
                 <>
@@ -270,8 +270,8 @@ export default function StickerImportModal({
               )}
             </button>
           </div>
-        </motion.div>
-      </motion.div>
+        </m.div>
+      </m.div>
     </AnimatePresence>
   );
 }

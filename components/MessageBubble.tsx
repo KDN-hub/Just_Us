@@ -4,7 +4,7 @@ import { Check, CheckCheck, Clock, RotateCcw, Play, Pause, X, Download, Mic, Plu
 import { useState, useRef, useEffect, useMemo, memo } from "react";
 import dynamic from "next/dynamic";
 const EmojiPicker = dynamic(() => import('emoji-picker-react'), { ssr: false });
-import { motion, AnimatePresence } from 'framer-motion';
+import { m, AnimatePresence } from "framer-motion";
 import Avatar from "@/components/Avatar";
 import type { MediaViewerItem } from "@/components/chat/MediaViewer";
 import { downloadMediaFile } from "@/lib/media";
@@ -65,7 +65,7 @@ const MessageStatusTicks = ({ status, queued, failed, onRetry, className = "" }:
         onClick={(e) => { e.stopPropagation(); onRetry?.(); }}
         aria-label="Message not sent — tap to retry"
         title="Tap to retry"
-        className="-m-1.5 inline-flex items-center justify-center rounded-full p-1.5 text-red-300 transition-transform active:scale-90"
+        className="-m-1.5 inline-flex items-center justify-center rounded-full p-1.5 text-red-300 active:scale-90"
       >
         <RotateCcw className={className} strokeWidth={2.5} />
       </button>
@@ -146,7 +146,7 @@ const AudioPlayer = ({ url, isMine, timestamp, status, queued, failed, onRetry, 
       <div className="flex flex-col flex-1 min-w-0">
         <div className="flex items-center gap-1.5 min-w-0">
           {/* Play/Pause Button */}
-          <button onClick={toggle} className="shrink-0 text-[var(--cream)] active:scale-95 transition-all active:opacity-80 md:hover:opacity-80 p-0.5">
+          <button onClick={toggle} className="shrink-0 text-[var(--cream)] active:scale-95 active:opacity-80 md:hover:opacity-80 p-0.5">
             {isPlaying ? <Pause className="h-6 w-6 fill-current" /> : <Play className="h-6 w-6 fill-current" />}
           </button>
 
@@ -170,7 +170,7 @@ const AudioPlayer = ({ url, isMine, timestamp, status, queued, failed, onRetry, 
               ))}
             </div>
             {progress > 0 && (
-              <div className="absolute top-1/2 -translate-y-1/2 w-[8px] h-[8px] rounded-full bg-[#34B7F1] shadow pointer-events-none transition-all" style={{ left: `calc(${progressPercent}% - 4px)` }} />
+              <div className="absolute top-1/2 -translate-y-1/2 w-[8px] h-[8px] rounded-full bg-[#34B7F1] shadow pointer-events-none" style={{ left: `calc(${progressPercent}% - 4px)` }} />
             )}
           </div>
         </div>
@@ -196,7 +196,7 @@ const AudioPlayer = ({ url, isMine, timestamp, status, queued, failed, onRetry, 
 const VideoPlayer = ({ url, onClick, children }: { url: string; onClick: () => void; children?: React.ReactNode }) => {
   return (
     <div
-      className="relative overflow-hidden rounded-2xl shadow-sm border border-black/10 bg-black cursor-pointer group active:opacity-95 md:hover:opacity-95 transition-all"
+      className="relative overflow-hidden rounded-2xl shadow-sm border border-black/10 bg-black cursor-pointer group active:opacity-95 md:hover:opacity-95"
       onClick={onClick}
       role="button"
       aria-label="Open video in full screen viewer"
@@ -206,7 +206,7 @@ const VideoPlayer = ({ url, onClick, children }: { url: string; onClick: () => v
         className="max-w-[240px] max-h-[300px] object-cover pointer-events-none" 
         preload="metadata"
       />
-      <div className="absolute inset-0 flex items-center justify-center bg-black/20 group-hover:bg-black/30 transition-colors pointer-events-none">
+      <div className="absolute inset-0 flex items-center justify-center bg-black/20 group-hover:bg-black/30 pointer-events-none">
         <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[#121212] text-white shadow-lg">
           <Play className="h-6 w-6 fill-current ml-1" />
         </div>
@@ -422,7 +422,7 @@ const MessageBubble = memo(function MessageBubble({
           e.stopPropagation();
           if (replyToId && onQuoteClick) onQuoteClick(replyToId);
         }}
-        className={`mb-1 cursor-pointer rounded-[6px] bg-black/25 hover:bg-black/35 active:scale-[0.99] transition-all border-l-[3px] border-[var(--gold)] px-2 py-1 text-left select-none w-full min-w-[120px] ${extraClass}`}
+        className={`mb-1 cursor-pointer rounded-[6px] bg-black/25 hover:bg-black/35 active:scale-[0.99] border-l-[3px] border-[var(--gold)] px-2 py-1 text-left select-none w-full min-w-[120px] ${extraClass}`}
       >
         <div className="text-[11.5px] font-semibold text-[var(--gold)] flex items-center gap-1 leading-tight">
           <Reply className="w-3 h-3 rotate-180 shrink-0" />
@@ -454,14 +454,14 @@ const MessageBubble = memo(function MessageBubble({
     <>
       <AnimatePresence>
       {showFullPicker && (
-        <motion.div 
+        <m.div 
           initial={{ opacity: 0 }} 
           animate={{ opacity: 1 }} 
           exit={{ opacity: 0 }} 
           className="fixed inset-0 z-[110] flex items-center justify-center bg-black/60 p-4" 
           onClick={() => { setShowFullPicker(false); setShowReactionMenu(false); }}
         >
-          <motion.div 
+          <m.div 
             initial={{ scale: 0.9, y: 20 }} 
             animate={{ scale: 1, y: 0 }} 
             exit={{ scale: 0.9, y: 20 }} 
@@ -479,8 +479,8 @@ const MessageBubble = memo(function MessageBubble({
                 setShowReactionMenu(false); 
               }} 
             />
-          </motion.div>
-        </motion.div>
+          </m.div>
+        </m.div>
       )}
       </AnimatePresence>
 
@@ -501,7 +501,7 @@ const MessageBubble = memo(function MessageBubble({
           focused because the bubble root sits at z-[110], above this z-[100] layer */}
       <AnimatePresence>
       {showReactionMenu && !showFullPicker && (
-        <motion.div
+        <m.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
@@ -522,7 +522,7 @@ const MessageBubble = memo(function MessageBubble({
 
       <div
         ref={containerRef}
-        className={`group relative flex w-full items-end gap-2.5 ${isMine ? "flex-row-reverse" : "flex-row"} ${showReactionMenu ? "z-[110] scale-[1.02] transition-transform shadow-2xl" : "z-0 transition-transform"} ${selectionMode ? "cursor-pointer" : ""}`}
+        className={`group relative flex w-full items-end gap-2.5 ${isMine ? "flex-row-reverse" : "flex-row"} ${showReactionMenu ? "z-[110] scale-[1.02] shadow-2xl" : "z-0"} ${selectionMode ? "cursor-pointer" : ""}`}
         onClick={handleBubbleClick}
         onTouchStart={startPress}
         onTouchEnd={cancelPress}
@@ -538,7 +538,7 @@ const MessageBubble = memo(function MessageBubble({
         {/* Selection mode checkbox */}
         {selectionMode && (
           <div className="shrink-0 mb-3" onClick={(e) => { e.stopPropagation(); onToggleSelect?.(); }}>
-            <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${isSelected ? "bg-[var(--wine)] border-[var(--wine)]" : "border-white/40 bg-black/20"}`}>
+            <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${isSelected ? "bg-[var(--wine)] border-[var(--wine)]" : "border-white/40 bg-black/20"}`}>
               {isSelected && <Check className="w-3.5 h-3.5 text-white stroke-[3]" />}
             </div>
           </div>
@@ -578,7 +578,7 @@ const MessageBubble = memo(function MessageBubble({
                         }
 
                         return (
-                          <div key={realIndex} className={`absolute inset-0 rounded-[9px] overflow-hidden border-2 border-[#18181A]/40 shadow-2xl transition-all duration-300 ease-out origin-bottom ${transforms}`}>
+                          <div key={realIndex} className={`absolute inset-0 rounded-[9px] overflow-hidden border-2 border-[#18181A]/40 shadow-2xl origin-bottom ${transforms}`}>
                             {item.type === "video" ? (
                               <div className="w-full h-full relative bg-black">
                                 <video src={item.url} preload="metadata" muted playsInline className="w-full h-full object-cover" />
@@ -622,7 +622,7 @@ const MessageBubble = memo(function MessageBubble({
                   <img
                     src={actualContent}
                     alt="Sticker"
-                    className="w-[145px] h-[145px] sm:w-[160px] sm:h-[160px] object-contain drop-shadow-[0_8px_22px_rgba(0,0,0,0.38)] transition-transform active:scale-95 cursor-pointer"
+                    className="w-[145px] h-[145px] sm:w-[160px] sm:h-[160px] object-contain drop-shadow-[0_8px_22px_rgba(0,0,0,0.38)] active:scale-95 cursor-pointer"
                     loading="lazy"
                     decoding="async"
                     onClick={() => { if (!selectionMode) { setIsFullscreen(true); setFullscreenIndex(0); } }}
@@ -643,7 +643,7 @@ const MessageBubble = memo(function MessageBubble({
                     src={actualContent} 
                     alt="Image message" 
                     onClick={() => { if (!selectionMode) { setIsFullscreen(true); setFullscreenIndex(0); } }} 
-                    className="max-w-[210px] max-h-[270px] rounded-[8px] object-cover cursor-pointer border border-white/5 w-full block active:opacity-90 hover:opacity-95 transition-opacity" 
+                    className="max-w-[210px] max-h-[270px] rounded-[8px] object-cover cursor-pointer border border-white/5 w-full block active:opacity-90 hover:opacity-95" 
                     role="button"
                     aria-label="Open full-screen image"
                     loading="lazy"
@@ -671,7 +671,7 @@ const MessageBubble = memo(function MessageBubble({
                       src={actualContent} 
                       alt="Image message" 
                       onClick={() => { if (!selectionMode) { setIsFullscreen(true); setFullscreenIndex(0); } }} 
-                      className="max-w-[210px] max-h-[270px] rounded-[9px] object-cover cursor-pointer border border-white/5 active:opacity-90 hover:opacity-95 transition-opacity" 
+                      className="max-w-[210px] max-h-[270px] rounded-[9px] object-cover cursor-pointer border border-white/5 active:opacity-90 hover:opacity-95" 
                       role="button"
                       aria-label="Open full-screen image"
                       loading="lazy"
@@ -721,7 +721,7 @@ const MessageBubble = memo(function MessageBubble({
             ) : isFile ? (
               <div className={`flex flex-col px-3 py-1.5 rounded-[10px] relative shadow-[0_4px_16px_rgba(0,0,0,0.22)] min-w-[175px] ${isMine ? 'bg-[#bc1529] text-white border-[#bc1529]' : 'bg-[#1C1C1E] text-white border-[#2C2C2E]'}`}>
                 {renderQuotedReply()}
-                <a href={fileUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2.5 hover:opacity-90 active:scale-[0.98] transition-all">
+                <a href={fileUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2.5 hover:opacity-90 active:scale-[0.98]">
                   <div className={`flex items-center justify-center w-8 h-8 rounded-lg ${isMine ? 'bg-[#bc1529] text-white' : 'bg-[#1C1C1E] text-white'}`}>
                     <Download className="w-3.5 h-3.5" />
                   </div>
@@ -783,14 +783,14 @@ const MessageBubble = memo(function MessageBubble({
                 
                 {/* Reaction Picker Bar (unless deleted message) */}
                 {!isActuallyDeleted && (
-                  <motion.div 
+                  <m.div 
                     initial={{ opacity: 0, scale: 0.8, y: menuPlacement === 'top' ? 10 : -10 }}
                     animate={{ opacity: 1, scale: 1, y: 0 }}
                     exit={{ opacity: 0, scale: 0.8, y: menuPlacement === 'top' ? 10 : -10 }}
                     className={`flex items-center gap-1 bg-[#18181A] p-1.5 rounded-full shadow-[0_10px_40px_rgba(0,0,0,0.6)] border border-white/10 self-${isMine ? 'end' : 'start'}`}
                   >
                     {['❤️', '😂', '😭', '😍', '😘', '👍'].map(emoji => (
-                      <motion.button 
+                      <m.button 
                         whileTap={{ scale: 1.3 }} 
                         key={emoji} 
                         onClick={(e) => { 
@@ -798,26 +798,26 @@ const MessageBubble = memo(function MessageBubble({
                           onReact?.(emoji === myReaction ? 'NONE' : emoji); 
                           setShowReactionMenu(false); 
                         }} 
-                        className={`text-xl md:hover:scale-125 transition-transform px-1 py-0.5 rounded-full ${emoji === myReaction ? 'bg-white/20' : ''}`}
+                        className={`text-xl md:hover:scale-125 px-1 py-0.5 rounded-full ${emoji === myReaction ? 'bg-white/20' : ''}`}
                       >
                         {emoji}
-                      </motion.button>
+                      </m.button>
                     ))}
-                    <motion.button 
+                    <m.button 
                       whileTap={{ scale: 0.9 }} 
                       onClick={(e) => {
                         e.stopPropagation();
                         setShowFullPicker(true);
                       }} 
-                      className="flex items-center justify-center w-7 h-7 rounded-full bg-white/5 text-white/70 active:text-white md:hover:text-white ml-0.5 transition-colors"
+                      className="flex items-center justify-center w-7 h-7 rounded-full bg-white/5 text-white/70 active:text-white md:hover:text-white ml-0.5"
                     >
                       <Plus className="h-4 w-4" strokeWidth={2.5} />
-                    </motion.button>
-                  </motion.div>
+                    </m.button>
+                  </m.div>
                 )}
 
                 {/* Actions Menu */}
-                <motion.div 
+                <m.div 
                   initial={{ opacity: 0, scale: 0.8, y: menuPlacement === 'top' ? 10 : -10 }}
                   animate={{ opacity: 1, scale: 1, y: 0 }}
                   exit={{ opacity: 0, scale: 0.8, y: menuPlacement === 'top' ? 10 : -10 }}
@@ -826,18 +826,18 @@ const MessageBubble = memo(function MessageBubble({
                   {/* Actions for regular messages */}
                   {!isActuallyDeleted && (
                     <>
-                      <button onClick={(e) => { e.stopPropagation(); onReply?.(); setShowReactionMenu(false); }} className="flex items-center gap-3 px-4 py-2.5 text-[14px] text-white/90 hover:bg-white/10 transition-colors text-left active:bg-white/15">
+                      <button onClick={(e) => { e.stopPropagation(); onReply?.(); setShowReactionMenu(false); }} className="flex items-center gap-3 px-4 py-2.5 text-[14px] text-white/90 hover:bg-white/10 text-left active:bg-white/15">
                         <Reply className="w-4 h-4 text-white/60" /> Reply
                       </button>
 
                       {actualType === 'text' && !isFile && (
-                        <button onClick={(e) => { e.stopPropagation(); onCopy?.(); setShowReactionMenu(false); }} className="flex items-center gap-3 px-4 py-2.5 text-[14px] text-white/90 hover:bg-white/10 transition-colors text-left active:bg-white/15">
+                        <button onClick={(e) => { e.stopPropagation(); onCopy?.(); setShowReactionMenu(false); }} className="flex items-center gap-3 px-4 py-2.5 text-[14px] text-white/90 hover:bg-white/10 text-left active:bg-white/15">
                           <Copy className="w-4 h-4 text-white/60" /> Copy
                         </button>
                       )}
 
                       {isMine && actualType === 'text' && !isFile && (
-                        <button onClick={(e) => { e.stopPropagation(); onEdit?.(); setShowReactionMenu(false); }} className="flex items-center gap-3 px-4 py-2.5 text-[14px] text-white/90 hover:bg-white/10 transition-colors text-left active:bg-white/15">
+                        <button onClick={(e) => { e.stopPropagation(); onEdit?.(); setShowReactionMenu(false); }} className="flex items-center gap-3 px-4 py-2.5 text-[14px] text-white/90 hover:bg-white/10 text-left active:bg-white/15">
                           <Pencil className="w-4 h-4 text-white/60" /> Edit
                         </button>
                       )}
@@ -849,46 +849,46 @@ const MessageBubble = memo(function MessageBubble({
                           const targetUrl = actualType === 'image_group' ? deckItems[0]?.url || actualContent : actualContent;
                           const targetType = (actualType === 'video' || (actualType === 'image_group' && deckItems[0]?.type === 'video')) ? 'video' : 'image';
                           onEditMedia(targetUrl, targetType); 
-                        }} className="flex items-center gap-3 px-4 py-2.5 text-[14px] text-white/90 hover:bg-white/10 transition-colors text-left active:bg-white/15">
+                        }} className="flex items-center gap-3 px-4 py-2.5 text-[14px] text-white/90 hover:bg-white/10 text-left active:bg-white/15">
                           <Pencil className="w-4 h-4 text-[var(--gold)]" /> Edit Media
                         </button>
                       )}
 
                       {(actualType === 'image' || actualType === 'video' || isFile || actualType === 'sticker') && (
-                        <button onClick={(e) => { e.stopPropagation(); handleDownload(); setShowReactionMenu(false); }} className="flex items-center gap-3 px-4 py-2.5 text-[14px] text-white/90 hover:bg-white/10 transition-colors text-left active:bg-white/15">
+                        <button onClick={(e) => { e.stopPropagation(); handleDownload(); setShowReactionMenu(false); }} className="flex items-center gap-3 px-4 py-2.5 text-[14px] text-white/90 hover:bg-white/10 text-left active:bg-white/15">
                           <Download className="w-4 h-4 text-white/60" /> Save / Download
                         </button>
                       )}
 
                       {actualType === 'sticker' && onToggleFavoriteSticker && (
-                        <button onClick={(e) => { e.stopPropagation(); onToggleFavoriteSticker(actualContent); setShowReactionMenu(false); }} className="flex items-center gap-3 px-4 py-2.5 text-[14px] text-white/90 hover:bg-white/10 transition-colors text-left active:bg-white/15">
+                        <button onClick={(e) => { e.stopPropagation(); onToggleFavoriteSticker(actualContent); setShowReactionMenu(false); }} className="flex items-center gap-3 px-4 py-2.5 text-[14px] text-white/90 hover:bg-white/10 text-left active:bg-white/15">
                           <Star className={`w-4 h-4 ${isFavoriteSticker ? "fill-yellow-400 text-yellow-400" : "text-white/60"}`} /> {isFavoriteSticker ? "Remove from Favorites" : "Add to Favorites"}
                         </button>
                       )}
 
-                      <button onClick={(e) => { e.stopPropagation(); onPin?.(); setShowReactionMenu(false); }} className="flex items-center gap-3 px-4 py-2.5 text-[14px] text-white/90 hover:bg-white/10 transition-colors text-left active:bg-white/15">
+                      <button onClick={(e) => { e.stopPropagation(); onPin?.(); setShowReactionMenu(false); }} className="flex items-center gap-3 px-4 py-2.5 text-[14px] text-white/90 hover:bg-white/10 text-left active:bg-white/15">
                         <Pin className="w-4 h-4 text-white/60" /> {isPinned ? 'Unpin' : 'Pin'}
                       </button>
 
-                      <button onClick={(e) => { e.stopPropagation(); onForward?.(); setShowReactionMenu(false); }} className="flex items-center gap-3 px-4 py-2.5 text-[14px] text-white/90 hover:bg-white/10 transition-colors text-left active:bg-white/15">
+                      <button onClick={(e) => { e.stopPropagation(); onForward?.(); setShowReactionMenu(false); }} className="flex items-center gap-3 px-4 py-2.5 text-[14px] text-white/90 hover:bg-white/10 text-left active:bg-white/15">
                         <Share2 className="w-4 h-4 text-white/60" /> Forward / Share
                       </button>
 
-                      <button onClick={(e) => { e.stopPropagation(); onSelect?.(); setShowReactionMenu(false); }} className="flex items-center gap-3 px-4 py-2.5 text-[14px] text-white/90 hover:bg-white/10 transition-colors text-left active:bg-white/15">
+                      <button onClick={(e) => { e.stopPropagation(); onSelect?.(); setShowReactionMenu(false); }} className="flex items-center gap-3 px-4 py-2.5 text-[14px] text-white/90 hover:bg-white/10 text-left active:bg-white/15">
                         <CheckSquare className="w-4 h-4 text-white/60" /> Select
                       </button>
                     </>
                   )}
 
                   {/* Info and Delete */}
-                  <button onClick={(e) => { e.stopPropagation(); onInfo?.(); setShowReactionMenu(false); }} className="flex items-center gap-3 px-4 py-2.5 text-[14px] text-white/90 hover:bg-white/10 transition-colors text-left active:bg-white/15">
+                  <button onClick={(e) => { e.stopPropagation(); onInfo?.(); setShowReactionMenu(false); }} className="flex items-center gap-3 px-4 py-2.5 text-[14px] text-white/90 hover:bg-white/10 text-left active:bg-white/15">
                     <Info className="w-4 h-4 text-white/60" /> Info
                   </button>
 
-                  <button onClick={(e) => { e.stopPropagation(); onDelete?.(); setShowReactionMenu(false); }} className="flex items-center gap-3 px-4 py-2.5 text-[14px] text-red-400 hover:bg-white/10 transition-colors text-left active:bg-white/15">
+                  <button onClick={(e) => { e.stopPropagation(); onDelete?.(); setShowReactionMenu(false); }} className="flex items-center gap-3 px-4 py-2.5 text-[14px] text-red-400 hover:bg-white/10 text-left active:bg-white/15">
                     <Trash2 className="w-4 h-4 text-red-400/80" /> Delete
                   </button>
-                </motion.div>
+                </m.div>
               </div>
             )}
             </AnimatePresence>
@@ -904,7 +904,7 @@ const MessageBubble = memo(function MessageBubble({
                     openActionMenu();
                   }
                 }}
-                className={`absolute top-[100%] mt-1 ${isMine ? 'right-2' : 'left-2'} flex items-center gap-1 border ${myReaction ? 'bg-[#bc1529] border-[#bc1529]' : 'bg-[#121212] border-[#2C2C2E]'} rounded-full px-3 py-1 shadow-lg z-30 cursor-pointer active:scale-95 transition-all`}
+                className={`absolute top-[100%] mt-1 ${isMine ? 'right-2' : 'left-2'} flex items-center gap-1 border ${myReaction ? 'bg-[#bc1529] border-[#bc1529]' : 'bg-[#121212] border-[#2C2C2E]'} rounded-full px-3 py-1 shadow-lg z-30 cursor-pointer active:scale-95`}
               >
                 {Array.from(new Set(Object.values(reactions))).map((emoji, idx) => (
                   <span key={idx} className="text-[14px]">{emoji}</span>

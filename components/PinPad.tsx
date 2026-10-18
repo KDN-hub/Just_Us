@@ -82,7 +82,7 @@ export default function PinPad({
         {Array.from({ length }).map((_, i) => (
           <span
             key={i}
-            className={`h-[20px] w-[20px] rounded-full border-[2.5px] transition-all duration-200 ${
+            className={`h-[20px] w-[20px] rounded-full border-[2.5px] ${
               i < digits.length
                 ? "border-[var(--wine)] bg-[var(--wine)] scale-110 shadow-[0_0_8px_rgba(188,21,41,0.6)]"
                 : "border-[var(--border)] bg-transparent"
@@ -101,7 +101,7 @@ export default function PinPad({
                   key="biometric-btn"
                   type="button"
                   onClick={onBiometric}
-                  className="flex h-[64px] w-[64px] items-center justify-center rounded-full border border-[var(--border)] bg-[var(--surface)] text-[var(--gold)] transition-all duration-100 hover:bg-white/5 active:scale-90 active:bg-[rgba(122,44,59,0.3)]"
+                  className="flex h-[64px] w-[64px] items-center justify-center rounded-full border border-[var(--border)] bg-[var(--surface)] text-[var(--gold)] hover:bg-white/5 active:scale-90 active:bg-[rgba(122,44,59,0.3)]"
                   aria-label="Unlock with Face ID or fingerprint"
                   title="Unlock with biometrics"
                 >
@@ -117,7 +117,7 @@ export default function PinPad({
               key={key}
               type="button"
               onClick={() => handleKey(key)}
-              className="flex h-[64px] w-[64px] items-center justify-center rounded-full border border-[var(--border)] bg-[var(--surface)] text-[22px] font-medium text-[var(--cream)] transition-all duration-100 hover:bg-white/5 active:scale-90 active:bg-[rgba(122,44,59,0.3)] shadow-sm"
+              className="flex h-[64px] w-[64px] items-center justify-center rounded-full border border-[var(--border)] bg-[var(--surface)] text-[22px] font-medium text-[var(--cream)] hover:bg-white/5 active:scale-90 active:bg-[rgba(122,44,59,0.3)] shadow-sm"
               aria-label={key === "del" ? "Delete" : key}
             >
               {key === "del" ? (

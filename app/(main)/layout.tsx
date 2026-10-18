@@ -141,7 +141,7 @@ export default function MainLayout({ children }: { children: ReactNode }) {
                 href={item.href}
                 onPointerDown={(e) => { if (e.button === 0) selectTab(item.href); }}
                 onClick={() => selectTab(item.href)}
-                className={`relative flex items-center justify-center rounded-full transition-all duration-200 touch-manipulation select-none ${
+                className={`relative flex items-center justify-center rounded-full touch-manipulation select-none ${
                   isActive ? "px-6 py-3 text-[var(--cream)]" : "p-3 text-white/50 hover:text-white/80"
                 }`}
               >

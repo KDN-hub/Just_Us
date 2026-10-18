@@ -1,6 +1,6 @@
 "use client";
 
-import { motion, AnimatePresence } from "framer-motion";
+import { m, AnimatePresence } from "framer-motion";
 import { Check, AlertCircle, Info } from "lucide-react";
 
 export interface ToastMessage {
@@ -19,7 +19,7 @@ export default function Toast({ toasts, onDismiss }: ToastProps) {
     <div className="fixed top-20 inset-x-0 mx-auto max-w-sm z-[150] pointer-events-none flex flex-col items-center gap-2 px-4">
       <AnimatePresence>
         {toasts.map((toast) => (
-          <motion.div
+          <m.div
             key={toast.id}
             initial={{ opacity: 0, y: -20, scale: 0.9 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -36,7 +36,7 @@ export default function Toast({ toasts, onDismiss }: ToastProps) {
               <Check className="w-4 h-4 text-[#5BD05F] shrink-0" />
             )}
             <span>{toast.text}</span>
-          </motion.div>
+          </m.div>
         ))}
       </AnimatePresence>
     </div>

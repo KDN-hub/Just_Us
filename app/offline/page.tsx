@@ -37,7 +37,7 @@ export default function OfflinePage() {
 
       <Link
         href="/"
-        className="mt-7 inline-flex h-11 items-center justify-center rounded-full border border-white/10 bg-[var(--wine)] px-6 text-[15px] font-semibold text-white shadow-lg transition-transform active:scale-[0.97]"
+        className="mt-7 inline-flex h-11 items-center justify-center rounded-full border border-white/10 bg-[var(--wine)] px-6 text-[15px] font-semibold text-white shadow-lg active:scale-[0.97]"
       >
         Try again
       </Link>

@@ -33,13 +33,13 @@ export default function ChatError({
       <div className="flex flex-col gap-3 w-full max-w-[240px]">
         <button
           onClick={() => reset()}
-          className="flex h-12 w-full items-center justify-center rounded-full bg-[var(--wine)] font-medium text-white transition-opacity hover:opacity-90"
+          className="flex h-12 w-full items-center justify-center rounded-full bg-[var(--wine)] font-medium text-white hover:opacity-90"
         >
           Try again
         </button>
         <Link
           href="/"
-          className="flex h-12 w-full items-center justify-center rounded-full border border-[var(--border)] font-medium text-[var(--cream)] transition-colors hover:bg-white/5"
+          className="flex h-12 w-full items-center justify-center rounded-full border border-[var(--border)] font-medium text-[var(--cream)] hover:bg-white/5"
         >
           Go back home
         </Link>

@@ -173,7 +173,7 @@ export default function CalendarPage() {
               setSelectedDateStr(dateStr);
             }
           }}
-          className={`relative flex aspect-[0.75] w-full flex-col items-center justify-start pt-[8px] text-[17px] font-medium transition-all active:bg-white/5
+          className={`relative flex aspect-[0.75] w-full flex-col items-center justify-start pt-[8px] text-[17px] font-medium active:bg-white/5
             ${isSelected ? "bg-white/10 ring-1 ring-white ring-inset z-10" : "bg-[#18181A] hover:bg-white/5"}
           `}
         >
@@ -231,7 +231,7 @@ export default function CalendarPage() {
               setPickerYear(year);
               setIsMonthPickerOpen(true);
             }}
-            className="text-[28px] font-bold text-white flex items-center gap-2 active:opacity-70 transition-opacity"
+            className="text-[28px] font-bold text-white flex items-center gap-2 active:opacity-70"
           >
             {monthNames[month]} {year} 
             <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" fill="currentColor" viewBox="0 0 256 256" className="text-white/40 ml-1 mt-1">
@@ -240,8 +240,8 @@ export default function CalendarPage() {
           </button>
           <div className="flex gap-4 items-center text-white/70">
             <div className="flex gap-2">
-              <button onClick={handlePrevMonth} className="hover:text-white transition-colors"><ChevronLeft className="h-8 w-8" /></button>
-              <button onClick={handleNextMonth} className="hover:text-white transition-colors"><ChevronRight className="h-8 w-8" /></button>
+              <button onClick={handlePrevMonth} className="hover:text-white"><ChevronLeft className="h-8 w-8" /></button>
+              <button onClick={handleNextMonth} className="hover:text-white"><ChevronRight className="h-8 w-8" /></button>
             </div>
           </div>
         </div>
@@ -295,7 +295,7 @@ export default function CalendarPage() {
                 
                 <button 
                   onClick={() => handleDeleteEvent(ev.id, ev.date_str)}
-                  className="absolute right-3 top-3 flex h-8 w-8 items-center justify-center rounded-full bg-[var(--wine)] text-white shadow-md opacity-0 group-hover:opacity-100 transition-all md:opacity-100 active:scale-95"
+                  className="absolute right-3 top-3 flex h-8 w-8 items-center justify-center rounded-full bg-[var(--wine)] text-white shadow-md opacity-0 group-hover:opacity-100 md:opacity-100 active:scale-95"
                 >
                   <X className="h-4 w-4" strokeWidth={2.5} />
                 </button>
@@ -307,7 +307,7 @@ export default function CalendarPage() {
         {/* Add Plan Button directly in flow */}
         <button
           onClick={() => setIsAddingEvent(true)}
-          className="mt-6 mb-12 w-full py-4 flex items-center justify-center gap-2 rounded-2xl bg-white/10 text-white font-semibold hover:bg-white/20 transition-all active:scale-[0.98] shadow-md border border-white/5"
+          className="mt-6 mb-12 w-full py-4 flex items-center justify-center gap-2 rounded-2xl bg-white/10 text-white font-semibold hover:bg-white/20 active:scale-[0.98] shadow-md border border-white/5"
         >
           <Plus className="h-5 w-5" /> Add a plan
         </button>
@@ -355,7 +355,7 @@ export default function CalendarPage() {
                   <button
                     onPointerDown={(e) => e.stopPropagation()}
                     onClick={() => setIsAddingEvent(false)}
-                    className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[var(--wine)] text-white shadow-md transition-transform active:scale-95"
+                    className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[var(--wine)] text-white shadow-md active:scale-95"
                   >
                     <ChevronLeft className="h-6 w-6 pr-[2px]" strokeWidth={3} />
                   </button>
@@ -372,7 +372,7 @@ export default function CalendarPage() {
                     placeholder="e.g. Dinner Date"
                     value={newEventTitle}
                     onChange={(e) => setNewEventTitle(e.target.value)}
-                    className="w-full rounded-2xl border border-white/10 bg-[#18181A] p-4 text-[16px] text-white outline-none placeholder:text-white/30 focus:border-[var(--wine)] focus:ring-1 focus:ring-[var(--wine)] transition-all shadow-sm"
+                    className="w-full rounded-2xl border border-white/10 bg-[#18181A] p-4 text-[16px] text-white outline-none placeholder:text-white/30 focus:border-[var(--wine)] focus:ring-1 focus:ring-[var(--wine)] shadow-sm"
                     autoFocus
                   />
                 </div>
@@ -384,7 +384,7 @@ export default function CalendarPage() {
                       type="time"
                       value={newEventStart}
                       onChange={(e) => setNewEventStart(e.target.value)}
-                      className="w-full rounded-2xl border border-white/10 bg-[#18181A] p-4 text-[16px] text-white outline-none focus:border-[var(--wine)] focus:ring-1 focus:ring-[var(--wine)] transition-all shadow-sm [color-scheme:dark]"
+                      className="w-full rounded-2xl border border-white/10 bg-[#18181A] p-4 text-[16px] text-white outline-none focus:border-[var(--wine)] focus:ring-1 focus:ring-[var(--wine)] shadow-sm [color-scheme:dark]"
                     />
                   </div>
                 </div>
@@ -395,7 +395,7 @@ export default function CalendarPage() {
                     placeholder="Zoom link, location, or notes..."
                     value={newEventDesc}
                     onChange={(e) => setNewEventDesc(e.target.value)}
-                    className="w-full resize-none rounded-2xl border border-white/10 bg-[#18181A] p-4 text-[16px] text-white outline-none placeholder:text-white/30 focus:border-[var(--wine)] focus:ring-1 focus:ring-[var(--wine)] transition-all shadow-sm"
+                    className="w-full resize-none rounded-2xl border border-white/10 bg-[#18181A] p-4 text-[16px] text-white outline-none placeholder:text-white/30 focus:border-[var(--wine)] focus:ring-1 focus:ring-[var(--wine)] shadow-sm"
                     rows={3}
                   />
                 </div>
@@ -403,7 +403,7 @@ export default function CalendarPage() {
                 <button 
                   onClick={handleAddEvent}
                   disabled={!newEventTitle.trim() || isSaving}
-                  className="mt-4 w-full rounded-[20px] bg-[var(--wine)] p-4 text-[16px] font-bold text-white shadow-lg transition-transform active:scale-[0.98] disabled:opacity-50 disabled:active:scale-100 flex items-center justify-center gap-2"
+                  className="mt-4 w-full rounded-[20px] bg-[var(--wine)] p-4 text-[16px] font-bold text-white shadow-lg active:scale-[0.98] disabled:opacity-50 disabled:active:scale-100 flex items-center justify-center gap-2"
                 >
                   {isSaving ? (
                     <>
@@ -458,9 +458,9 @@ export default function CalendarPage() {
                 <div className="mx-auto mt-4 h-1.5 w-12 rounded-full bg-white/20" />
 
                 <div className="mt-4 px-6 pb-4 w-full flex items-center justify-between">
-                  <button onClick={() => setPickerYear(y => y - 1)} className="p-2 text-white/70 hover:text-white transition-colors active:scale-95"><ChevronLeft className="h-7 w-7" /></button>
+                  <button onClick={() => setPickerYear(y => y - 1)} className="p-2 text-white/70 hover:text-white active:scale-95"><ChevronLeft className="h-7 w-7" /></button>
                   <h3 className="text-[22px] font-bold text-white">{pickerYear}</h3>
-                  <button onClick={() => setPickerYear(y => y + 1)} className="p-2 text-white/70 hover:text-white transition-colors active:scale-95"><ChevronRight className="h-7 w-7" /></button>
+                  <button onClick={() => setPickerYear(y => y + 1)} className="p-2 text-white/70 hover:text-white active:scale-95"><ChevronRight className="h-7 w-7" /></button>
                 </div>
               </div>
 
@@ -475,7 +475,7 @@ export default function CalendarPage() {
                           setCurrentDate(new Date(pickerYear, i, 1));
                           setIsMonthPickerOpen(false);
                         }}
-                        className={`flex items-center justify-center rounded-2xl py-4 text-[16px] font-semibold transition-all active:scale-95
+                        className={`flex items-center justify-center rounded-2xl py-4 text-[16px] font-semibold active:scale-95
                           ${isCurrentMonth ? "bg-[var(--wine)] text-white shadow-md" : "bg-[#18181A] border border-white/5 text-white/80 hover:bg-white/10"}
                         `}
                       >

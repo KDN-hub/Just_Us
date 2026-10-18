@@ -3,8 +3,6 @@
 import { useState, useEffect, useCallback, useLayoutEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
-import "@fontsource/stack-sans-notch/400.css";
-import "@fontsource/stack-sans-notch/700.css";
 import { Lock, ChevronRight, ChevronLeft } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import PinPad from "@/components/PinPad";
@@ -184,7 +182,7 @@ export default function Login() {
           type="button"
           onClick={() => setShowPinPad(false)}
           aria-label="Go back"
-          className="absolute top-[max(env(safe-area-inset-top,0px),1.5rem)] left-6 z-30 flex h-11 w-11 items-center justify-center rounded-full bg-[var(--wine)] shadow-[0_4px_12px_rgba(188,21,41,0.35)] transition-transform duration-200 hover:scale-105 active:scale-95"
+          className="absolute top-[max(env(safe-area-inset-top,0px),1.5rem)] left-6 z-30 flex h-11 w-11 items-center justify-center rounded-full bg-[var(--wine)] shadow-[0_4px_12px_rgba(188,21,41,0.35)] hover:scale-105 active:scale-95"
         >
           <ChevronLeft className="h-5 w-5 stroke-[3] text-white mr-[2px]" />
         </button>
@@ -243,7 +241,7 @@ export default function Login() {
           <button
             type="button"
             onClick={() => setShowPinPad(true)}
-            className="py-3 text-[15px] text-white/60 transition-colors hover:text-white"
+            className="py-3 text-[15px] text-white/60 hover:text-white"
           >
             Use PIN instead
           </button>
@@ -275,7 +273,7 @@ export default function Login() {
           <button
             type="button"
             onClick={() => router.push("/onboarding/pin-setup")}
-            className="text-[14px] text-white/60 underline-offset-2 active:underline hover:text-white transition-colors"
+            className="text-[14px] text-white/60 underline-offset-2 active:underline hover:text-white"
           >
             Forgot PIN?
           </button>

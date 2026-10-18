@@ -1,6 +1,6 @@
 "use client";
 
-import { motion } from "framer-motion";
+import { m } from "framer-motion";
 import { Pin, X, ArrowUpRight } from "lucide-react";
 import { Message } from "@/hooks/useChatStore";
 
@@ -30,7 +30,7 @@ export default function PinnedMessagesModal({
       className="fixed inset-0 z-[120] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200"
       onClick={onClose}
     >
-      <motion.div
+      <m.div
         initial={{ opacity: 0, scale: 0.95, y: 15 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.95, y: 15 }}
@@ -45,7 +45,7 @@ export default function PinnedMessagesModal({
           </div>
           <button 
             onClick={onClose} 
-            className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center text-white/70 hover:text-white transition-colors"
+            className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center text-white/70 hover:text-white"
           >
             <X className="w-4 h-4" />
           </button>
@@ -60,7 +60,7 @@ export default function PinnedMessagesModal({
             pinnedMessages.map((msg) => (
               <div 
                 key={msg.id} 
-                className="py-3 px-2 flex items-center justify-between gap-3 group hover:bg-white/5 rounded-xl transition-colors cursor-pointer"
+                className="py-3 px-2 flex items-center justify-between gap-3 group hover:bg-white/5 rounded-xl cursor-pointer"
                 onClick={() => {
                   onClose();
                   onNavigateToMessage(msg.id);
@@ -87,11 +87,11 @@ export default function PinnedMessagesModal({
                       e.stopPropagation();
                       onUnpin(msg.id);
                     }}
-                    className="p-2 text-white/40 hover:text-white/80 hover:bg-white/10 rounded-full transition-colors"
+                    className="p-2 text-white/40 hover:text-white/80 hover:bg-white/10 rounded-full"
                   >
                     <X className="w-4 h-4" />
                   </button>
-                  <div className="p-2 text-white/60 group-hover:text-white transition-colors">
+                  <div className="p-2 text-white/60 group-hover:text-white">
                     <ArrowUpRight className="w-4 h-4" />
                   </div>
                 </div>
@@ -99,7 +99,7 @@ export default function PinnedMessagesModal({
             ))
           )}
         </div>
-      </motion.div>
+      </m.div>
     </div>
   );
 }

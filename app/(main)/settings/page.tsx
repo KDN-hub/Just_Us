@@ -3,7 +3,8 @@
 import { useCallback, useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, KeyRound, LogOut, Fingerprint, Image, X, ChevronLeft, Camera } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
+import { m, AnimatePresence } from "framer-motion";
+import MotionProvider from "@/components/MotionProvider";
 import PinPad from "@/components/PinPad";
 import Avatar from "@/components/Avatar";
 import { setLocalPin, signOutAndWipe, verifyLocalPin, setSignInNotice } from "@/lib/auth";
@@ -226,6 +227,7 @@ export default function Settings() {
   }
 
   return (
+    <MotionProvider>
     <main 
       className="flex min-h-full w-full flex-col font-sans pt-[max(env(safe-area-inset-top,0px),4.5rem)] pb-28 relative"
     >
@@ -234,7 +236,7 @@ export default function Settings() {
           <button
             onClick={() => { setStep("menu"); setNewPin(""); }}
             aria-label="Back"
-            className="flex h-[42px] w-[42px] shrink-0 items-center justify-center rounded-full bg-[#18181A]/80 backdrop-blur-xl border border-white/10 text-white shadow-lg transition-transform active:scale-95"
+            className="flex h-[42px] w-[42px] shrink-0 items-center justify-center rounded-full bg-[#18181A]/80 backdrop-blur-xl border border-white/10 text-white shadow-lg active:scale-95"
           >
             <ChevronLeft className="h-6 w-6 pr-[2px]" strokeWidth={3} />
           </button>
@@ -244,9 +246,9 @@ export default function Settings() {
       {step === "menu" ? (
         <div className="flex flex-col w-full gap-4 px-6 mt-0">
           <div className="flex flex-col items-center justify-center py-6">
-            <button onClick={() => setShowAvatarPrompt(true)} className="relative cursor-pointer group focus:outline-none active:scale-95 transition-transform block rounded-full">
+            <button onClick={() => setShowAvatarPrompt(true)} className="relative cursor-pointer group focus:outline-none active:scale-95 block rounded-full">
               <Avatar initial={myName[0] || "?"} color="var(--wine)" size={100} imageUrl={myAvatar} className="shadow-2xl border-4 border-[#18181A]" />
-              <div className="absolute inset-0 bg-black/40 rounded-full opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
+              <div className="absolute inset-0 bg-black/40 rounded-full opacity-0 group-hover:opacity-100 flex items-center justify-center">
                 <Camera className="h-8 w-8 text-white" />
               </div>
             </button>
@@ -262,7 +264,7 @@ export default function Settings() {
 
           <button
             onClick={() => { setDone(false); handleSecureAction("pin"); }}
-            className="flex items-center gap-4 rounded-2xl border border-white/10 bg-[#18181A]/90 px-5 py-4 text-left transition-all active:scale-[0.98] active:border-white/20 md:hover:border-white/20 backdrop-blur-md shadow-lg"
+            className="flex items-center gap-4 rounded-2xl border border-white/10 bg-[#18181A]/90 px-5 py-4 text-left active:scale-[0.98] active:border-white/20 md:hover:border-white/20 backdrop-blur-md shadow-lg"
           >
             <KeyRound className="h-5 w-5 text-[var(--gold)]" strokeWidth={2} />
             <div>
@@ -271,7 +273,7 @@ export default function Settings() {
             </div>
           </button>
 
-          <button onClick={() => handleSecureAction("wallpaper")} className="flex items-center gap-4 rounded-2xl border border-white/10 bg-[#18181A]/90 px-5 py-4 text-left transition-all active:scale-[0.98] active:border-white/20 md:hover:border-white/20 backdrop-blur-md shadow-lg">
+          <button onClick={() => handleSecureAction("wallpaper")} className="flex items-center gap-4 rounded-2xl border border-white/10 bg-[#18181A]/90 px-5 py-4 text-left active:scale-[0.98] active:border-white/20 md:hover:border-white/20 backdrop-blur-md shadow-lg">
             <Image className="h-5 w-5 text-[#34B7F1]" strokeWidth={2} />
             <div>
               <p className="text-[15px] font-medium text-[var(--cream)] tracking-wide">Chat Wallpaper</p>
@@ -283,7 +285,7 @@ export default function Settings() {
             <button
               onClick={handleToggleBiometrics}
               disabled={bioLoading}
-              className="flex items-center justify-between rounded-2xl border border-white/10 bg-[#18181A]/90 px-5 py-4 text-left transition-all active:scale-[0.98] active:border-white/20 md:hover:border-white/20 disabled:opacity-70 backdrop-blur-md shadow-lg"
+              className="flex items-center justify-between rounded-2xl border border-white/10 bg-[#18181A]/90 px-5 py-4 text-left active:scale-[0.98] active:border-white/20 md:hover:border-white/20 disabled:opacity-70 backdrop-blur-md shadow-lg"
             >
               <div className="flex items-center gap-4">
                 <Fingerprint
@@ -302,12 +304,12 @@ export default function Settings() {
                 </div>
               </div>
               <div
-                className={`relative h-7 w-12 rounded-full transition-colors ${
+                className={`relative h-7 w-12 rounded-full ${
                   bioEnabled ? "bg-[var(--gold)]" : "bg-black/30 border border-white/5"
                 }`}
               >
                 <span
-                  className={`absolute top-[3px] h-[20px] w-[20px] rounded-full bg-white transition-all shadow-sm ${
+                  className={`absolute top-[3px] h-[20px] w-[20px] rounded-full bg-white shadow-sm ${
                     bioEnabled ? "left-[25px]" : "left-[3px]"
                   }`}
                 />
@@ -323,7 +325,7 @@ export default function Settings() {
 
           <button
             onClick={() => handleSecureAction("signout")}
-            className="flex items-center gap-4 rounded-2xl border border-white/10 bg-[#18181A]/90 px-5 py-4 text-left transition-all active:scale-[0.98] active:border-white/20 md:hover:border-white/20 mt-2 backdrop-blur-md shadow-lg"
+            className="flex items-center gap-4 rounded-2xl border border-white/10 bg-[#18181A]/90 px-5 py-4 text-left active:scale-[0.98] active:border-white/20 md:hover:border-white/20 mt-2 backdrop-blur-md shadow-lg"
           >
             <LogOut className="h-5 w-5 text-[#FF3B30]" strokeWidth={2} />
             <div>
@@ -359,29 +361,29 @@ export default function Settings() {
     
       <AnimatePresence>
         {showAvatarPrompt && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[100] bg-black/80 flex items-center justify-center p-4">
-            <motion.div initial={{ scale: 0.95 }} animate={{ scale: 1 }} exit={{ scale: 0.95 }} className="bg-[#18181A]/90 backdrop-blur-md w-full max-w-sm rounded-[24px] overflow-hidden border border-white/10 shadow-2xl p-5">
+          <m.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[100] bg-black/80 flex items-center justify-center p-4">
+            <m.div initial={{ scale: 0.95 }} animate={{ scale: 1 }} exit={{ scale: 0.95 }} className="bg-[#18181A]/90 backdrop-blur-md w-full max-w-sm rounded-[24px] overflow-hidden border border-white/10 shadow-2xl p-5">
               <h3 className="text-[18px] font-semibold text-white mb-2">Change Profile Picture</h3>
               <p className="text-[14px] text-white/60 mb-6">Choose an image from your device to set as your profile picture.</p>
               <div className="flex gap-3">
-                <button onClick={() => setShowAvatarPrompt(false)} className="flex-1 py-3 rounded-xl bg-white/5 text-white font-medium active:scale-95 transition-all">Cancel</button>
-                <label className="flex-1 py-3 rounded-xl bg-[var(--wine)] text-white font-medium flex items-center justify-center cursor-pointer active:scale-95 transition-all shadow-md">
+                <button onClick={() => setShowAvatarPrompt(false)} className="flex-1 py-3 rounded-xl bg-white/5 text-white font-medium active:scale-95">Cancel</button>
+                <label className="flex-1 py-3 rounded-xl bg-[var(--wine)] text-white font-medium flex items-center justify-center cursor-pointer active:scale-95 shadow-md">
                   Select Image
                   <input type="file" accept="image/*" className="hidden" onChange={(e) => { handleAvatarUpload(e); setShowAvatarPrompt(false); }} />
                 </label>
               </div>
-            </motion.div>
-          </motion.div>
+            </m.div>
+          </m.div>
         )}
 
         {showSignOutModal && (
-          <motion.div
+          <m.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-6"
           >
-            <motion.div
+            <m.div
               initial={{ scale: 0.95, opacity: 0, y: 10 }}
               animate={{ scale: 1, opacity: 1, y: 0 }}
               exit={{ scale: 0.95, opacity: 0, y: 10 }}
@@ -389,7 +391,7 @@ export default function Settings() {
             >
               <button
                 onClick={() => setShowSignOutModal(false)}
-                className="absolute right-4 top-4 rounded-full bg-white/5 p-2 text-white/50 transition-colors hover:bg-white/10 hover:text-white"
+                className="absolute right-4 top-4 rounded-full bg-white/5 p-2 text-white/50 hover:bg-white/10 hover:text-white"
               >
                 <X className="h-5 w-5" strokeWidth={2.5} />
               </button>
@@ -405,23 +407,24 @@ export default function Settings() {
               <div className="flex gap-3">
                 <button
                   onClick={() => setShowSignOutModal(false)}
-                  className="flex-1 rounded-2xl bg-white/10 py-3.5 text-[15px] font-semibold text-white transition-colors hover:bg-white/20"
+                  className="flex-1 rounded-2xl bg-white/10 py-3.5 text-[15px] font-semibold text-white hover:bg-white/20"
                 >
                   No
                 </button>
                 <button
                   onClick={() => { setShowSignOutModal(false); handleSignOut(); }}
-                  className="flex-1 rounded-2xl bg-red-500 py-3.5 text-[15px] font-semibold text-white shadow-md transition-colors hover:bg-red-600"
+                  className="flex-1 rounded-2xl bg-red-500 py-3.5 text-[15px] font-semibold text-white shadow-md hover:bg-red-600"
                 >
                   Yes
                 </button>
               </div>
-            </motion.div>
-          </motion.div>
+            </m.div>
+          </m.div>
         )}
       </AnimatePresence>
 
     </main>
+    </MotionProvider>
   );
 }
 

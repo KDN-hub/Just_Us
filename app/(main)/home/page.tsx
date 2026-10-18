@@ -64,7 +64,7 @@ export default function HomePage() {
         {/* Temporary entry point to the actual chat room until the design is finalized */}
         <Link href="/chat">
           <div 
-            className="flex items-center gap-4 rounded-2xl border border-white/10 bg-[#18181A]/90 p-4 backdrop-blur-md shadow-lg transition-transform duration-150 hover:scale-[1.02] active:scale-[0.98]"
+            className="flex items-center gap-4 rounded-2xl border border-white/10 bg-[#18181A]/90 p-4 backdrop-blur-md shadow-lg  hover:scale-[1.02] active:scale-[0.98]"
           >
             <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[var(--wine)] text-white">
               <MessageCircle className="h-6 w-6" />

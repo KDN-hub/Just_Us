@@ -3,7 +3,8 @@
 import { useEffect, useRef, useState, useCallback, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { PhoneIncoming, PhoneOff, X, Video, ChevronLeft, ImagePlus, Pencil, Reply, Copy, Trash2, Pin } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
+import { m, AnimatePresence } from "framer-motion";
+import MotionProvider from "@/components/MotionProvider";
 import { supabase } from "@/lib/supabase";
 import Avatar from "@/components/Avatar";
 import dynamic from "next/dynamic";
@@ -615,8 +616,8 @@ export default function Chat() {
 
     const highlight = (el: HTMLElement) => {
       el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      el.classList.add('ring-2', 'ring-[var(--gold)]', 'bg-white/20', 'transition-all', 'duration-500');
-      setTimeout(() => el.classList.remove('ring-2', 'ring-[var(--gold)]', 'bg-white/20', 'transition-all', 'duration-500'), 2500);
+      el.classList.add('ring-2', 'ring-[var(--gold)]', 'bg-white/20', '');
+      setTimeout(() => el.classList.remove('ring-2', 'ring-[var(--gold)]', 'bg-white/20', ''), 2500);
     };
 
     setTimeout(() => {
@@ -1014,7 +1015,8 @@ export default function Chat() {
   const handleOpenPinned = useCallback(() => setShowPinnedModal(true), []);
 
   return (
-    <motion.main 
+    <MotionProvider>
+    <m.main 
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -8 }}
@@ -1134,7 +1136,7 @@ export default function Chat() {
             const latestPinned = pinnedMessages[pinnedMessages.length - 1];
             if (latestPinned) scrollToAndHighlightMessage(latestPinned.id);
           }}
-          className="mx-4 mt-2 px-3.5 py-2 bg-[#18181A]/90 border border-[var(--gold)]/30 rounded-2xl flex items-center justify-between gap-2 cursor-pointer hover:bg-white/5 transition-colors shadow-lg z-20 shrink-0"
+          className="mx-4 mt-2 px-3.5 py-2 bg-[#18181A]/90 border border-[var(--gold)]/30 rounded-2xl flex items-center justify-between gap-2 cursor-pointer hover:bg-white/5 shadow-lg z-20 shrink-0"
         >
           <div className="flex items-center gap-2.5 min-w-0">
             <Pin className="w-4 h-4 text-[var(--gold)] shrink-0" />
@@ -1161,14 +1163,14 @@ export default function Chat() {
         {/* WhatsApp-Style Floating Date Indicator */}
         <AnimatePresence>
           {showFloatingDate && floatingDateText && (
-            <motion.div
+            <m.div
               initial={{ opacity: 0, y: -6, scale: 0.95 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: -6, scale: 0.95 }}
               transition={{ duration: 0.2, ease: "easeOut" }}
               className="absolute top-2 inset-x-0 z-30 flex justify-center pointer-events-none select-none"
             >
-              <motion.span 
+              <m.span 
                 key={floatingDateText}
                 initial={{ opacity: 0.7 }}
                 animate={{ opacity: 1 }}
@@ -1176,8 +1178,8 @@ export default function Chat() {
                 className="bg-[#18181A]/90 backdrop-blur-md border border-white/10 text-white/85 text-[11px] font-semibold px-3 py-1 rounded-full uppercase tracking-wider shadow-lg"
               >
                 {floatingDateText}
-              </motion.span>
-            </motion.div>
+              </m.span>
+            </m.div>
           )}
         </AnimatePresence>
 
@@ -1221,7 +1223,7 @@ export default function Chat() {
         <div className="absolute bottom-20 left-1/2 -translate-x-1/2 z-40">
           <button
             onClick={scrollToBottom}
-            className="flex items-center gap-1.5 px-4 py-1.5 rounded-full bg-[var(--wine)]/90 text-white font-medium text-[13px] shadow-xl border border-white/20 backdrop-blur-md active:scale-95 transition-transform"
+            className="flex items-center gap-1.5 px-4 py-1.5 rounded-full bg-[var(--wine)]/90 text-white font-medium text-[13px] shadow-xl border border-white/20 backdrop-blur-md active:scale-95"
           >
             <span>↓ {unreadNewCount} new {unreadNewCount === 1 ? 'message' : 'messages'}</span>
           </button>
@@ -1276,8 +1278,8 @@ export default function Chat() {
       <AnimatePresence>
         {/* Wallpaper Modal */}
         {showWallpaperModal && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[100] bg-black/80 flex items-center justify-center p-4">
-            <motion.div initial={{ scale: 0.95 }} animate={{ scale: 1 }} exit={{ scale: 0.95 }} className="bg-[#18181A]/90 backdrop-blur-md w-full max-w-sm rounded-[24px] overflow-hidden border border-white/10 shadow-2xl">
+          <m.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[100] bg-black/80 flex items-center justify-center p-4">
+            <m.div initial={{ scale: 0.95 }} animate={{ scale: 1 }} exit={{ scale: 0.95 }} className="bg-[#18181A]/90 backdrop-blur-md w-full max-w-sm rounded-[24px] overflow-hidden border border-white/10 shadow-2xl">
               <div className="p-4 border-b border-white/10 flex justify-between items-center bg-white/5">
                 <h3 className="text-[17px] font-semibold text-white">Chat Wallpaper</h3>
                 <button onClick={() => setShowWallpaperModal(false)} className="h-8 w-8 rounded-full bg-white/10 flex items-center justify-center text-white/70 hover:text-white">
@@ -1297,36 +1299,36 @@ export default function Chat() {
                 <button onClick={() => { localStorage.setItem('chat_wallpaper', 'https://images.unsplash.com/photo-1519681393784-d120267933ba'); setWallpaper('https://images.unsplash.com/photo-1519681393784-d120267933ba'); setShowWallpaperModal(false); }} className={`h-32 rounded-xl border-2 ${wallpaper === 'https://images.unsplash.com/photo-1519681393784-d120267933ba' ? 'border-[var(--gold)]' : 'border-transparent'} relative overflow-hidden bg-cover bg-center`} style={{ backgroundImage: "url('https://images.unsplash.com/photo-1519681393784-d120267933ba')" }}>
                   <span className="absolute bottom-2 left-2 text-[12px] text-white/80 bg-black/40 px-2 rounded-full">Mountains</span>
                 </button>
-                <button onClick={() => { setShowWallpaperModal(false); setShowCustomWallpaperPrompt(true); }} className="h-32 rounded-xl border-2 border-transparent relative overflow-hidden bg-white/5 flex flex-col items-center justify-center cursor-pointer active:scale-95 transition-transform hover:bg-white/10">
+                <button onClick={() => { setShowWallpaperModal(false); setShowCustomWallpaperPrompt(true); }} className="h-32 rounded-xl border-2 border-transparent relative overflow-hidden bg-white/5 flex flex-col items-center justify-center cursor-pointer active:scale-95 hover:bg-white/10">
                   <ImagePlus className="h-8 w-8 text-white/50 mb-1" />
                   <span className="text-[12px] text-white/80 font-medium">Custom</span>
                 </button>
               </div>
-            </motion.div>
-          </motion.div>
+            </m.div>
+          </m.div>
         )}
 
         {/* Custom Wallpaper Prompt */}
         {showCustomWallpaperPrompt && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[100] bg-black/80 flex items-center justify-center p-4">
-            <motion.div initial={{ scale: 0.95 }} animate={{ scale: 1 }} exit={{ scale: 0.95 }} className="bg-[#18181A]/90 backdrop-blur-md w-full max-w-sm rounded-[24px] overflow-hidden border border-white/10 shadow-2xl p-5">
+          <m.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[100] bg-black/80 flex items-center justify-center p-4">
+            <m.div initial={{ scale: 0.95 }} animate={{ scale: 1 }} exit={{ scale: 0.95 }} className="bg-[#18181A]/90 backdrop-blur-md w-full max-w-sm rounded-[24px] overflow-hidden border border-white/10 shadow-2xl p-5">
               <h3 className="text-[18px] font-semibold text-white mb-2">Custom Wallpaper</h3>
               <p className="text-[14px] text-white/60 mb-6">Choose an image from your device to set as your chat background.</p>
               <div className="flex gap-3">
-                <button onClick={() => setShowCustomWallpaperPrompt(false)} className="flex-1 py-3 rounded-xl bg-white/5 text-white font-medium active:scale-95 transition-all">Cancel</button>
-                <label className="flex-1 py-3 rounded-xl bg-[var(--wine)] text-white font-medium flex items-center justify-center cursor-pointer active:scale-95 transition-all shadow-md">
+                <button onClick={() => setShowCustomWallpaperPrompt(false)} className="flex-1 py-3 rounded-xl bg-white/5 text-white font-medium active:scale-95">Cancel</button>
+                <label className="flex-1 py-3 rounded-xl bg-[var(--wine)] text-white font-medium flex items-center justify-center cursor-pointer active:scale-95 shadow-md">
                   Select Image
                   <input type="file" accept="image/*" className="hidden" onChange={(e) => { handleWallpaperUpload(e); setShowCustomWallpaperPrompt(false); }} />
                 </label>
               </div>
-            </motion.div>
-          </motion.div>
+            </m.div>
+          </m.div>
         )}
 
         {/* Username Modal */}
         {showUsernameModal && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[100] bg-black/80 flex items-center justify-center p-4">
-            <motion.div initial={{ scale: 0.95 }} animate={{ scale: 1 }} exit={{ scale: 0.95 }} className="bg-[#18181A]/90 backdrop-blur-md w-full max-w-sm rounded-[24px] overflow-hidden border border-white/10 shadow-2xl p-5">
+          <m.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[100] bg-black/80 flex items-center justify-center p-4">
+            <m.div initial={{ scale: 0.95 }} animate={{ scale: 1 }} exit={{ scale: 0.95 }} className="bg-[#18181A]/90 backdrop-blur-md w-full max-w-sm rounded-[24px] overflow-hidden border border-white/10 shadow-2xl p-5">
               <h3 className="text-[18px] font-semibold text-white mb-2">Change Username</h3>
               <p className="text-[14px] text-white/60 mb-4">Set a custom nickname for {partnerDisplay}.</p>
               <input
@@ -1334,27 +1336,27 @@ export default function Chat() {
                 value={newUsername}
                 onChange={(e) => setNewUsername(e.target.value)}
                 placeholder="Nickname"
-                className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder:text-white/30 focus:outline-none focus:border-[var(--wine)] transition-colors mb-5"
+                className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder:text-white/30 focus:outline-none focus:border-[var(--wine)] mb-5"
               />
               <div className="flex gap-3">
-                <button onClick={() => setShowUsernameModal(false)} className="flex-1 py-3 rounded-xl bg-white/5 text-white/70 font-medium active:bg-white/10 transition-colors">Cancel</button>
+                <button onClick={() => setShowUsernameModal(false)} className="flex-1 py-3 rounded-xl bg-white/5 text-white/70 font-medium active:bg-white/10">Cancel</button>
                 <button onClick={() => {
                   if (newUsername.trim()) {
                     localStorage.setItem('partner_name', newUsername.trim());
                     window.dispatchEvent(new Event("storage")); // Trigger layout update
                   }
                   setShowUsernameModal(false);
-                }} className="flex-1 py-3 rounded-xl bg-[var(--wine)] text-white font-medium active:brightness-110 transition-colors shadow-md">Save</button>
+                }} className="flex-1 py-3 rounded-xl bg-[var(--wine)] text-white font-medium active:brightness-110 shadow-md">Save</button>
               </div>
-            </motion.div>
-          </motion.div>
+            </m.div>
+          </m.div>
         )}
 
         {/* Media Modal */}
         {showMediaModal && (
-          <motion.div initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }} transition={{ type: "spring", stiffness: 300, damping: 30 }} className="fixed inset-0 z-[100] bg-[#18181A] flex flex-col">
+          <m.div initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }} transition={{ type: "spring", stiffness: 300, damping: 30 }} className="fixed inset-0 z-[100] bg-[#18181A] flex flex-col">
             <div className="shrink-0 p-4 border-b border-white/10 flex items-center gap-4 bg-[#18181A] pt-[max(env(safe-area-inset-top),1rem)]">
-              <button onClick={() => setShowMediaModal(false)} className="h-10 w-10 shrink-0 flex items-center justify-center rounded-full bg-[#18181A]/80 backdrop-blur-xl border border-white/10 text-white shadow-lg active:scale-95 transition-transform">
+              <button onClick={() => setShowMediaModal(false)} className="h-10 w-10 shrink-0 flex items-center justify-center rounded-full bg-[#18181A]/80 backdrop-blur-xl border border-white/10 text-white shadow-lg active:scale-95">
                 <ChevronLeft className="h-6 w-6 mr-0.5" strokeWidth={3} />
               </button>
               <h3 className="text-[18px] font-semibold text-white">Media, Links & Docs</h3>
@@ -1379,32 +1381,33 @@ export default function Chat() {
                 )}
               </div>
             </div>
-          </motion.div>
+          </m.div>
         )}
         {showAvatarModal && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-            <motion.div initial={{ scale: 0.95 }} animate={{ scale: 1 }} exit={{ scale: 0.95 }} className="bg-[#18181A] border border-white/10 rounded-3xl p-6 w-full max-w-[320px] shadow-2xl flex flex-col items-center">
+          <m.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+            <m.div initial={{ scale: 0.95 }} animate={{ scale: 1 }} exit={{ scale: 0.95 }} className="bg-[#18181A] border border-white/10 rounded-3xl p-6 w-full max-w-[320px] shadow-2xl flex flex-col items-center">
               <h3 className="text-[20px] font-semibold text-white mb-2 text-center">Change Profile Picture?</h3>
               <p className="text-white/60 text-[14px] text-center mb-6">
                 Would you like to change {partnerDisplay}&apos;s profile picture?
               </p>
               <div className="w-full flex flex-col gap-3">
-                <label className="flex items-center justify-center w-full py-3 rounded-xl bg-[var(--wine)] text-white font-medium active:brightness-110 transition-colors shadow-md cursor-pointer">
+                <label className="flex items-center justify-center w-full py-3 rounded-xl bg-[var(--wine)] text-white font-medium active:brightness-110 shadow-md cursor-pointer">
                   Choose Image
                   <input type="file" accept="image/*" className="hidden" onChange={(e) => {
                     handlePartnerAvatarUpload(e);
                     setShowAvatarModal(false);
                   }} />
                 </label>
-                <button onClick={() => setShowAvatarModal(false)} className="w-full py-3 rounded-xl bg-white/5 text-white/70 font-medium active:bg-white/10 transition-colors">
+                <button onClick={() => setShowAvatarModal(false)} className="w-full py-3 rounded-xl bg-white/5 text-white/70 font-medium active:bg-white/10">
                   Cancel
                 </button>
               </div>
-            </motion.div>
-          </motion.div>
+            </m.div>
+          </m.div>
         )}
       </AnimatePresence>
-    </motion.main>
+    </m.main>
+    </MotionProvider>
   );
 }
 

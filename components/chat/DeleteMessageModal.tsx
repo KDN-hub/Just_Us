@@ -1,6 +1,6 @@
 "use client";
 
-import { motion } from "framer-motion";
+import { m } from "framer-motion";
 import { Trash2, AlertTriangle } from "lucide-react";
 
 interface DeleteMessageModalProps {
@@ -27,7 +27,7 @@ export default function DeleteMessageModal({
       className="fixed inset-0 z-[120] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200"
       onClick={onClose}
     >
-      <motion.div
+      <m.div
         initial={{ opacity: 0, scale: 0.95, y: 10 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.95, y: 10 }}
@@ -56,7 +56,7 @@ export default function DeleteMessageModal({
                 onDeleteForEveryone();
                 onClose();
               }}
-              className="w-full py-3 rounded-xl bg-red-500/20 hover:bg-red-500/30 text-red-400 font-semibold text-[14px] transition-colors border border-red-500/30 active:scale-[0.98]"
+              className="w-full py-3 rounded-xl bg-red-500/20 hover:bg-red-500/30 text-red-400 font-semibold text-[14px] border border-red-500/30 active:scale-[0.98]"
             >
               Delete for everyone
             </button>
@@ -67,19 +67,19 @@ export default function DeleteMessageModal({
               onDeleteForMe();
               onClose();
             }}
-            className="w-full py-3 rounded-xl bg-white/10 hover:bg-white/15 text-white font-medium text-[14px] transition-colors active:scale-[0.98]"
+            className="w-full py-3 rounded-xl bg-white/10 hover:bg-white/15 text-white font-medium text-[14px] active:scale-[0.98]"
           >
             Delete for me
           </button>
 
           <button
             onClick={onClose}
-            className="w-full py-2.5 rounded-xl text-white/50 hover:text-white/80 font-medium text-[14px] transition-colors"
+            className="w-full py-2.5 rounded-xl text-white/50 hover:text-white/80 font-medium text-[14px]"
           >
             Cancel
           </button>
         </div>
-      </motion.div>
+      </m.div>
     </div>
   );
 }

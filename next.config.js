@@ -1,5 +1,16 @@
 const runtimeCaching = require("next-pwa/cache");
 
+// Phase 6: on-demand bundle audit — PowerShell: $env:ANALYZE='true'; npm run build.
+// Writes .next/analyze/*.json (kept off otherwise).
+let withBundleAnalyzer = (config) => config;
+if (process.env.ANALYZE === "true") {
+  withBundleAnalyzer = require("@next/bundle-analyzer")({
+    enabled: true,
+    analyzerMode: "json",
+    openAnalyzer: false,
+  });
+}
+
 const withPWA = require("next-pwa")({
   dest: "public",
   register: true,
@@ -45,4 +56,4 @@ const withPWA = require("next-pwa")({
 /** @type {import('next').NextConfig} */
 const nextConfig = {};
 
-module.exports = withPWA(nextConfig);
+module.exports = withBundleAnalyzer(withPWA(nextConfig));

@@ -303,7 +303,7 @@ export default function MediaViewer({
     >
       {/* Top Controls Bar */}
       <div
-        className={`absolute top-0 inset-x-0 z-50 flex items-center justify-between px-4 pt-[max(env(safe-area-inset-top,0px),1rem)] pb-4 bg-gradient-to-b from-black/95 via-black/70 to-transparent transition-opacity duration-300 pointer-events-auto ${
+        className={`absolute top-0 inset-x-0 z-50 flex items-center justify-between px-4 pt-[max(env(safe-area-inset-top,0px),1rem)] pb-4 bg-gradient-to-b from-black/95 via-black/70 to-transparent pointer-events-auto ${
           showControls ? "opacity-100" : "opacity-0 pointer-events-none"
         }`}
       >
@@ -312,7 +312,7 @@ export default function MediaViewer({
           <button
             type="button"
             onClick={onClose}
-            className="flex items-center justify-center w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 active:bg-white/30 backdrop-blur-md text-white transition-all active:scale-95 shrink-0 border border-white/10 shadow-lg focus:outline-none"
+            className="flex items-center justify-center w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 active:bg-white/30 backdrop-blur-md text-white active:scale-95 shrink-0 border border-white/10 shadow-lg focus:outline-none"
             aria-label="Close media viewer"
             title="Close (Esc)"
           >
@@ -347,7 +347,7 @@ export default function MediaViewer({
                 onClose();
                 onShowInChat(currentItem.id!);
               }}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/10 hover:bg-white/20 active:bg-white/30 backdrop-blur-md text-white text-[13px] font-medium transition-all active:scale-95 border border-white/10 shadow-lg"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/10 hover:bg-white/20 active:bg-white/30 backdrop-blur-md text-white text-[13px] font-medium active:scale-95 border border-white/10 shadow-lg"
               title="Locate message in chat"
             >
               <MessageSquare className="w-4 h-4 text-[var(--gold)]" />
@@ -362,7 +362,7 @@ export default function MediaViewer({
                 onClose();
                 onEditMedia(currentItem.url, currentItem.type);
               }}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/10 hover:bg-white/20 active:bg-white/30 backdrop-blur-md text-white text-[13px] font-medium transition-all active:scale-95 border border-white/10 shadow-lg"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/10 hover:bg-white/20 active:bg-white/30 backdrop-blur-md text-white text-[13px] font-medium active:scale-95 border border-white/10 shadow-lg"
               title="Edit media"
             >
               <Pencil className="w-4 h-4 text-[var(--gold)]" />
@@ -374,7 +374,7 @@ export default function MediaViewer({
             type="button"
             onClick={handleDownload}
             disabled={isDownloading}
-            className="flex items-center justify-center w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 active:bg-white/30 backdrop-blur-md text-white transition-all active:scale-95 border border-white/10 shadow-lg shrink-0 disabled:opacity-50"
+            className="flex items-center justify-center w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 active:bg-white/30 backdrop-blur-md text-white active:scale-95 border border-white/10 shadow-lg shrink-0 disabled:opacity-50"
             aria-label="Download media"
             title="Download file"
           >
@@ -415,7 +415,7 @@ export default function MediaViewer({
               <button
                 type="button"
                 onClick={() => loadMedia(currentItem)}
-                className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-white/15 hover:bg-white/25 active:scale-95 text-white text-[13px] font-medium transition-all"
+                className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-white/15 hover:bg-white/25 active:scale-95 text-white text-[13px] font-medium"
               >
                 <RotateCw className="w-3.5 h-3.5" />
                 <span>Retry</span>
@@ -423,7 +423,7 @@ export default function MediaViewer({
               <button
                 type="button"
                 onClick={onClose}
-                className="px-4 py-2 rounded-full bg-red-600/80 hover:bg-red-600 active:scale-95 text-white text-[13px] font-medium transition-all"
+                className="px-4 py-2 rounded-full bg-red-600/80 hover:bg-red-600 active:scale-95 text-white text-[13px] font-medium"
               >
                 Close
               </button>
@@ -457,7 +457,7 @@ export default function MediaViewer({
                 <img
                   src={resolvedUrl}
                   alt={currentItem.caption || "Fullscreen media"}
-                  className={`max-h-full max-w-full object-contain pointer-events-auto transition-opacity duration-300 ${
+                  className={`max-h-full max-w-full object-contain pointer-events-auto ${
                     isLoading ? "opacity-0" : "opacity-100"
                   }`}
                   onLoad={() => setIsLoading(false)}
@@ -483,7 +483,7 @@ export default function MediaViewer({
               src={resolvedUrl}
               playsInline
               autoPlay
-              className={`max-h-full max-w-full object-contain transition-opacity duration-300 ${
+              className={`max-h-full max-w-full object-contain ${
                 isLoading ? "opacity-0" : "opacity-100"
               }`}
               onLoadedData={() => {
@@ -525,7 +525,7 @@ export default function MediaViewer({
                 className="absolute inset-0 flex items-center justify-center z-20 group focus:outline-none"
                 aria-label="Play video"
               >
-                <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-black/60 backdrop-blur-md border border-white/20 flex items-center justify-center text-white shadow-2xl transition-transform group-hover:scale-110 active:scale-95">
+                <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-black/60 backdrop-blur-md border border-white/20 flex items-center justify-center text-white shadow-2xl group-hover:scale-110 active:scale-95">
                   <Play className="w-8 h-8 sm:w-10 sm:h-10 fill-current ml-1 text-white" />
                 </div>
               </button>
@@ -543,7 +543,7 @@ export default function MediaViewer({
                   e.stopPropagation();
                   setCurrentIndex((i) => i - 1);
                 }}
-                className="absolute left-4 top-1/2 -translate-y-1/2 z-40 p-3 rounded-full bg-black/50 hover:bg-black/80 active:bg-black/90 text-white backdrop-blur-md border border-white/10 transition-all active:scale-95 shadow-xl hidden sm:flex items-center justify-center"
+                className="absolute left-4 top-1/2 -translate-y-1/2 z-40 p-3 rounded-full bg-black/50 hover:bg-black/80 active:bg-black/90 text-white backdrop-blur-md border border-white/10 active:scale-95 shadow-xl hidden sm:flex items-center justify-center"
                 aria-label="Previous item"
               >
                 <ChevronLeft className="w-6 h-6" />
@@ -557,7 +557,7 @@ export default function MediaViewer({
                   e.stopPropagation();
                   setCurrentIndex((i) => i + 1);
                 }}
-                className="absolute right-4 top-1/2 -translate-y-1/2 z-40 p-3 rounded-full bg-black/50 hover:bg-black/80 active:bg-black/90 text-white backdrop-blur-md border border-white/10 transition-all active:scale-95 shadow-xl hidden sm:flex items-center justify-center"
+                className="absolute right-4 top-1/2 -translate-y-1/2 z-40 p-3 rounded-full bg-black/50 hover:bg-black/80 active:bg-black/90 text-white backdrop-blur-md border border-white/10 active:scale-95 shadow-xl hidden sm:flex items-center justify-center"
                 aria-label="Next item"
               >
                 <ChevronRight className="w-6 h-6" />
@@ -574,7 +574,7 @@ export default function MediaViewer({
             isVideo
               ? "bottom-[max(env(safe-area-inset-bottom,0px)+5.5rem,6rem)]"
               : "bottom-[max(env(safe-area-inset-bottom,0px)+2.5rem,3.5rem)]"
-          } inset-x-0 z-40 flex justify-center px-4 pointer-events-none transition-opacity duration-300 ${
+          } inset-x-0 z-40 flex justify-center px-4 pointer-events-none ${
             showControls ? "opacity-100" : "opacity-0"
           }`}
         >
@@ -587,7 +587,7 @@ export default function MediaViewer({
       {/* Bottom Floating Bar (Custom Video Scrubber for Video, or Minimal Safe Area Dock) */}
       {isVideo && (
         <div
-          className={`absolute bottom-0 inset-x-0 z-50 px-4 pt-3 pb-[max(env(safe-area-inset-bottom,0px),2.25rem)] bg-gradient-to-t from-black/95 via-black/75 to-transparent transition-opacity duration-300 pointer-events-auto ${
+          className={`absolute bottom-0 inset-x-0 z-50 px-4 pt-3 pb-[max(env(safe-area-inset-bottom,0px),2.25rem)] bg-gradient-to-t from-black/95 via-black/75 to-transparent pointer-events-auto ${
             showControls ? "opacity-100" : "opacity-0 pointer-events-none"
           }`}
           onClick={(e) => e.stopPropagation()}
@@ -611,7 +611,7 @@ export default function MediaViewer({
                 <button
                   type="button"
                   onClick={togglePlayPause}
-                  className="p-1 text-white hover:text-white/80 active:scale-95 transition-all"
+                  className="p-1 text-white hover:text-white/80 active:scale-95"
                   aria-label={isPlaying ? "Pause" : "Play"}
                 >
                   {isPlaying ? (
@@ -624,7 +624,7 @@ export default function MediaViewer({
                 <button
                   type="button"
                   onClick={toggleMute}
-                  className="p-1 text-white/80 hover:text-white active:scale-95 transition-all"
+                  className="p-1 text-white/80 hover:text-white active:scale-95"
                   aria-label={isMuted ? "Unmute" : "Mute"}
                 >
                   {isMuted ? (
@@ -651,7 +651,7 @@ export default function MediaViewer({
                     }
                   }
                 }}
-                className="p-1 text-white/80 hover:text-white active:scale-95 transition-all"
+                className="p-1 text-white/80 hover:text-white active:scale-95"
                 aria-label="Expand fullscreen"
               >
                 <Maximize2 className="w-4 h-4" />

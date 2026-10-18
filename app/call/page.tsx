@@ -14,7 +14,8 @@ import {
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import Avatar from "@/components/Avatar";
-import { motion } from "framer-motion";
+import { m } from "framer-motion";
+import MotionProvider from "@/components/MotionProvider";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -533,7 +534,7 @@ function CallScreen() {
 
   // ── Render ────────────────────────────────────────────────────────────────
   return (
-    <motion.main
+    <m.main
       initial={{ opacity: 0, y: "100%" }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: "100%" }}
@@ -550,7 +551,7 @@ function CallScreen() {
           ref={remoteVideoRef}
           autoPlay
           playsInline
-          className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-700 ${
+          className={`absolute inset-0 h-full w-full object-cover  ${
             showRemote ? "opacity-100" : "opacity-0"
           }`}
         />
@@ -620,7 +621,7 @@ function CallScreen() {
             type="button"
             onClick={toggleMute}
             aria-label={muted ? "Unmute" : "Mute"}
-            className="flex h-14 w-14 items-center justify-center rounded-full bg-white/10 text-[var(--cream)] transition-colors active:bg-white/20"
+            className="flex h-14 w-14 items-center justify-center rounded-full bg-white/10 text-[var(--cream)] active:bg-white/20"
           >
             {muted
               ? <MicOff className="h-5 w-5" strokeWidth={2} />
@@ -632,7 +633,7 @@ function CallScreen() {
             type="button"
             onClick={callType === "video" ? toggleCamera : () => setSpeakerOn((s) => !s)}
             aria-label={callType === "video" ? "Toggle camera" : "Toggle speaker"}
-            className="flex h-14 w-14 items-center justify-center rounded-full bg-white/10 text-[var(--cream)] transition-colors active:bg-white/20"
+            className="flex h-14 w-14 items-center justify-center rounded-full bg-white/10 text-[var(--cream)] active:bg-white/20"
           >
             {callType === "video"
               ? cameraOn
@@ -648,7 +649,7 @@ function CallScreen() {
             type="button"
             onClick={() => handleEnd(true)}
             aria-label="End call"
-            className="flex h-14 w-24 items-center justify-center rounded-full bg-[var(--wine)] text-[var(--cream)] transition-opacity active:opacity-80"
+            className="flex h-14 w-24 items-center justify-center rounded-full bg-[var(--wine)] text-[var(--cream)] active:opacity-80"
           >
             <PhoneOff className="h-5 w-5" strokeWidth={2} />
           </button>
@@ -658,7 +659,7 @@ function CallScreen() {
             type="button"
             onClick={callType === "video" ? flipCamera : () => setSpeakerOn((s) => !s)}
             aria-label={callType === "video" ? "Flip camera" : "Speaker"}
-            className="flex h-14 w-14 items-center justify-center rounded-full bg-white/10 text-[var(--cream)] transition-colors active:bg-white/20"
+            className="flex h-14 w-14 items-center justify-center rounded-full bg-white/10 text-[var(--cream)] active:bg-white/20"
           >
             {callType === "video"
               ? <RotateCcw className="h-5 w-5" strokeWidth={2} />
@@ -666,7 +667,7 @@ function CallScreen() {
           </button>
         </div>
       </div>
-    </motion.main>
+    </m.main>
   );
 }
 
@@ -674,6 +675,7 @@ function CallScreen() {
 
 export default function CallPage() {
   return (
+    <MotionProvider>
     <Suspense
       fallback={
         <div className="shell-h font-sans" style={{ backgroundColor: "#0F0D0B" }} />
@@ -681,6 +683,7 @@ export default function CallPage() {
     >
       <CallScreen />
     </Suspense>
+    </MotionProvider>
   );
 }
 

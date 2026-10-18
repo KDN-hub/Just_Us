@@ -29,9 +29,11 @@ const config: Config = {
         ink: "var(--ink)",
       },
       fontFamily: {
-        sans: ['"Stack Sans Text Variable"', '"Stack Sans Text"', "sans-serif"],
-        serif: ['"Stack Sans Text Variable"', '"Stack Sans Text"', "sans-serif"],
-        notch: ['"Stack Sans Notch"', "sans-serif"],
+        // Phase 6: families come from next/font (see app/layout.tsx); the CSS
+        // variables include the metric-adjusted fallback stack.
+        sans: ["var(--font-stack-sans)", "sans-serif"],
+        serif: ["var(--font-stack-sans)", "sans-serif"],
+        notch: ["var(--font-notch)", "sans-serif"],
       },
       keyframes: {
         shake: {

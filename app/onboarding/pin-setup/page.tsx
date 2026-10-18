@@ -3,7 +3,8 @@
 import { useState, useCallback, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Fingerprint, ChevronLeft, ChevronRight } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
+import { m, AnimatePresence } from "framer-motion";
+import MotionProvider from "@/components/MotionProvider";
 import { supabase } from "@/lib/supabase";
 import PinPad from "@/components/PinPad";
 import { CONVERSATION_ID, loadProfile, markSetupComplete, setLocalPin, setUnlocked } from "@/lib/auth";
@@ -116,22 +117,23 @@ export default function PinSetup() {
   if (!ready) return null;
 
   return (
+    <MotionProvider>
     <main className="shell-h relative mx-auto flex w-full max-w-md flex-col font-notch overflow-hidden">
       {/* Back button */}
-      <motion.button
+      <m.button
         initial={{ opacity: 0, scale: 0.8 }}
         animate={{ opacity: 1, scale: 1 }}
         transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
         type="button"
         onClick={handleBack}
         aria-label="Go back"
-        className="absolute top-[max(env(safe-area-inset-top,0px),1.5rem)] left-6 z-30 flex h-11 w-11 items-center justify-center rounded-full bg-[var(--wine)] shadow-[0_4px_12px_rgba(188,21,41,0.35)] transition-transform duration-200 hover:scale-105 active:scale-95"
+        className="absolute top-[max(env(safe-area-inset-top,0px),1.5rem)] left-6 z-30 flex h-11 w-11 items-center justify-center rounded-full bg-[var(--wine)] shadow-[0_4px_12px_rgba(188,21,41,0.35)] hover:scale-105 active:scale-95"
       >
         <ChevronLeft className="h-5 w-5 stroke-[3] text-white mr-[2px]" />
-      </motion.button>
+      </m.button>
 
       {/* Blurred Background */}
-      <motion.div
+      <m.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ duration: 0.6 }}
@@ -145,7 +147,7 @@ export default function PinSetup() {
       <div className="relative z-10 flex flex-1 items-center justify-center"></div>
 
       {/* Bottom sheet */}
-      <motion.div
+      <m.div
         initial={{ opacity: 0, y: 70 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6, delay: 0.1, ease: [0.16, 1, 0.3, 1] }}
@@ -161,7 +163,7 @@ export default function PinSetup() {
 
         <AnimatePresence mode="wait">
           {mode === "biometric" ? (
-            <motion.div
+            <m.div
               key="biometric"
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
@@ -183,7 +185,7 @@ export default function PinSetup() {
                   type="button"
                   onClick={handleEnableBiometric}
                   disabled={saving}
-                  className="w-full rounded-2xl bg-[var(--wine)] py-3.5 text-base font-medium text-white transition-all active:scale-[0.97] hover:brightness-110 shadow-[0_8px_16px_-6px_rgba(122,44,59,0.5)] disabled:opacity-50"
+                  className="w-full rounded-2xl bg-[var(--wine)] py-3.5 text-base font-medium text-white active:scale-[0.97] hover:brightness-110 shadow-[0_8px_16px_-6px_rgba(122,44,59,0.5)] disabled:opacity-50"
                 >
                   {saving ? "Setting up..." : "Enable Face ID / Fingerprint"}
                 </button>
@@ -191,14 +193,14 @@ export default function PinSetup() {
                   type="button"
                   onClick={proceedNext}
                   disabled={saving}
-                  className="w-full py-2.5 text-[14px] text-white/60 transition-colors hover:text-white"
+                  className="w-full py-2.5 text-[14px] text-white/60 hover:text-white"
                 >
                   Skip for now
                 </button>
               </div>
-            </motion.div>
+            </m.div>
           ) : (
-            <motion.div
+            <m.div
               key="pin-pad"
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
@@ -235,7 +237,7 @@ export default function PinSetup() {
 
                 {/* Once 4 digits are input, show the continue arrow */}
                 <div
-                  className={`transition-all duration-300 ${
+                  className={`${
                     currentPin.length === 4
                       ? "opacity-100 scale-100 pointer-events-auto"
                       : "opacity-0 scale-95 pointer-events-none"
@@ -246,9 +248,9 @@ export default function PinSetup() {
                       type="button"
                       onClick={handleProceedToConfirm}
                       aria-label="Continue to confirm PIN"
-                      className="group flex h-[60px] w-[60px] items-center justify-center rounded-full bg-white/[0.82] backdrop-blur-xl border border-white/60 shadow-[inset_0_1.5px_2px_rgba(255,255,255,0.85),0_10px_24px_-6px_rgba(188,21,41,0.4)] transition-all duration-300 ease-out hover:-translate-y-1.5 hover:scale-[1.05] hover:bg-white/95 hover:border-white/80 hover:shadow-[inset_0_2px_3px_rgba(255,255,255,0.95),0_20px_35px_-8px_rgba(188,21,41,0.55),0_10px_20px_-4px_rgba(0,0,0,0.35)] active:translate-y-0 active:scale-[0.98]"
+                      className="group flex h-[60px] w-[60px] items-center justify-center rounded-full bg-white/[0.82] backdrop-blur-xl border border-white/60 shadow-[inset_0_1.5px_2px_rgba(255,255,255,0.85),0_10px_24px_-6px_rgba(188,21,41,0.4)] hover:-translate-y-1.5 hover:scale-[1.05] hover:bg-white/95 hover:border-white/80 hover:shadow-[inset_0_2px_3px_rgba(255,255,255,0.95),0_20px_35px_-8px_rgba(188,21,41,0.55),0_10px_20px_-4px_rgba(0,0,0,0.35)] active:translate-y-0 active:scale-[0.98]"
                     >
-                      <div className="flex h-11 w-11 items-center justify-center rounded-full bg-[var(--wine)] shadow-[0_4px_12px_rgba(188,21,41,0.35)] transition-transform group-hover:translate-x-0.5">
+                      <div className="flex h-11 w-11 items-center justify-center rounded-full bg-[var(--wine)] shadow-[0_4px_12px_rgba(188,21,41,0.35)] group-hover:translate-x-0.5">
                         <ChevronRight className="h-5 w-5 stroke-[3] text-white ml-[2px]" />
                       </div>
                     </button>
@@ -257,22 +259,23 @@ export default function PinSetup() {
                       type="button"
                       onClick={handleConfirmPin}
                       disabled={saving}
-                      className="group flex h-[60px] items-center justify-center gap-4 rounded-full bg-white/[0.82] backdrop-blur-xl border border-white/60 pl-8 pr-2 text-[var(--wine)] shadow-[inset_0_1.5px_2px_rgba(255,255,255,0.85),0_10px_24px_-6px_rgba(188,21,41,0.4)] transition-all duration-300 ease-out hover:-translate-y-1.5 hover:scale-[1.03] hover:bg-white/95 hover:border-white/80 hover:shadow-[inset_0_2px_3px_rgba(255,255,255,0.95),0_20px_35px_-8px_rgba(188,21,41,0.55),0_10px_20px_-4px_rgba(0,0,0,0.35)] active:translate-y-0 active:scale-[0.98] active:duration-100 disabled:opacity-50"
+                      className="group flex h-[60px] items-center justify-center gap-4 rounded-full bg-white/[0.82] backdrop-blur-xl border border-white/60 pl-8 pr-2 text-[var(--wine)] shadow-[inset_0_1.5px_2px_rgba(255,255,255,0.85),0_10px_24px_-6px_rgba(188,21,41,0.4)] hover:-translate-y-1.5 hover:scale-[1.03] hover:bg-white/95 hover:border-white/80 hover:shadow-[inset_0_2px_3px_rgba(255,255,255,0.95),0_20px_35px_-8px_rgba(188,21,41,0.55),0_10px_20px_-4px_rgba(0,0,0,0.35)] active:translate-y-0 active:scale-[0.98] disabled:opacity-50"
                     >
                       <span className="text-[17px] font-semibold tracking-wide">
                         {saving ? "Saving…" : "Confirm"}
                       </span>
-                      <div className="flex h-11 w-11 items-center justify-center rounded-full bg-[var(--wine)] shadow-[0_4px_12px_rgba(188,21,41,0.35)] transition-transform group-hover:translate-x-1">
+                      <div className="flex h-11 w-11 items-center justify-center rounded-full bg-[var(--wine)] shadow-[0_4px_12px_rgba(188,21,41,0.35)] group-hover:translate-x-1">
                         <ChevronRight className="h-5 w-5 stroke-[3] text-white ml-[2px]" />
                       </div>
                     </button>
                   )}
                 </div>
               </div>
-            </motion.div>
+            </m.div>
           )}
         </AnimatePresence>
-      </motion.div>
+      </m.div>
     </main>
+    </MotionProvider>
   );
 }

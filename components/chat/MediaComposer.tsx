@@ -2,7 +2,7 @@
 
 import React, { useState, useRef, useEffect, useCallback } from "react";
 import { X, Crop, RotateCw, PenTool, Type, Send, Undo2, Check, Trash2, ArrowLeft } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
+import { m, AnimatePresence } from "framer-motion";
 
 interface DrawPoint {
   x: number;
@@ -529,7 +529,7 @@ export default function MediaComposer({
 
   return (
     <div
-      className="fixed inset-0 z-[120] bg-black flex flex-col font-sans select-none animate-in fade-in duration-200"
+      className="fixed inset-0 z-[120] bg-black flex flex-col font-sans select-none animate-in fade-in"
       onPointerMove={(e) => {
         if (cropDragMode) handleCropPointerMove(e);
         if (draggedTextId) handleTextDragMove(e);
@@ -543,7 +543,7 @@ export default function MediaComposer({
       <div className="flex items-center justify-between px-4 pt-[max(env(safe-area-inset-top,0px),1rem)] pb-3 bg-gradient-to-b from-black/85 via-black/40 to-transparent z-30">
         <button
           onClick={handleAttemptClose}
-          className="flex items-center justify-center w-10 h-10 rounded-full text-white/90 hover:text-white active:scale-95 transition-all bg-black/60 border border-white/10 shadow-lg backdrop-blur-md shrink-0"
+          className="flex items-center justify-center w-10 h-10 rounded-full text-white/90 hover:text-white active:scale-95 bg-black/60 border border-white/10 shadow-lg backdrop-blur-md shrink-0"
           aria-label="Back"
           title="Back"
         >
@@ -562,7 +562,7 @@ export default function MediaComposer({
                   setCropBox({ x: 0, y: 0, w: 1, h: 1 });
                 }
               }}
-              className={`p-2 rounded-full transition-colors ${
+              className={`p-2 rounded-full ${
                 activeTool === "crop"
                   ? "bg-[var(--wine)] text-white shadow"
                   : "text-white/80 hover:text-white"
@@ -575,7 +575,7 @@ export default function MediaComposer({
             {/* Rotate Button */}
             <button
               onClick={handleRotate}
-              className="p-2 rounded-full text-white/80 hover:text-white active:scale-95 transition-transform"
+              className="p-2 rounded-full text-white/80 hover:text-white active:scale-95"
               title="Rotate 90°"
             >
               <RotateCw className="w-4 h-4" />
@@ -584,7 +584,7 @@ export default function MediaComposer({
             {/* Draw Button */}
             <button
               onClick={() => setActiveTool(activeTool === "draw" ? "none" : "draw")}
-              className={`p-2 rounded-full transition-colors ${
+              className={`p-2 rounded-full ${
                 activeTool === "draw"
                   ? "bg-[var(--wine)] text-white shadow"
                   : "text-white/80 hover:text-white"
@@ -597,7 +597,7 @@ export default function MediaComposer({
             {/* Snapchat Text Button */}
             <button
               onClick={() => openTextEditor()}
-              className="p-2 rounded-full text-white/80 hover:text-white active:scale-95 transition-colors"
+              className="p-2 rounded-full text-white/80 hover:text-white active:scale-95"
               title="Add Snapchat-style text"
             >
               <Type className="w-4 h-4" />
@@ -622,7 +622,7 @@ export default function MediaComposer({
                     };
                   }
                 }}
-                className="p-2 rounded-full text-white/80 hover:text-white active:scale-95 transition-transform"
+                className="p-2 rounded-full text-white/80 hover:text-white active:scale-95"
                 title="Undo"
               >
                 <Undo2 className="w-4 h-4" />
@@ -633,7 +633,7 @@ export default function MediaComposer({
 
         <button
           onClick={handleAttemptClose}
-          className="flex items-center justify-center w-10 h-10 rounded-full text-white/90 hover:text-white active:scale-95 transition-all bg-black/60 border border-white/10 shadow-lg backdrop-blur-md shrink-0"
+          className="flex items-center justify-center w-10 h-10 rounded-full text-white/90 hover:text-white active:scale-95 bg-black/60 border border-white/10 shadow-lg backdrop-blur-md shrink-0"
           aria-label="Cancel"
           title="Cancel / Close"
         >
@@ -650,7 +650,7 @@ export default function MediaComposer({
               <button
                 key={ratio}
                 onClick={() => applyCropRatio(ratio)}
-                className={`px-3 py-1 rounded-full text-[11.5px] font-semibold uppercase transition-all ${
+                className={`px-3 py-1 rounded-full text-[11.5px] font-semibold uppercase ${
                   cropRatio === ratio
                     ? "bg-white text-black shadow-md scale-105"
                     : "bg-white/10 text-white/70 hover:text-white"
@@ -665,14 +665,14 @@ export default function MediaComposer({
           <div className="flex items-center gap-2">
             <button
               onClick={cancelCrop}
-              className="p-1.5 rounded-full bg-white/10 text-white/80 hover:text-white hover:bg-white/20 transition-colors"
+              className="p-1.5 rounded-full bg-white/10 text-white/80 hover:text-white hover:bg-white/20"
               title="Cancel crop"
             >
               <X className="w-4 h-4" />
             </button>
             <button
               onClick={applyCrop}
-              className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-[var(--wine)] text-white text-[12px] font-semibold shadow-md active:scale-95 transition-all"
+              className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-[var(--wine)] text-white text-[12px] font-semibold shadow-md active:scale-95"
               title="Apply crop"
             >
               <Check className="w-4 h-4" />
@@ -690,7 +690,7 @@ export default function MediaComposer({
               <button
                 key={col}
                 onClick={() => setDrawColor(col)}
-                className={`w-6 h-6 rounded-full border-2 transition-transform ${
+                className={`w-6 h-6 rounded-full border-2 ${
                   drawColor === col ? "scale-125 border-white shadow-lg" : "border-transparent"
                 }`}
                 style={{ backgroundColor: col }}
@@ -700,7 +700,7 @@ export default function MediaComposer({
           {strokes.length > 0 && (
             <button
               onClick={() => setStrokes([])}
-              className="flex items-center gap-1 text-[12px] text-white/60 hover:text-red-400 px-2 py-1 rounded transition-colors"
+              className="flex items-center gap-1 text-[12px] text-white/60 hover:text-red-400 px-2 py-1 rounded"
             >
               <Trash2 className="w-3.5 h-3.5" /> Clear
             </button>
@@ -817,7 +817,7 @@ export default function MediaComposer({
                       e.stopPropagation();
                       openTextEditor(overlay);
                     }}
-                    className={`max-w-full px-4 py-2 transition-transform active:scale-95 ${
+                    className={`max-w-full px-4 py-2 active:scale-95 ${
                       overlay.style === "classic"
                         ? "w-full bg-black/60 backdrop-blur-sm text-center"
                         : "bg-black/80 rounded-2xl border border-white/20 px-6 py-2 text-center shadow-xl"
@@ -836,7 +836,7 @@ export default function MediaComposer({
                       e.stopPropagation();
                       setTextOverlays((prev) => prev.filter((t) => t.id !== overlay.id));
                     }}
-                    className="absolute right-3 p-1 rounded-full bg-black/60 text-white/70 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity"
+                    className="absolute right-3 p-1 rounded-full bg-black/60 text-white/70 hover:text-red-400 opacity-0 group-hover:opacity-100"
                     title="Delete text"
                   >
                     <X className="w-3.5 h-3.5" />
@@ -851,7 +851,7 @@ export default function MediaComposer({
       <div className="px-3 sm:px-4 pt-3 pb-[max(env(safe-area-inset-bottom,0px),1.5rem)] bg-gradient-to-t from-black via-black/90 to-transparent z-30">
         <div className="flex items-center gap-2 max-w-md mx-auto">
           {/* Caption Input Field */}
-          <div className="flex-1 flex items-center bg-[#18181A]/90 backdrop-blur-2xl border border-white/10 rounded-full px-4 py-2 shadow-xl focus-within:border-white/25 transition-colors">
+          <div className="flex-1 flex items-center bg-[#18181A]/90 backdrop-blur-2xl border border-white/10 rounded-full px-4 py-2 shadow-xl focus-within:border-white/25">
             <input
               type="text"
               value={caption}
@@ -870,7 +870,7 @@ export default function MediaComposer({
           {/* Send Button - Signature Red/Wine Shade */}
           <button
             onClick={handleSendAction}
-            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[var(--wine)] hover:brightness-110 active:scale-95 text-white shadow-xl transition-all"
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[var(--wine)] hover:brightness-110 active:scale-95 text-white shadow-xl"
             aria-label="Send media"
           >
             <Send className="h-5 w-5 ml-0.5" />
@@ -881,7 +881,7 @@ export default function MediaComposer({
       {/* Snapchat-Style Text Overlay Composer */}
       <AnimatePresence>
         {isEditingText && (
-          <motion.div
+          <m.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -943,27 +943,27 @@ export default function MediaComposer({
                 <button
                   key={col}
                   onClick={() => setTextColor(col)}
-                  className={`w-7 h-7 rounded-full border-2 transition-transform ${
+                  className={`w-7 h-7 rounded-full border-2 ${
                     textColor === col ? "scale-125 border-white shadow-xl" : "border-transparent"
                   }`}
                   style={{ backgroundColor: col }}
                 />
               ))}
             </div>
-          </motion.div>
+          </m.div>
         )}
       </AnimatePresence>
 
       {/* Discard Confirmation Dialog */}
       <AnimatePresence>
         {showDiscardConfirm && (
-          <motion.div
+          <m.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             className="fixed inset-0 z-[160] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4"
           >
-            <motion.div
+            <m.div
               initial={{ scale: 0.95 }}
               animate={{ scale: 1 }}
               exit={{ scale: 0.95 }}
@@ -990,8 +990,8 @@ export default function MediaComposer({
                   Keep editing
                 </button>
               </div>
-            </motion.div>
-          </motion.div>
+            </m.div>
+          </m.div>
         )}
       </AnimatePresence>
     </div>

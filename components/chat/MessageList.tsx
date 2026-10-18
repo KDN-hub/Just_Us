@@ -16,7 +16,7 @@ import { Virtuoso, VirtuosoHandle } from "react-virtuoso";
 import MessageBubble from "@/components/MessageBubble";
 import CallBubble from "@/components/CallBubble";
 import TypingBubble from "@/components/TypingBubble";
-import { motion, AnimatePresence } from "framer-motion";
+import { m, AnimatePresence } from "framer-motion";
 import { Heart } from "lucide-react";
 
 interface MessageListProps {
@@ -190,7 +190,7 @@ const MessageRow = memo(function MessageRow({
       <div
         id={`msg-${msgId}`}
         data-msg-time={time}
-        className={`${animateEntrance ? "animate-msg-in" : ""} transition-[box-shadow,background-color] duration-300 rounded-2xl ${mb}`}
+        className={`${animateEntrance ? "animate-msg-in" : ""}  rounded-2xl ${mb}`}
       >
         {kind === "message" ? (
           <MessageBubble
@@ -515,14 +515,14 @@ const MessageList = memo(forwardRef<MessageListHandle, MessageListProps>(functio
         <>
           <AnimatePresence>
             {isTyping && (
-              <motion.div
+              <m.div
                 initial={{ opacity: 0, scale: 0.8 }}
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.8 }}
                 className="mb-4"
               >
                 <TypingBubble />
-              </motion.div>
+              </m.div>
             )}
           </AnimatePresence>
           <div ref={bottomRef} className="h-6" />

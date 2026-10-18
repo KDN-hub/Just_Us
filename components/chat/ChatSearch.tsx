@@ -63,10 +63,10 @@ export default function ChatSearch({ onClose, conversationId, onResultClick, myI
             placeholder="Search in conversation..."
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            className="w-full bg-white/10 text-white text-[15px] placeholder:text-white/40 rounded-full py-2 pl-9 pr-4 outline-none focus:bg-white/15 transition-colors"
+            className="w-full bg-white/10 text-white text-[15px] placeholder:text-white/40 rounded-full py-2 pl-9 pr-4 outline-none focus:bg-white/15"
           />
         </div>
-        <button onClick={onClose} className="p-2 -mr-2 text-white/70 hover:text-white active:bg-white/10 rounded-full transition-colors">
+        <button onClick={onClose} className="p-2 -mr-2 text-white/70 hover:text-white active:bg-white/10 rounded-full">
           <X className="w-6 h-6" />
         </button>
       </div>
@@ -86,7 +86,7 @@ export default function ChatSearch({ onClose, conversationId, onResultClick, myI
           <button
             key={msg.id}
             onClick={() => onResultClick(msg.id)}
-            className="w-full text-left bg-white/5 hover:bg-white/10 active:bg-white/15 p-3 rounded-2xl transition-colors border border-white/5"
+            className="w-full text-left bg-white/5 hover:bg-white/10 active:bg-white/15 p-3 rounded-2xl border border-white/5"
           >
             <div className="flex items-center justify-between mb-1">
               <span className="text-[12px] font-medium text-white/50">{msg.sender_id === myId ? 'You' : 'Partner'}</span>

@@ -3,7 +3,7 @@ import { Send, Heart, Paperclip, Mic, Square, X, Smile, Star, Plus, Camera, Imag
 import dynamic from 'next/dynamic';
 const EmojiPicker = dynamic(() => import('emoji-picker-react'), { ssr: false });
 import TextareaAutosize from 'react-textarea-autosize';
-import { motion, AnimatePresence } from 'framer-motion';
+import { m, AnimatePresence } from "framer-motion";
 import { sendRealtimeBroadcast } from '@/lib/realtime';
 const MediaComposer = dynamic(() => import("@/components/chat/MediaComposer"), { ssr: false });
 const StickerPicker = dynamic(() => import('@/components/chat/StickerPicker'), { ssr: false });
@@ -76,10 +76,10 @@ export default function ChatInput({
         {showEmojiPicker && (
           <div className="absolute bottom-[100%] left-5 mb-2 z-50 flex flex-col bg-[#18181A]/95 backdrop-blur-2xl rounded-[24px] overflow-hidden border border-white/10 shadow-2xl w-[320px] sm:w-[350px] animate-in slide-in-from-bottom-2">
             <div className="flex border-b border-white/10 bg-black/20">
-              <button onClick={() => setPickerTab('emoji')} className={`flex-1 py-2 text-[13px] font-medium transition-colors ${pickerTab === 'emoji' ? 'text-white border-b-2 border-white' : 'text-white/50 hover:text-white/80'}`}>Emojis</button>
-              <button onClick={() => setPickerTab('sticker')} className={`flex-1 py-2 text-[13px] font-medium transition-colors ${pickerTab === 'sticker' ? 'text-white border-b-2 border-white' : 'text-white/50 hover:text-white/80'}`}>Stickers</button>
-              <button onClick={() => setPickerTab('gif')} className={`flex-1 py-2 text-[13px] font-medium transition-colors ${pickerTab === 'gif' ? 'text-white border-b-2 border-white' : 'text-white/50 hover:text-white/80'}`}>GIFs</button>
-              <button onClick={() => setPickerTab('favorites')} className={`flex-1 py-2 text-[13px] font-medium transition-colors ${pickerTab === 'favorites' ? 'text-white border-b-2 border-white' : 'text-white/50 hover:text-white/80'}`}>Favs</button>
+              <button onClick={() => setPickerTab('emoji')} className={`flex-1 py-2 text-[13px] font-medium ${pickerTab === 'emoji' ? 'text-white border-b-2 border-white' : 'text-white/50 hover:text-white/80'}`}>Emojis</button>
+              <button onClick={() => setPickerTab('sticker')} className={`flex-1 py-2 text-[13px] font-medium ${pickerTab === 'sticker' ? 'text-white border-b-2 border-white' : 'text-white/50 hover:text-white/80'}`}>Stickers</button>
+              <button onClick={() => setPickerTab('gif')} className={`flex-1 py-2 text-[13px] font-medium ${pickerTab === 'gif' ? 'text-white border-b-2 border-white' : 'text-white/50 hover:text-white/80'}`}>GIFs</button>
+              <button onClick={() => setPickerTab('favorites')} className={`flex-1 py-2 text-[13px] font-medium ${pickerTab === 'favorites' ? 'text-white border-b-2 border-white' : 'text-white/50 hover:text-white/80'}`}>Favs</button>
             </div>
             <div className="h-[360px] overflow-hidden relative bg-transparent">
               {pickerTab === 'emoji' && (
@@ -106,7 +106,7 @@ export default function ChatInput({
                   {favorites.map((url, i) => (
                     <div key={i} className="relative group aspect-square">
                       <img src={url} alt="Favorite" className="w-full h-full object-contain cursor-pointer active:bg-white/10 md:hover:bg-white/10 rounded-lg p-1" onClick={() => handleSendDirectURL(url, 'image')} />
-                      <button onClick={(e) => toggleFavorite(url, e)} className="absolute top-1 right-1 p-1 bg-black/50 rounded-full opacity-0 group-hover:opacity-100 transition-opacity">
+                      <button onClick={(e) => toggleFavorite(url, e)} className="absolute top-1 right-1 p-1 bg-black/50 rounded-full opacity-0 group-hover:opacity-100">
                         <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
                       </button>
                     </div>
@@ -118,7 +118,7 @@ export default function ChatInput({
                   {["https://media.tenor.com/N2sS-WtyHhgAAAAM/cat-meme.gif", "https://media.tenor.com/Z4XW47B_3b4AAAAM/hugging.gif", "https://media.tenor.com/n14aQZ2E86QAAAAM/love-cute.gif", "https://media.tenor.com/w1j0bM6sSCAAAAAM/sad-puss-in-boots.gif"].map((url, i) => (
                     <div key={i} className="relative group aspect-square">
                       <img src={url} alt="GIF" className="w-full h-full object-cover cursor-pointer active:bg-white/10 md:hover:bg-white/10 rounded-lg" onClick={() => handleSendDirectURL(url, 'image')} />
-                      <button onClick={(e) => toggleFavorite(url, e)} className="absolute top-1 right-1 p-1 bg-black/50 rounded-full opacity-0 group-hover:opacity-100 transition-opacity">
+                      <button onClick={(e) => toggleFavorite(url, e)} className="absolute top-1 right-1 p-1 bg-black/50 rounded-full opacity-0 group-hover:opacity-100">
                         <Star className={`h-3 w-3 ${favorites.includes(url) ? 'fill-yellow-400 text-yellow-400' : 'text-white'}`} />
                       </button>
                     </div>
@@ -136,14 +136,14 @@ export default function ChatInput({
           <button
             type="button"
             onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-white/50 hover:text-white active:scale-95 transition-all"
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-white/50 hover:text-white active:scale-95"
             aria-label="Emoji picker"
           >
             <Smile className="h-[21px] w-[21px]" strokeWidth={1.6} />
           </button>
           
           {isRecording ? (
-            <div className="flex-1 flex items-center justify-center gap-2 py-2 animate-in slide-in-from-right-4 duration-300">
+            <div className="flex-1 flex items-center justify-center gap-2 py-2 animate-in slide-in-from-right-4">
                <span className="h-3 w-3 rounded-full bg-red-500 animate-pulse" />
                <span className="text-[15px] font-mono text-white">
                  {Math.floor(recordingTime / 60)}:{(recordingTime % 60).toString().padStart(2, '0')}
@@ -178,36 +178,36 @@ export default function ChatInput({
                 <button
                   type="button"
                   onClick={() => setShowAttachmentMenu(!showAttachmentMenu)}
-                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-white/50 active:text-white md:hover:text-white active:scale-95 transition-all"
+                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-white/50 active:text-white md:hover:text-white active:scale-95"
                   aria-label="Attach media"
                 >
-                  <Plus className={`h-[21px] w-[21px] transition-transform duration-300 ${showAttachmentMenu ? "rotate-45" : ""}`} strokeWidth={1.75} />
+                  <Plus className={`h-[21px] w-[21px] ${showAttachmentMenu ? "rotate-45" : ""}`} strokeWidth={1.75} />
                 </button>
                 <AnimatePresence>
                   {showAttachmentMenu && (
-                    <motion.div 
+                    <m.div 
                       initial={{ opacity: 0, scale: 0.9, y: 10 }}
                       animate={{ opacity: 1, scale: 1, y: 0 }}
                       exit={{ opacity: 0, scale: 0.9, y: 10 }}
                       className="absolute bottom-12 right-0 md:-left-16 z-50 grid grid-cols-4 gap-2 p-3 w-[290px] bg-[#18181A]/95 backdrop-blur-2xl rounded-2xl border border-white/10 shadow-[0_10px_40px_rgba(0,0,0,0.5)] origin-bottom-right md:origin-bottom-left"
                     >
                       <button onClick={() => { fileInputRef.current?.setAttribute('accept', 'image/*,video/*'); fileInputRef.current?.click(); setShowAttachmentMenu(false); }} className="flex flex-col items-center gap-1.5 p-2 rounded-xl hover:bg-white/5 group">
-                        <div className="w-11 h-11 rounded-full bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-blue-400 group-hover:scale-110 group-active:scale-95 transition-transform"><ImageIcon className="w-5 h-5" /></div>
+                        <div className="w-11 h-11 rounded-full bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-blue-400 group-hover:scale-110 group-active:scale-95"><ImageIcon className="w-5 h-5" /></div>
                         <span className="text-[11px] text-white/70 font-medium">Gallery</span>
                       </button>
                       <button onClick={() => { fileInputRef.current?.setAttribute('accept', 'image/*,video/*'); fileInputRef.current?.setAttribute('capture', 'environment'); fileInputRef.current?.click(); setShowAttachmentMenu(false); }} className="flex flex-col items-center gap-1.5 p-2 rounded-xl hover:bg-white/5 group">
-                        <div className="w-11 h-11 rounded-full bg-pink-500/10 border border-pink-500/20 flex items-center justify-center text-pink-400 group-hover:scale-110 group-active:scale-95 transition-transform"><Camera className="w-5 h-5" /></div>
+                        <div className="w-11 h-11 rounded-full bg-pink-500/10 border border-pink-500/20 flex items-center justify-center text-pink-400 group-hover:scale-110 group-active:scale-95"><Camera className="w-5 h-5" /></div>
                         <span className="text-[11px] text-white/70 font-medium">Camera</span>
                       </button>
                       <button onClick={() => { fileInputRef.current?.setAttribute('accept', '.pdf,.doc,.docx,.txt'); fileInputRef.current?.removeAttribute('capture'); fileInputRef.current?.click(); setShowAttachmentMenu(false); }} className="flex flex-col items-center gap-1.5 p-2 rounded-xl hover:bg-white/5 group">
-                        <div className="w-11 h-11 rounded-full bg-purple-500/10 border border-purple-500/20 flex items-center justify-center text-purple-400 group-hover:scale-110 group-active:scale-95 transition-transform"><FileText className="w-5 h-5" /></div>
+                        <div className="w-11 h-11 rounded-full bg-purple-500/10 border border-purple-500/20 flex items-center justify-center text-purple-400 group-hover:scale-110 group-active:scale-95"><FileText className="w-5 h-5" /></div>
                         <span className="text-[11px] text-white/70 font-medium">Document</span>
                       </button>
                       <button onClick={() => { fileInputRef.current?.setAttribute('accept', 'audio/*'); fileInputRef.current?.removeAttribute('capture'); fileInputRef.current?.click(); setShowAttachmentMenu(false); }} className="flex flex-col items-center gap-1.5 p-2 rounded-xl hover:bg-white/5 group">
-                        <div className="w-11 h-11 rounded-full bg-orange-500/10 border border-orange-500/20 flex items-center justify-center text-orange-400 group-hover:scale-110 group-active:scale-95 transition-transform"><Music className="w-5 h-5" /></div>
+                        <div className="w-11 h-11 rounded-full bg-orange-500/10 border border-orange-500/20 flex items-center justify-center text-orange-400 group-hover:scale-110 group-active:scale-95"><Music className="w-5 h-5" /></div>
                         <span className="text-[11px] text-white/70 font-medium">Audio</span>
                       </button>
-                    </motion.div>
+                    </m.div>
                   )}
                 </AnimatePresence>
               </div>
@@ -223,7 +223,7 @@ export default function ChatInput({
               type="button"
               onClick={() => handleSend()}
               aria-label="Send"
-              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#18181A]/80 backdrop-blur-xl border border-white/10 text-white transition-all active:scale-[0.97] active:bg-white/10 md:hover:bg-white/10 shadow-lg disabled:opacity-40"
+              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#18181A]/80 backdrop-blur-xl border border-white/10 text-white active:scale-[0.97] active:bg-white/10 md:hover:bg-white/10 shadow-lg disabled:opacity-40"
             >
               <Send className="h-[18px] w-[18px]" strokeWidth={2} />
             </button>
@@ -233,7 +233,7 @@ export default function ChatInput({
               onClick={isRecording ? stopRecording : startRecording}
               disabled={!isOnline}
               aria-label={isRecording ? "Stop Recording" : "Record Voice Note"}
-              className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#18181A]/80 backdrop-blur-xl border border-white/10 transition-all active:scale-[0.97] active:bg-white/10 md:hover:bg-white/10 shadow-lg disabled:opacity-40 ${isRecording ? 'text-red-500 animate-pulse' : 'text-[var(--cream)]'}`}
+              className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#18181A]/80 backdrop-blur-xl border border-white/10 active:scale-[0.97] active:bg-white/10 md:hover:bg-white/10 shadow-lg disabled:opacity-40 ${isRecording ? 'text-red-500 animate-pulse' : 'text-[var(--cream)]'}`}
             >
               {isRecording ? <Square className="h-[20px] w-[20px]" strokeWidth={2} /> : <Mic className="h-[20px] w-[20px]" strokeWidth={1.5} />}
             </button>

@@ -162,7 +162,7 @@ export default function StickerPicker({
             {displayedStickers.map((sticker, idx) => (
               <div
                 key={`${sticker.id || sticker.url}-${idx}`}
-                className="relative group aspect-square flex items-center justify-center rounded-xl p-1.5 hover:bg-white/10 active:scale-95 transition-all cursor-pointer"
+                className="relative group aspect-square flex items-center justify-center rounded-xl p-1.5 hover:bg-white/10 active:scale-95 cursor-pointer"
                 onClick={() => handlePick(sticker)}
               >
                 <img
@@ -174,7 +174,7 @@ export default function StickerPicker({
                 <button
                   type="button"
                   onClick={(e) => handleToggleFavorite(e, sticker)}
-                  className="absolute top-1 right-1 p-1 rounded-full bg-black/60 backdrop-blur-sm opacity-0 group-hover:opacity-100 transition-opacity hover:scale-110 active:scale-95"
+                  className="absolute top-1 right-1 p-1 rounded-full bg-black/60 backdrop-blur-sm opacity-0 group-hover:opacity-100 hover:scale-110 active:scale-95"
                   title={isFavorite(sticker) ? "Remove from favorites" : "Add to favorites"}
                 >
                   <Star
@@ -199,7 +199,7 @@ export default function StickerPicker({
             setActivePackId("recent");
             setSearchQuery("");
           }}
-          className={`flex items-center justify-center w-8 h-8 rounded-full shrink-0 transition-colors ${
+          className={`flex items-center justify-center w-8 h-8 rounded-full shrink-0 ${
             activePackId === "recent" && !searchQuery
               ? "bg-[var(--wine)] text-white shadow"
               : "text-white/60 hover:text-white"
@@ -215,7 +215,7 @@ export default function StickerPicker({
             setActivePackId("favorites");
             setSearchQuery("");
           }}
-          className={`flex items-center justify-center w-8 h-8 rounded-full shrink-0 transition-colors ${
+          className={`flex items-center justify-center w-8 h-8 rounded-full shrink-0 ${
             activePackId === "favorites" && !searchQuery
               ? "bg-[var(--wine)] text-white shadow"
               : "text-white/60 hover:text-white"
@@ -235,7 +235,7 @@ export default function StickerPicker({
               setActivePackId(pack.id);
               setSearchQuery("");
             }}
-            className={`flex items-center justify-center w-8 h-8 rounded-xl shrink-0 p-1 transition-all ${
+            className={`flex items-center justify-center w-8 h-8 rounded-xl shrink-0 p-1 ${
               activePackId === pack.id && !searchQuery
                 ? "bg-white/20 border-2 border-[var(--gold)] scale-105"
                 : "opacity-60 hover:opacity-100"
@@ -257,7 +257,7 @@ export default function StickerPicker({
         {/* Add / Import Pack Button */}
         <button
           onClick={onOpenImport}
-          className="flex items-center justify-center w-8 h-8 rounded-full shrink-0 ml-auto bg-white/10 hover:bg-white/20 text-white/80 hover:text-white active:scale-95 transition-all shadow border border-white/10"
+          className="flex items-center justify-center w-8 h-8 rounded-full shrink-0 ml-auto bg-white/10 hover:bg-white/20 text-white/80 hover:text-white active:scale-95 shadow border border-white/10"
           title="Import new sticker pack"
         >
           <Plus className="w-4 h-4" strokeWidth={2.5} />
