@@ -53,6 +53,23 @@ body {
 button,
 a,
 [role="button"],
-label {
+label,
+summary,
+select {
   touch-action: manipulation;
+  /* Kill the grey tap flash on touch devices — it reads as a laggy response */
+  -webkit-tap-highlight-color: transparent;
+  /* Prevent accidental text-selection swallowing taps on repeated presses */
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* Phase 5b: instant press-in feedback. Per the CSS transitions spec the
+   transition-* values are taken from the *after-change* (i.e. :active) style,
+   so capping duration while :active holds makes the pressed visual snap in
+   ~1 frame, while releasing eases back with each element's own duration. */
+button:not(:disabled):active,
+[role="button"]:not([aria-disabled="true"]):active,
+a:active {
+  transition-duration: 90ms;
 }
