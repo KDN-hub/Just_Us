@@ -3,10 +3,10 @@
 //
 //  One channel does everything for the chat feature:
 //    • postgres_changes: messages / users / call_log
-//    • broadcast: call offer + hangup, typing, nudge
-//  (The /call screen still opens its own channel on the same
-//   topic while a call is on screen — untouched. GlobalOverlay
-//   keeps its own separate "chat_signal" topic.)
+//    • broadcast: typing, nudge
+//  (Call signaling lives in lib/callEngine.ts on its own
+//  dedicated private topic — the engine is a module singleton so
+//  a call can survive route changes and detect busy states.)
 //
 //  This module owns the reconnect loop: on CHANNEL_ERROR /
 //  TIMED_OUT / CLOSED it tears the channel down and re-creates
@@ -17,7 +17,7 @@
 //
 //  Consumers:
 //    subscribeRealtimeHandlers({ ... })  — reaction to events
-//    sendRealtimeBroadcast(event, data)  — typing/nudge/declined
+//    sendRealtimeBroadcast(event, data)  — typing/nudge
 //    startRealtime / stopRealtime        — lifecycle (chat screen)
 // ============================================================
 
@@ -27,12 +27,6 @@ import type { SupabaseMessageRow } from "@/lib/db";
 import type { CallLogEntry, UserRow } from "@/hooks/useChatStore";
 
 export type RealtimeStatus = "offline" | "connecting" | "connected" | "reconnecting";
-
-export interface OfferPayload {
-  sdp: RTCSessionDescriptionInit;
-  callType?: "voice" | "video";
-  callerId: string;
-}
 
 export interface TypingPayload {
   userId: string;
@@ -49,8 +43,6 @@ export interface RealtimeHandlers {
   onMessageUpdate?(row: SupabaseMessageRow): void;
   onPartnerUpdate?(row: Partial<UserRow>): void;
   onCallLog?(row: CallLogEntry, eventType: "INSERT" | "UPDATE"): void;
-  onOffer?(payload: OfferPayload): void;
-  onHangup?(): void;
   onTyping?(payload: TypingPayload): void;
   onNudge?(payload: NudgePayload): void;
   onStatusChange?(status: RealtimeStatus): void;
@@ -74,7 +66,7 @@ export function getRealtimeStatus(): RealtimeStatus {
   return status;
 }
 
-/** Fire-and-forget broadcast on the shared channel. No-op if not joined yet. */
+/** Fire-and-forget broadcast on the shared chat channel (typing/nudge). */
 export function sendRealtimeBroadcast(event: string, payload: Record<string, unknown>): void {
   if (!channel) return;
   void channel.send({ type: "broadcast", event, payload }).catch(() => {});
@@ -189,12 +181,6 @@ function createChannel(conversationId: string, partnerId: string | null): void {
       { event: "UPDATE", schema: "public", table: "call_log", filter: `conversation_id=eq.${conversationId}` },
       (payload) => dispatch("onCallLog", payload.new as CallLogEntry, "UPDATE"),
     )
-    .on("broadcast", { event: "offer" }, ({ payload }) => {
-      dispatch("onOffer", payload as unknown as OfferPayload);
-    })
-    .on("broadcast", { event: "hangup" }, () => {
-      dispatch("onHangup");
-    })
     .on("broadcast", { event: "typing" }, ({ payload }) => {
       dispatch("onTyping", payload as unknown as TypingPayload);
     })

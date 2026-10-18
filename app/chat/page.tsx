@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useRef, useState, useCallback, useMemo } from "react";
+import { useEffect, useRef, useState, useCallback, useMemo, useSyncExternalStore } from "react";
 import { useRouter } from "next/navigation";
 import { PhoneIncoming, PhoneOff, X, Video, ChevronLeft, ImagePlus, Pencil, Reply, Copy, Trash2, Pin } from "lucide-react";
 import { m, AnimatePresence } from "framer-motion";
 import MotionProvider from "@/components/MotionProvider";
 import { supabase } from "@/lib/supabase";
+import { callEngine } from "@/lib/callEngine";
 import Avatar from "@/components/Avatar";
 import dynamic from "next/dynamic";
 import ChatHeader from "@/components/chat/ChatHeader";
@@ -52,8 +53,7 @@ export default function Chat() {
 
   const {
     myId, partner, callLog, reconnecting,
-    partnerTyping, isOnline, daysTogether, incomingCall,
-    setIncomingCall
+    partnerTyping, isOnline, daysTogether
   } = useChatStore(useShallow((s) => ({
     myId: s.myId,
     partner: s.partner,
@@ -61,10 +61,30 @@ export default function Chat() {
     reconnecting: s.reconnecting,
     partnerTyping: s.partnerTyping,
     isOnline: s.isOnline,
-    daysTogether: s.daysTogether,
-    incomingCall: s.incomingCall,
-    setIncomingCall: s.setIncomingCall,
+    daysTogether: s.daysTogether
   })));
+
+  // ── Call engine binding ────────────────────────────────────────────────────
+  // The engine is a route-independent singleton: it rings us here, survives
+  // navigation between chat and /call, and reports a live call even when the
+  // user has minimized it into the chat.
+  // Seed the engine with trusted identity before its idle watch subscribes:
+  // the same AuthGate-validated values the /call screen uses. Without this, a
+  // fresh session would silently drop incoming offers, because presentIncoming
+  // only accepts rings from the known partner id.
+  useEffect(() => {
+    callEngine.setIdentity(
+      localStorage.getItem("user_id") ?? "",
+      localStorage.getItem("partner_id") ?? "",
+    );
+  }, []);
+
+  const callSnap = useSyncExternalStore(callEngine.subscribe, callEngine.getSnapshot, callEngine.getSnapshot);
+  const incomingCall = callSnap.state === "incoming" ? callSnap : null;
+  const liveCallMinimized =
+    callSnap.callActive &&
+    (callSnap.state === "accepting" || callSnap.state === "connecting" ||
+     callSnap.state === "connected" || callSnap.state === "reconnecting");
 
   // Messages render from IndexedDB only — never from a network await.
   const { messages: localMessages, ready: messagesReady } = useMessages(CONVERSATION_ID);
@@ -600,16 +620,17 @@ export default function Chat() {
   };
 
   const handleAcceptCall = useCallback(() => {
-    if (!incomingCall) return;
-    sessionStorage.setItem("pending_offer", JSON.stringify({ sdp: incomingCall.sdp }));
-    setIncomingCall(null);
-    router.push(`/call?type=${incomingCall.callType}`);
-  }, [incomingCall, router, setIncomingCall]);
+    // The engine already holds the ringing offer — it applies it and answers
+    // as soon as media acquisition finishes. The /call page binds to it.
+    void callEngine.acceptIncoming();
+    router.push("/call");
+  }, [router]);
 
   const handleDeclineCall = useCallback(() => {
-    sendRealtimeBroadcast("declined", {});
-    setIncomingCall(null);
-  }, [setIncomingCall]);
+    // declineIncoming() broadcasts declined to the caller on the engine's
+    // private signaling topic (legacy-free: no more sessionStorage handoff).
+    callEngine.declineIncoming();
+  }, []);
 
   const scrollToAndHighlightMessage = useCallback((msgId: string) => {
     setShowSearch(false);
@@ -1060,6 +1081,30 @@ export default function Chat() {
         </div>
       )}
 
+      {liveCallMinimized && (
+        <button
+          type="button"
+          onClick={() => router.push("/call")}
+          className="mx-3 mt-2 flex shrink-0 items-center gap-3 rounded-2xl border border-white/10 bg-[#18181A]/90 px-4 py-2.5 shadow-lg backdrop-blur-md active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gold)]"
+        >
+          <span className="relative flex h-2.5 w-2.5 shrink-0">
+            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#5BD05F] opacity-75" />
+            <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-[#5BD05F]" />
+          </span>
+          <span className="min-w-0 flex-1 text-left">
+            <span className="block truncate text-[13px] font-semibold text-[var(--cream)]">{partnerDisplay}</span>
+            <span className="block truncate text-[11px] text-[var(--muted)]">
+              {callSnap.state === "connected"
+                ? "On call — tap to return"
+                : callSnap.state === "reconnecting"
+                ? "Reconnecting to the call — tap to return"
+                : "Connecting…"}
+            </span>
+          </span>
+          <PhoneIncoming className="h-4 w-4 shrink-0 text-[#5BD05F]" />
+        </button>
+      )}
+
       {!isOnline && (
         <div className="flex shrink-0 items-center justify-center gap-2 bg-[#5C4A10] px-4 py-2">
           <span className="h-2 w-2 animate-pulse rounded-full bg-[#F5C842]" />
@@ -1114,6 +1159,7 @@ export default function Chat() {
         reconnecting={reconnecting}
         partnerIsOnline={partner?.is_online ?? false}
         partnerLastSeen={partner?.last_seen ?? null}
+        callInProgress={callSnap.callActive}
         onOpenWallpaper={handleOpenWallpaper}
         onOpenUsername={handleOpenUsername}
         onOpenMedia={handleOpenMedia}

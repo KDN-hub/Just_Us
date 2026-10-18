@@ -13,7 +13,7 @@ export async function GET(request: Request) {
   }
 
   const token = authHeader.split(' ')[1];
-  
+
   // Verify the user token with Supabase
   const { data: { user }, error } = await supabase.auth.getUser(token);
   if (error || !user) {
@@ -26,10 +26,15 @@ export async function GET(request: Request) {
     { urls: "stun:stun1.l.google.com:19302" },
   ];
 
-  // Check both secure and NEXT_PUBLIC vars so it works before and after .env update
-  const turnUrl = process.env.TURN_URL || process.env.NEXT_PUBLIC_TURN_URL;
-  const turnUsername = process.env.TURN_USERNAME || process.env.NEXT_PUBLIC_TURN_USERNAME;
-  const turnPassword = process.env.TURN_PASSWORD || process.env.NEXT_PUBLIC_TURN_PASSWORD || process.env.NEXT_PUBLIC_TURN_CREDENTIAL;
+  // TURN is configured exclusively through server-side variables. The
+  // NEXT_PUBLIC_* fallbacks were removed: public env vars are inlined into the
+  // client bundle at build time, which would leak TURN credentials into every
+  // visitor's browser. Set TURN_URL / TURN_USERNAME / TURN_PASSWORD on the
+  // server (.env.local locally, Vercel env vars in production) — see
+  // .env.example and supabase/migrations/011_call_signalling_v2.sql.
+  const turnUrl = process.env.TURN_URL;
+  const turnUsername = process.env.TURN_USERNAME;
+  const turnPassword = process.env.TURN_PASSWORD;
 
   if (turnUrl && turnUsername && turnPassword) {
     servers.push({

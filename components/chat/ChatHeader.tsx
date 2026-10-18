@@ -14,6 +14,8 @@ interface ChatHeaderProps {
   reconnecting: boolean;
   partnerIsOnline: boolean;
   partnerLastSeen: string | null;
+  /** True while a call session is live (engine snapshot) — labels only. */
+  callInProgress?: boolean;
   onOpenWallpaper?: () => void;
   onOpenUsername?: () => void;
   onOpenMedia?: () => void;
@@ -39,6 +41,7 @@ function ChatHeader({
   reconnecting,
   partnerIsOnline,
   partnerLastSeen,
+  callInProgress = false,
   onOpenWallpaper,
   onOpenUsername,
   onOpenMedia,
@@ -170,14 +173,16 @@ function ChatHeader({
       <div className="flex items-center gap-2">
         <Link
           href="/call?type=voice"
-          aria-label="Voice call"
+          aria-label={callInProgress ? "Call in progress — return to the call" : "Voice call"}
+          title={callInProgress ? "A call is already in progress — returning to it" : "Voice call"}
           className="flex h-[42px] w-[42px] items-center justify-center rounded-full bg-white/5 border border-white/10 text-white/80 hover:bg-white/10"
         >
           <Phone className="h-[22px] w-[22px]" strokeWidth={2} />
         </Link>
         <Link
           href="/call?type=video"
-          aria-label="Video call"
+          aria-label={callInProgress ? "Call in progress — return to the call" : "Video call"}
+          title={callInProgress ? "A call is already in progress — returning to it" : "Video call"}
           className="flex h-[42px] w-[42px] items-center justify-center rounded-full bg-white/5 border border-white/10 text-white/80 hover:bg-white/10"
         >
           <Video className="h-[22px] w-[22px]" strokeWidth={2} />

@@ -57,12 +57,6 @@ export interface UserRow {
   last_seen: string | null;
 }
 
-export interface IncomingCall {
-  sdp: RTCSessionDescriptionInit;
-  callType: "voice" | "video";
-  callerId: string;
-}
-
 export function generateUUID(): string {
   if (typeof crypto !== "undefined" && crypto.randomUUID) return crypto.randomUUID();
   return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
@@ -93,7 +87,6 @@ interface ChatState {
   partnerTyping: boolean;
   isOnline: boolean;
   daysTogether: number;
-  incomingCall: IncomingCall | null;
   hasMoreMessages: boolean;
   isLoadingOlder: boolean;
 
@@ -103,7 +96,6 @@ interface ChatState {
   setPartnerTyping: (typing: boolean) => void;
   setIsOnline: (online: boolean) => void;
   setDaysTogether: (days: number) => void;
-  setIncomingCall: (call: IncomingCall | null) => void;
   loadOlderMessages: () => Promise<void>;
 
   addOrUpdateCallLog: (call: CallLogEntry) => void;
@@ -127,7 +119,6 @@ export const useChatStore = create<ChatState>((set, get) => ({
   partnerTyping: false,
   isOnline: typeof window !== 'undefined' ? navigator.onLine : true,
   daysTogether: 0,
-  incomingCall: null,
   hasMoreMessages: true,
   isLoadingOlder: false,
 
@@ -139,7 +130,6 @@ export const useChatStore = create<ChatState>((set, get) => ({
   setPartnerTyping: (typing) => set({ partnerTyping: typing }),
   setIsOnline: (online) => set({ isOnline: online }),
   setDaysTogether: (days) => set({ daysTogether: days }),
-  setIncomingCall: (call) => set({ incomingCall: call }),
 
   // Paging backwards is still a Supabase fetch, but it's background work:
   // results land in Dexie and the timeline re-renders from there.

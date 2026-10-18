@@ -16,8 +16,9 @@ import { useReadReceipts } from "@/hooks/useReadReceipts";
 const CONVERSATION_ID = "c0000000-0000-0000-0000-000000000003";
 
 // The whole chat feature shares ONE realtime channel, owned by lib/realtime:
-// messages / users / call_log postgres changes + broadcast signaling
-// (offer, hangup, typing, nudge). This hook just reacts to its events.
+// messages / users / call_log postgres changes + broadcast (typing, nudge).
+// Call signaling lives in lib/callEngine on its own private topic — its
+// incoming ring is surfaced on the chat page through the engine snapshot.
 // Read/delivered receipts are viewport-driven (useReadReceipts + lib/receipts).
 export function useChatRealtime() {
   const {
@@ -26,7 +27,6 @@ export function useChatRealtime() {
     setReconnecting,
     setPartnerTyping,
     setDaysTogether,
-    setIncomingCall,
     addOrUpdateCallLog,
     addOrUpdateCallLogs
   } = useChatStore(useShallow((s) => ({
@@ -35,7 +35,6 @@ export function useChatRealtime() {
     setReconnecting: s.setReconnecting,
     setPartnerTyping: s.setPartnerTyping,
     setDaysTogether: s.setDaysTogether,
-    setIncomingCall: s.setIncomingCall,
     addOrUpdateCallLog: s.addOrUpdateCallLog,
     addOrUpdateCallLogs: s.addOrUpdateCallLogs,
   })));
@@ -184,20 +183,6 @@ export function useChatRealtime() {
         if (cancelled) return;
         addOrUpdateCallLog(row);
       },
-      onOffer: (payload) => {
-        if (cancelled) return;
-        if (payload.callerId && payload.callerId !== myId) {
-          setIncomingCall({
-            sdp:      payload.sdp,
-            callType: payload.callType ?? "voice",
-            callerId: payload.callerId,
-          });
-        }
-      },
-      onHangup: () => {
-        if (cancelled) return;
-        setIncomingCall(null);
-      },
       onTyping: (payload) => {
         if (cancelled) return;
         if (payload.userId !== myId) {
@@ -312,5 +297,5 @@ export function useChatRealtime() {
       flushReceipts();
       stopRealtime();
     };
-  }, [myId, setPartner, setReconnecting, setPartnerTyping, setDaysTogether, setIncomingCall, addOrUpdateCallLog, addOrUpdateCallLogs]);
+  }, [myId, setPartner, setReconnecting, setPartnerTyping, setDaysTogether, addOrUpdateCallLog, addOrUpdateCallLogs]);
 }

@@ -39,10 +39,10 @@ const TRANSITIONS: Record<CallState, readonly CallState[]> = {
   connected: ["reconnecting", "ending", "ended", "failed"],
   reconnecting: ["connected", "ending", "ended", "failed"],
   ending: [], // terminating locally; settled into a terminal state from here
-  ended: ["idle"],
-  declined: ["idle"],
-  busy: ["idle"],
-  failed: ["idle"],
+  ended: ["idle", "initiating"],
+  declined: ["idle", "initiating"],
+  busy: ["idle", "initiating"],
+  failed: ["idle", "initiating"],
 };
 
 /**
