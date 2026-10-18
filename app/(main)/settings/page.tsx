@@ -2,11 +2,12 @@
 
 import { useCallback, useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, KeyRound, LogOut, Fingerprint, Image, X, ChevronLeft, Camera } from "lucide-react";
+import { KeyRound, LogOut, Fingerprint, Image, X, ChevronLeft, Camera } from "lucide-react";
 import { m, AnimatePresence } from "framer-motion";
 import MotionProvider from "@/components/MotionProvider";
 import PinPad from "@/components/PinPad";
 import Avatar from "@/components/Avatar";
+import ProfilePhotoFlow from "@/components/ProfilePhotoFlow";
 import { setLocalPin, signOutAndWipe, verifyLocalPin, setSignInNotice } from "@/lib/auth";
 import {
   isBiometricsSupported,
@@ -44,59 +45,28 @@ export default function Settings() {
   const [bioMsg, setBioMsg] = useState("");
   const [authTarget, setAuthTarget] = useState<ActionType>(null);
   const [showSignOutModal, setShowSignOutModal] = useState(false);
-  const [showAvatarPrompt, setShowAvatarPrompt] = useState(false);
+  const [showPhotoFlow, setShowPhotoFlow] = useState(false);
   const [myAvatar, setMyAvatar] = useState<string | null>(() => typeof window !== 'undefined' ? localStorage.getItem('my_avatar') : null);
   const [myName, setMyName] = useState<string>(() => typeof window !== 'undefined' ? localStorage.getItem('user_name') || 'User' : 'User');
 
-  const handleAvatarUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  // The crop editor delivers a final 512×512 JPEG data URL, so all this has to
+  // do is persist it and broadcast the change (chat/home listen for "storage").
+  // On failure it throws so the flow keeps the editor open with the crop intact.
+  const handleAvatarSave = (dataUrl: string) => {
+    try {
+      localStorage.setItem("my_avatar", dataUrl);
+    } catch (err) {
+      console.error("Failed to save avatar:", err);
+      throw new Error("Couldn’t save — device storage is full. Try a smaller photo.");
+    }
+    setMyAvatar(dataUrl);
+    window.dispatchEvent(new Event("storage"));
+  };
 
-    const objectUrl = URL.createObjectURL(file);
-    const img = new window.Image();
-
-    img.onload = () => {
-      URL.revokeObjectURL(objectUrl);
-
-      // Downscale to max 256x256 to prevent LocalStorage QuotaExceededError
-      // and keep synchronous main thread operations under 1ms.
-      const maxDim = 256;
-      let w = img.naturalWidth || img.width;
-      let h = img.naturalHeight || img.height;
-
-      if (w > maxDim || h > maxDim) {
-        if (w > h) {
-          h = Math.round((h * maxDim) / w);
-          w = maxDim;
-        } else {
-          w = Math.round((w * maxDim) / h);
-          h = maxDim;
-        }
-      }
-
-      const canvas = document.createElement("canvas");
-      canvas.width = Math.max(1, w);
-      canvas.height = Math.max(1, h);
-      const ctx = canvas.getContext("2d");
-      if (!ctx) return;
-
-      ctx.drawImage(img, 0, 0, w, h);
-      const resizedDataUrl = canvas.toDataURL("image/jpeg", 0.85);
-
-      try {
-        setMyAvatar(resizedDataUrl);
-        localStorage.setItem("my_avatar", resizedDataUrl);
-        window.dispatchEvent(new Event("storage"));
-      } catch (err) {
-        console.error("Failed to save avatar to localStorage:", err);
-      }
-    };
-
-    img.onerror = () => {
-      URL.revokeObjectURL(objectUrl);
-    };
-
-    img.src = objectUrl;
+  const handleAvatarRemove = () => {
+    localStorage.removeItem("my_avatar");
+    setMyAvatar(null);
+    window.dispatchEvent(new Event("storage"));
   };
 
   useEffect(() => {
@@ -246,7 +216,7 @@ export default function Settings() {
       {step === "menu" ? (
         <div className="flex flex-col w-full gap-4 px-6 mt-0">
           <div className="flex flex-col items-center justify-center py-6">
-            <button onClick={() => setShowAvatarPrompt(true)} className="relative cursor-pointer group focus:outline-none active:scale-95 block rounded-full">
+            <button onClick={() => setShowPhotoFlow(true)} className="relative cursor-pointer group focus:outline-none active:scale-95 block rounded-full">
               <Avatar initial={myName[0] || "?"} color="var(--wine)" size={100} imageUrl={myAvatar} className="shadow-2xl border-4 border-[#18181A]" />
               <div className="absolute inset-0 bg-black/40 rounded-full opacity-0 group-hover:opacity-100 flex items-center justify-center">
                 <Camera className="h-8 w-8 text-white" />
@@ -360,22 +330,6 @@ export default function Settings() {
       )}
     
       <AnimatePresence>
-        {showAvatarPrompt && (
-          <m.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[100] bg-black/80 flex items-center justify-center p-4">
-            <m.div initial={{ scale: 0.95 }} animate={{ scale: 1 }} exit={{ scale: 0.95 }} className="bg-[#18181A]/90 backdrop-blur-md w-full max-w-sm rounded-[24px] overflow-hidden border border-white/10 shadow-2xl p-5">
-              <h3 className="text-[18px] font-semibold text-white mb-2">Change Profile Picture</h3>
-              <p className="text-[14px] text-white/60 mb-6">Choose an image from your device to set as your profile picture.</p>
-              <div className="flex gap-3">
-                <button onClick={() => setShowAvatarPrompt(false)} className="flex-1 py-3 rounded-xl bg-white/5 text-white font-medium active:scale-95">Cancel</button>
-                <label className="flex-1 py-3 rounded-xl bg-[var(--wine)] text-white font-medium flex items-center justify-center cursor-pointer active:scale-95 shadow-md">
-                  Select Image
-                  <input type="file" accept="image/*" className="hidden" onChange={(e) => { handleAvatarUpload(e); setShowAvatarPrompt(false); }} />
-                </label>
-              </div>
-            </m.div>
-          </m.div>
-        )}
-
         {showSignOutModal && (
           <m.div
             initial={{ opacity: 0 }}
@@ -422,6 +376,17 @@ export default function Settings() {
           </m.div>
         )}
       </AnimatePresence>
+
+      <ProfilePhotoFlow
+        open={showPhotoFlow}
+        onClose={() => setShowPhotoFlow(false)}
+        avatarUrl={myAvatar}
+        name={myName}
+        initial={myName[0] || "?"}
+        color="var(--wine)"
+        onSave={handleAvatarSave}
+        onRemove={handleAvatarRemove}
+      />
 
     </main>
     </MotionProvider>
