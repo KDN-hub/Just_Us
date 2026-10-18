@@ -56,20 +56,32 @@ export default function ProfilePhotoFlow({
   // Guards: stale file decodes and stale saves must never win.
   const sessionIdRef = useRef(0);
   const savingRef = useRef(false);
+  // The staged file's object URL must stay alive for the whole editing session:
+  // the crop screen renders a second <img> from image.src, which fails to load
+  // once the URL is revoked. Revoked at session end instead (see releaseStaged).
+  const objectUrlRef = useRef<string | null>(null);
+
+  const releaseStaged = useCallback(() => {
+    if (objectUrlRef.current) {
+      URL.revokeObjectURL(objectUrlRef.current);
+      objectUrlRef.current = null;
+    }
+    setPendingImage(null);
+  }, []);
 
   useEffect(() => {
     if (open) {
       setStage("preview");
-      setPendingImage(null);
+      releaseStaged();
       setError(null);
       setPreviewError(false);
       setPreviewLoading(false);
     } else {
       setStage("closed");
       // Release the staged image as soon as the session ends.
-      setPendingImage(null);
+      releaseStaged();
     }
-  }, [open]);
+  }, [open, releaseStaged]);
 
   // Escape closes the preview (desktop parity with the backdrop tap).
   useEffect(() => {
@@ -82,7 +94,10 @@ export default function ProfilePhotoFlow({
   }, [stage, onClose]);
 
   // Invalidate in-flight work when the flow closes or unmounts.
-  useEffect(() => () => { sessionIdRef.current += 1; }, []);
+  useEffect(() => () => {
+    sessionIdRef.current += 1;
+    if (objectUrlRef.current) URL.revokeObjectURL(objectUrlRef.current);
+  }, []);
 
   const handleFileChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const input = e.target;
@@ -104,17 +119,22 @@ export default function ProfilePhotoFlow({
     setError(null);
     setPreviewLoading(true);
 
+    // Replace any previously staged file before creating the new one.
+    if (objectUrlRef.current) URL.revokeObjectURL(objectUrlRef.current);
     const objectUrl = URL.createObjectURL(file);
+    objectUrlRef.current = objectUrl;
     const img = new window.Image();
     img.onload = () => {
-      URL.revokeObjectURL(objectUrl);
       if (session !== sessionIdRef.current) return; // stale session
       setPreviewLoading(false);
       setPendingImage(img);
       setStage("editing");
     };
     img.onerror = () => {
-      URL.revokeObjectURL(objectUrl);
+      if (objectUrlRef.current === objectUrl) {
+        URL.revokeObjectURL(objectUrl);
+        objectUrlRef.current = null;
+      }
       if (session !== sessionIdRef.current) return;
       setPreviewLoading(false);
       setError("Couldn’t read that image. It may be corrupt or an unsupported format (e.g. HEIC).");
@@ -131,7 +151,7 @@ export default function ProfilePhotoFlow({
     try {
       await onSave(dataUrl);
       if (session !== sessionIdRef.current) return;
-      setPendingImage(null);
+      releaseStaged();
       onClose();
     } catch (err) {
       if (session !== sessionIdRef.current) return;
@@ -143,7 +163,7 @@ export default function ProfilePhotoFlow({
         setSaving(false);
       }
     }
-  }, [onSave, onClose]);
+  }, [onSave, onClose, releaseStaged]);
 
   const handleRemove = useCallback(async () => {
     if (removing) return;
@@ -165,7 +185,7 @@ export default function ProfilePhotoFlow({
         image={pendingImage}
         saving={saving}
         error={error}
-        onCancel={() => { setError(null); setPendingImage(null); setStage("preview"); }}
+        onCancel={() => { setError(null); releaseStaged(); setStage("preview"); }}
         onConfirm={handleConfirmCrop}
       />
     );
