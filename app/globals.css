@@ -48,6 +48,31 @@ body {
   min-height: 100dvh;
 }
 
+/* The red↔black backdrop is painted exactly once, on a fixed layer that hugs
+   the viewport, instead of on every screen's <main>. Why: the gradient is a
+   radial blob sized in percentages of (and anchored to) the painting element's
+   bottom-right corner. Screens are centered max-w-md (448px) columns, so on
+   any device wider than 448px (tablets, landscape phones, desktop) each main
+   painted its own mini gradient over just the column and never reached the
+   page edges. Using the four edge longhands (not inset or vh/dvh units) keeps
+   the layer glued to the layout viewport on every engine, including iOS
+   toolbars, on-screen keyboards (`interactiveWidget: resizes-content`) and
+   `viewport-fit: cover` safe areas. Full-screen screens stay transparent so
+   this single layer shows through — one identical gradient on all devices. */
+.gradient-backdrop {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: -1; /* sits behind every screen but above the <body>/canvas paint */
+  pointer-events: none;
+  /* Gradient-free engines fall back to the gradient's darkest stop */
+  background-color: #050505;
+  background-image: var(--gradient);
+  background-repeat: no-repeat;
+}
+
 /* Phase 5: interactive elements react instantly on touch — no 300ms
    double-tap-zoom delay, no accidental zoom from rapid taps. */
 button,

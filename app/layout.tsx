@@ -58,6 +58,9 @@ export default function RootLayout({
   return (
     <html lang="en" className={`${stackSansText.variable} ${stackSansNotch.variable}`}>
       <body className="flex min-h-dvh flex-col font-sans antialiased overflow-x-hidden" style={{ background: "var(--gradient)" }}>
+        {/* Single page-wide gradient under every screen — see .gradient-backdrop
+            in globals.css. Screens render transparent so this is what shows. */}
+        <div aria-hidden className="gradient-backdrop" />
         {children}
         <GlobalOverlay />
       </body>

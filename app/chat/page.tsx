@@ -25,6 +25,12 @@ import { useMessages } from "@/hooks/useMessages";
 import { useSyncEngine } from "@/hooks/useSyncEngine";
 import { getLatestEditContent, getLocalMessage } from "@/lib/db";
 import { retryOutboxMessage, sendLocalMessage } from "@/lib/sync";
+import { queueMediaMessage, retryMediaUpload } from "@/lib/mediaQueue";
+import {
+  getEmptyUploadSnapshot,
+  getUploadSnapshot,
+  subscribeUploads,
+} from "@/lib/uploadProgress";
 import { sendRealtimeBroadcast } from "@/lib/realtime";
 import { toggleFavoriteSticker, fetchFavoriteStickers } from "@/lib/stickers";
 
@@ -99,6 +105,11 @@ export default function Chat() {
   const [infoMessageId, setInfoMessageId] = useState<string | null>(null);
   const [showPinnedModal, setShowPinnedModal] = useState(false);
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
+  const uploads = useSyncExternalStore(
+    subscribeUploads,
+    getUploadSnapshot,
+    getEmptyUploadSnapshot,
+  );
   const [selectionMode, setSelectionMode] = useState(false);
   const [selectedMessageIds, setSelectedMessageIds] = useState<string[]>([]);
   const [deletedForMe, setDeletedForMe] = useState<string[]>(() => {
@@ -247,67 +258,21 @@ export default function Chat() {
 
   const uploadMedia = async (file: File | Blob, type: string, caption?: string) => {
     try {
-      let ext = 'bin';
-      const fileNameProp = (file as File).name;
-      if (fileNameProp && fileNameProp.includes('.')) {
-        ext = fileNameProp.split('.').pop()?.toLowerCase() || 'bin';
-      } else if (file.type) {
-        if (file.type.includes('jpeg') || file.type.includes('jpg')) ext = 'jpg';
-        else if (file.type.includes('png')) ext = 'png';
-        else if (file.type.includes('webp')) ext = 'webp';
-        else if (file.type.includes('gif')) ext = 'gif';
-        else if (file.type.includes('mp4')) ext = 'mp4';
-        else if (file.type.includes('quicktime')) ext = 'mov';
-        else if (file.type.includes('webm')) {
-          ext = type === 'audio' ? 'webm' : type === 'image' ? 'jpg' : 'webm';
-        }
-      } else {
-        if (type === 'image') ext = 'jpg';
-        else if (type === 'video') ext = 'mp4';
-        else if (type === 'audio') ext = 'webm';
-      }
-      const fileName = `${generateUUID()}.${ext}`;
-      
-      const { data, error } = await supabase.storage.from('chat_media').upload(fileName, file);
-      if (error) {
-        if (error.message.includes('Bucket not found') || error.message.includes('The resource was not found')) {
-          alert('Storage bucket "chat_media" not found. Please create it in Supabase.');
-        } else {
-          console.error('[chat] Upload error:', error);
-          alert('Failed to upload media.');
-        }
-        return;
-      }
-      
-      const { data: publicData } = supabase.storage.from('chat_media').getPublicUrl(fileName);
-      const url = publicData.publicUrl;
-      
-      let dbType = type === 'image' ? 'image' : 'text';
-      let dbContent = url;
-      if (type === 'audio') dbContent = `AUDIO_URL:${url}`;
-      if (type === 'video') dbContent = `VIDEO_URL:${url}`;
-      if (type === 'file') {
-        const origName = (file as File).name || 'Document';
-        const origSize = (file as File).size || 0;
-        dbContent = `FILE_URL:${url}|${origName}|${origSize}`;
-      }
-      if (caption && caption.trim()) {
-        if (type === 'image' || type === 'video') {
-          dbContent = `${dbContent}|CAPTION:${caption.trim()}`;
-        }
-      }
-      
-      // The file is already in storage; the message row goes to Dexie first.
-      await sendLocalMessage({
-        id: generateUUID(),
-        conversation_id: CONVERSATION_ID,
-        sender_id: myId,
-        body: dbContent,
-        type: dbType,
+      // Persist the blob + optimistic bubble first; upload happens in the
+      // background and survives refresh/close/network loss.
+      await queueMediaMessage({
+        file,
+        type,
+        caption,
+        conversationId: CONVERSATION_ID,
+        senderId: myId,
       });
     } catch (err) {
-      console.error(err);
-      alert('An error occurred during upload.');
+      console.error("[chat] media queue failed:", err);
+      showToast(
+        err instanceof Error ? err.message : "Could not queue this file.",
+        "error",
+      );
     }
   };
 
@@ -596,9 +561,13 @@ export default function Chat() {
     sendRealtimeBroadcast("typing", { userId: myId, isTyping: false });
   }, [draft, myId, editingMessage, replyingTo]);
 
-  // Tap-to-retry on a failed message: requeue it and attempt the send again now.
+  // Tap-to-retry on a failed message: media goes back to the upload queue,
+  // text goes back to the outbox.
   const handleRetrySend = useCallback((messageId: string) => {
-    void retryOutboxMessage(messageId, CONVERSATION_ID, myId);
+    void (async () => {
+      if (await retryMediaUpload(messageId)) return;
+      await retryOutboxMessage(messageId, CONVERSATION_ID, myId);
+    })();
   }, [myId]);
 
   const handleNudge = () => {
@@ -1042,9 +1011,11 @@ export default function Chat() {
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -8 }}
       transition={{ type: "spring", stiffness: 300, damping: 30 }}
-      className="shell-h mx-auto flex w-full max-w-md flex-col font-sans relative overflow-hidden" 
-      style={{ 
-        background: wallpaper === "default" ? "var(--gradient)" : "#000"
+      className="shell-h mx-auto flex w-full max-w-md flex-col font-sans relative overflow-hidden"
+      style={{
+        // "default" wallpaper = no paint of its own: the root layout's fixed
+        // .gradient-backdrop fills the page behind (correct on wide devices).
+        background: wallpaper === "default" ? "transparent" : "#000"
       }}
     >
       {wallpaper !== 'default' && wallpaper !== 'black' && (
@@ -1109,6 +1080,45 @@ export default function Chat() {
         <div className="flex shrink-0 items-center justify-center gap-2 bg-[#5C4A10] px-4 py-2">
           <span className="h-2 w-2 animate-pulse rounded-full bg-[#F5C842]" />
           <span className="text-[13px] font-medium text-[#F5C842]">Waiting for network…</span>
+        </div>
+      )}
+
+      {uploads.length > 0 && (
+        <div className="pointer-events-none fixed inset-x-0 bottom-24 z-[110] flex flex-col items-center gap-2 px-4">
+          {uploads.slice(0, 2).map((upload) => {
+            const isFailed = upload.state === "failed";
+            return (
+              <button
+                key={upload.id}
+                type="button"
+                onClick={() => {
+                  if (isFailed) void retryMediaUpload(upload.id);
+                }}
+                className={`pointer-events-auto flex max-w-[min(420px,calc(100vw-32px))] items-center gap-2.5 rounded-full border px-4 py-2.5 text-left text-[12px] shadow-lg backdrop-blur-xl active:scale-[0.99] ${
+                  isFailed
+                    ? "border-[#E06A6A]/50 bg-[#3A1A1A]/90 text-white"
+                    : "border-white/10 bg-[#18181A]/90 text-white/85"
+                }`}
+                aria-label={isFailed ? "Retry media upload" : "Media upload in progress"}
+              >
+                <span
+                  className={`h-2 w-2 shrink-0 rounded-full ${
+                    isFailed ? "bg-[#E06A6A]" : "animate-pulse bg-[var(--gold)]"
+                  }`}
+                />
+                <span className="min-w-0 flex-1 truncate">
+                  {isFailed
+                    ? "Upload failed — tap to retry"
+                    : upload.state === "queued"
+                      ? `Queued: ${upload.name}`
+                      : `Uploading ${upload.name}`}
+                </span>
+                {!isFailed && upload.percent !== null && (
+                  <span className="shrink-0 tabular-nums text-white/55">{upload.percent}%</span>
+                )}
+              </button>
+            );
+          })}
         </div>
       )}
 

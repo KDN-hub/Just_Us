@@ -18,7 +18,6 @@ export default function ChatError({
   return (
     <main
       className="shell-h flex flex-col items-center justify-center p-6 text-center font-sans"
-      style={{ background: "var(--gradient)" }}
     >
       <div className="mb-6 rounded-full bg-red-900/30 p-4 ring-1 ring-red-500/50">
         <AlertTriangle className="h-10 w-10 text-red-500" strokeWidth={1.5} />

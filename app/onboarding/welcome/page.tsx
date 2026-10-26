@@ -11,9 +11,8 @@ export default function Welcome() {
     <MotionProvider>
     <main
       className="shell-h mx-auto flex w-full max-w-md flex-col px-6 py-10 text-center font-notch overflow-y-auto overscroll-contain"
-      style={{
-        background: "var(--gradient)",
-      }}
+      // Transparent: the root layout's fixed .gradient-backdrop paints the
+      // page-wide gradient behind this screen (correctly scaled on all devices).
     >
       {/* Main Content Area - Centers vertically in available space */}
       <div className="flex flex-1 flex-col items-center justify-center gap-12">

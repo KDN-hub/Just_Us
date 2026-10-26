@@ -59,6 +59,9 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
     };
   }, [router]);
 
-  if (!ready) return <div className="shell-h" style={{ background: "var(--gradient)" }} />;
+  // Transparent on purpose: the fixed .gradient-backdrop in the root layout
+  // paints the page-wide gradient this placeholder just fills while auth is
+  // still verifying (painting its own would double-scale it on wide devices).
+  if (!ready) return <div className="shell-h" />;
   return <>{children}</>;
 }
