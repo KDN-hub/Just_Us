@@ -49,6 +49,7 @@ export const viewport: Viewport = {
 };
 
 import GlobalOverlay from "@/components/GlobalOverlay";
+import DeployReload from "@/components/DeployReload";
 
 export default function RootLayout({
   children,
@@ -61,6 +62,8 @@ export default function RootLayout({
         {/* Single page-wide gradient under every screen — see .gradient-backdrop
             in globals.css. Screens render transparent so this is what shows. */}
         <div aria-hidden className="gradient-backdrop" />
+        {/* Auto-adopt freshly deployed service workers (see DeployReload). */}
+        <DeployReload />
         {children}
         <GlobalOverlay />
       </body>
