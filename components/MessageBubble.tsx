@@ -779,7 +779,7 @@ const MessageBubble = memo(function MessageBubble({
             {/* Reactions Bar & Context Menu */}
             <AnimatePresence>
             {showReactionMenu && !showFullPicker && (
-              <div className={`absolute ${menuPlacement === 'top' ? 'bottom-full mb-2' : 'top-full mt-2'} ${isMine ? 'right-0' : 'left-0'} z-50 flex flex-col gap-2 max-w-[calc(100vw-32px)]`}>
+              <div className={`absolute ${menuPlacement === 'top' ? 'bottom-full mb-2' : 'top-full mt-2'} ${isMine ? 'right-0' : 'left-0'} z-50 flex flex-col gap-2 max-w-full`}>
                 
                 {/* Reaction Picker Bar (unless deleted message) */}
                 {!isActuallyDeleted && (

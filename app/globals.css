@@ -43,6 +43,16 @@ body {
   height: 100dvh;
 }
 
+/* Reserve the vertical-scrollbar gutter permanently. With overflow-y:auto,
+   the scrollbar only exists while content overflows — on Windows/Chrome
+   classic scrollbars that's ~15px, so its appearance/disappearance reflowed
+   the whole message area sideways (the "swinging" chat). Reserving the
+   gutter keeps the vertical slider in one fixed track. Overlay-scrollbar
+   engines (mobile) reserve nothing, so this is a no-op there. */
+.scroller-stable-gutter {
+  scrollbar-gutter: stable;
+}
+
 .shell-minh {
   min-height: 100vh;
   min-height: 100dvh;

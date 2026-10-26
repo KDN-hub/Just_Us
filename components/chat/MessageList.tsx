@@ -178,8 +178,13 @@ const MessageRow = memo(function MessageRow({
 }: MessageRowProps) {
   const msgId = data.id;
   const dayLabel = isNewDay ? formatDateSeparator(time) : null;
+  // Horizontal padding lives on the row, NOT on the scroller: Virtuoso's
+  // internal viewport is position:absolute + width:100%, which resolves
+  // against the scroller's padding box — scroller padding therefore makes
+  // every row 12–16px wider than the visible area, creating a stray
+  // horizontal scroll range (and a left↔right snap on every auto-scroll).
   return (
-    <div>
+    <div className="px-3 sm:px-4">
       {dayLabel && (
         <div className="flex items-center justify-center my-4 select-none">
           <span className="bg-[#18181A]/80 backdrop-blur-md border border-white/10 text-white/70 text-[11px] font-semibold px-3 py-1 rounded-full uppercase tracking-wider shadow-sm">
@@ -512,7 +517,7 @@ const MessageList = memo(forwardRef<MessageListHandle, MessageListProps>(functio
     const ListFooter = function ListFooter() {
       const isTyping = useContext(TypingContext);
       return (
-        <>
+        <div className="px-3 sm:px-4">
           <AnimatePresence>
             {isTyping && (
               <m.div
@@ -526,7 +531,7 @@ const MessageList = memo(forwardRef<MessageListHandle, MessageListProps>(functio
             )}
           </AnimatePresence>
           <div ref={bottomRef} className="h-6" />
-        </>
+        </div>
       );
     };
     return { Header: ListHeader, Footer: ListFooter };
@@ -541,7 +546,7 @@ const MessageList = memo(forwardRef<MessageListHandle, MessageListProps>(functio
            warms up, otherwise the "just you two" card. */
         <div
           ref={scrollContainerRef}
-          className="relative z-10 flex flex-1 min-h-0 flex-col overflow-y-auto overflow-x-hidden px-3 sm:px-4 pt-3 pb-6"
+          className="scroller-stable-gutter relative z-10 flex flex-1 min-h-0 flex-col overflow-y-auto overflow-x-hidden px-3 sm:px-4 pt-3 pb-6"
         >
           {loading ? (
             <MessageListSkeleton />
@@ -582,7 +587,7 @@ const MessageList = memo(forwardRef<MessageListHandle, MessageListProps>(functio
           startReached={handleStartReached}
           scrollerRef={handleScrollerRef}
           components={vComponents}
-          className="relative z-10 flex-1 min-h-0 px-3 sm:px-4"
+          className="scroller-stable-gutter relative z-10 flex-1 min-h-0 overflow-x-hidden"
         />
       )}
     </TypingContext.Provider>
